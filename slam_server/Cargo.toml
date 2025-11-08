@@ -1,0 +1,21 @@
+[package]
+name = "slam_server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.7", features = ["macros"] }
+tokio = { version = "1", features = ["full"] }
+hyper = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# AI服务所需的额外依赖
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+rand = { version = "0.8", features = ["std_rng"] }
+tracing = "0.1"
+futures = "0.3"
+utoipa = { version = "4.0.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7", features = ["axum", "debug-embed"] }
+async-openai = "0.30.1"
