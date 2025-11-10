@@ -4,7 +4,7 @@
 
 use async_openai::{
     config::OpenAIConfig,
-    types::{ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs},
+    types::CreateChatCompletionRequestArgs,
     Client,
 };
 use std::env;

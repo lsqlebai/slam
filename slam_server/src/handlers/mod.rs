@@ -1,5 +1,5 @@
 use axum::{extract::State, response::Json};
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 use crate::service::ai_service::{AIService, TextGenerationRequest};
@@ -21,12 +21,6 @@ pub struct ApiResponse {
     timestamp: u64,
 }
 
-// 定义请求数据结构
-#[derive(Deserialize, ToSchema)]
-pub struct PostRequest {
-    name: String,
-    message: String,
-}
 
 /// Root 端点
 #[utoipa::path(

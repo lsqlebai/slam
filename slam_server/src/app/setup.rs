@@ -46,7 +46,6 @@ pub fn create_app(config: AppConfig) -> Router {
         components(
             schemas(
                 crate::handlers::ApiResponse,
-                crate::handlers::PostRequest,
                 crate::service::ai_service::TextGenerationRequest,
                 crate::service::ai_service::TokenUsage,
                 crate::service::ai_service::ErrorResponse,
