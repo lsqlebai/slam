@@ -7,6 +7,7 @@ use async_openai::{
     types::{ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs},
     Client,
 };
+use std::env;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -50,10 +51,36 @@ pub struct ServiceState {
 }
 
 impl AIServiceConfig {
+    /// 从环境变量获取API Key
+    /// 按优先级检查以下环境变量:
+    /// 1. ARK_API_KEY
+    /// 2. OPENAI_API_KEY
+    /// 3. AI_API_KEY
+    pub fn get_api_key_from_env() -> Option<String> {
+        // 尝试从多个环境变量中获取API Key
+        if let Ok(api_key) = env::var("ARK_API_KEY") {
+            if !api_key.trim().is_empty() {
+                return Some(api_key);
+            }
+        }
+        if let Ok(api_key) = env::var("OPENAI_API_KEY") {
+            if !api_key.trim().is_empty() {
+                return Some(api_key);
+            }
+        }
+        if let Ok(api_key) = env::var("AI_API_KEY") {
+            if !api_key.trim().is_empty() {
+                return Some(api_key);
+            }
+        }
+        // 如果所有环境变量都不存在或为空，则返回None
+        None
+    }
+    
     /// 返回豆包配置的AIServiceConfig实例
     pub fn doubao() -> AIServiceConfig {
         AIServiceConfig {
-            api_key: None,
+            api_key: Self::get_api_key_from_env(),
             default_model: "ERNIE-Bot-4".to_string(),
             api_endpoint: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/".to_string(),
             timeout_seconds: 30,
@@ -62,32 +89,36 @@ impl AIServiceConfig {
     }
     pub fn openai() -> Self {
         Self {
-            api_key: None,
+            api_key: Self::get_api_key_from_env(),
             default_model: "gpt-3.5-turbo".to_string(),
             api_endpoint: "https://api.openai.com/v1".to_string(),
             timeout_seconds: 30,
             max_retries: 3,
         }
     }
+
+    pub fn ark() -> Self {
+        Self {
+            api_key: Self::get_api_key_from_env(),
+            default_model: "doubao-seed-1-6-251015".to_string(),
+            api_endpoint: "https://ark.cn-beijing.volces.com/api/v3".to_string(),
+            timeout_seconds: 30,
+            max_retries: 3,
+        }
+    }
 }
-
-
-
-
-
-
-
-
-
-
 
 // AI服务实现
 impl AIService {
     /// 创建新的AI服务实例
     pub fn new(config: AIServiceConfig) -> Self {
-        let openai_config = OpenAIConfig::new()
-            .with_api_key(config.api_key.clone().unwrap_or_default())
-            .with_api_base(config.api_endpoint.clone());
+        let mut openai_config = OpenAIConfig::new()
+            .with_api_key(config.api_key.clone().unwrap_or_default());
+
+        if !config.api_endpoint.is_empty() {
+            openai_config = openai_config.with_api_base(config.api_endpoint.clone());
+        }
+
         let client = Client::with_config(openai_config);
 
         Self {
@@ -99,7 +130,7 @@ impl AIService {
 
     /// 创建默认配置的AI服务实例
     pub fn with_default_config() -> Self {
-        Self::new(AIServiceConfig::openai())
+        Self::new(AIServiceConfig::ark())
     }
 
     /// 生成唯一的请求ID
@@ -174,13 +205,14 @@ impl AIService {
         let mut request_builder = CreateChatCompletionRequestArgs::default();
         
         request_builder.model(request.model.unwrap_or_else(|| self.config.default_model.clone()));
-        request_builder.messages([
-            ChatCompletionRequestUserMessageArgs::default()
-                .content(request.prompt)
-                .build()
-                .map_err(|e| AIServiceError::InternalError(format!("Failed to build message: {}", e)))?
-                .into()
-        ]);
+
+        let messages_json = serde_json::to_value(&request.messages)
+            .map_err(|e| AIServiceError::InternalError(format!("Failed to serialize messages: {}", e)))?;
+        let openai_messages: Vec<async_openai::types::ChatCompletionRequestMessage> =
+            serde_json::from_value(messages_json)
+                .map_err(|e| AIServiceError::InternalError(format!("Failed to convert messages for OpenAI: {}", e)))?;
+
+        request_builder.messages(openai_messages);
 
         if let Some(max_tokens) = request.max_tokens {
             request_builder.max_tokens(max_tokens);
@@ -239,13 +271,19 @@ impl AIService {
     #[allow(unused)]
     pub async fn generate_text_simple(&self, prompt: &str) -> Result<AIResponse<TextGenerationResponse>, AIServiceError> {
         let request = TextGenerationRequest {
-            prompt: prompt.to_string(),
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: vec![ContentPart::Text(TextContent {
+                    r#type: "text".to_string(),
+                    text: prompt.to_string(),
+                })],
+            }],
             model: None,
             max_tokens: Some(500),
             temperature: Some(0.7),
             top_p: Some(1.0),
         };
-        
+
         self.generate_text(request).await
     }
     
@@ -426,9 +464,13 @@ impl AIService {
     
     /// 验证请求参数
     pub fn validate_text_request(&self, request: &TextGenerationRequest) -> Result<(), AIServiceError> {
-        // 验证prompt不为空
-        if request.prompt.trim().is_empty() {
-            return Err(AIServiceError::ValidationError("提示文本不能为空".to_string()));
+        // 验证消息不为空
+        if request.messages.is_empty() {
+            return Err(AIServiceError::ValidationError("消息列表不能为空".to_string()));
+        }
+
+        if request.messages.iter().all(|m| m.content.is_empty()) {
+            return Err(AIServiceError::ValidationError("消息内容不能为空".to_string()));
         }
         
         // 验证最大令牌数
@@ -528,10 +570,40 @@ pub struct AIResponse<T> {
     pub timestamp: u64,
 }
 
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct TextContent {
+    pub r#type: String,
+    pub text: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ImageUrl {
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ImageContent {
+    pub r#type: String,
+    pub image_url: ImageUrl,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum ContentPart {
+    Text(TextContent),
+    Image(ImageContent),
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct Message {
+    pub role: String,
+    pub content: Vec<ContentPart>,
+}
+
 // 文本生成请求
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct TextGenerationRequest {
-    pub prompt: String,
+    pub messages: Vec<Message>,
     pub model: Option<String>,
     pub max_tokens: Option<u32>,
     pub temperature: Option<f32>,

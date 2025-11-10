@@ -75,13 +75,7 @@ pub async fn generate_text_handler(
     State(ai_service): State<Arc<AIService>>,
     Json(payload): Json<TextGenerationRequest>,
 ) -> HandlerResponse<AIResponseText> {
-    match ai_service.generate_text(TextGenerationRequest {
-        prompt: payload.prompt.clone(),
-        model: payload.model.clone(),
-        max_tokens: payload.max_tokens,
-        temperature: None,
-        top_p: None,
-    }).await {
+    match ai_service.generate_text(payload).await {
         Ok(result) => HandlerResponse::Success(AIResponseText(result)),
         Err(e) => HandlerResponse::Error(e.to_string()),
     }

@@ -28,10 +28,6 @@ async fn print_response(endpoint_name: &str, response: Response<Body>) -> (Statu
     (status, body.to_vec())
 }
 
-// 已从crate::tests::mock_models导入所需结构体
-
-
-
 // 测试函数 - 获取状态接口
 #[tokio::test]
 async fn test_status_endpoint() {
@@ -67,7 +63,17 @@ async fn test_generate_text_endpoint() {
     
     // 创建请求体
     let request_body = serde_json::json!({
-        "prompt": "生成一个简短的介绍",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "生成一个简短的介绍"
+                    }
+                ]
+            }
+        ],
         "model": "gpt-3.5-turbo",
         "max_tokens": 100
     });
