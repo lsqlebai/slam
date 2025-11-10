@@ -72,7 +72,7 @@ pub fn create_app(config: AppConfig) -> Router {
 /// 创建生产环境的路由
 fn create_production_router(_config: AppConfig) -> Router {
     // 创建AI服务实例（使用默认配置）
-    let ai_service = Arc::new(AIService::with_default_config());
+    let ai_service = Arc::new(AIService::new());
 
     // 导入处理函数
     use crate::handlers::*;
@@ -83,7 +83,6 @@ fn create_production_router(_config: AppConfig) -> Router {
         .route("/", get(root))
         .route(routes::API_STATUS, get(get_status))
         .route(routes::API_AI_GENERATE_TEXT, post(generate_text_handler))
-
         .with_state(ai_service)
 
 }

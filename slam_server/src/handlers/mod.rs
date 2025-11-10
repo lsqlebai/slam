@@ -74,25 +74,3 @@ pub async fn generate_text_handler(
         Err(e) => HandlerResponse::Error(e.to_string()),
     }
 }
-
-/*
-// AI图像生成处理函数
-#[utoipa::path(
-    post,
-    path = routes::API_AI_GENERATE_IMAGE,
-    request_body = ImageGenerationRequest,
-    responses(
-        (status = 200, description = "Generate image", body = AIResponseImage),
-        (status = 500, description = "Internal server error", body = String)
-    )
-)]
-pub async fn generate_image_handler(
-    State(ai_service): State<Arc<AIService>>,
-    Json(payload): Json<ImageGenerationRequest>,
-) -> HandlerResponse<AIResponseImage> {
-    match ai_service.generate_image(&payload.prompt, payload.n, payload.size.as_deref(), None).await {
-        Ok(result) => HandlerResponse::Success(AIResponseImage(result)),
-        Err(e) => HandlerResponse::Error(e.to_string()),
-    }
-}
-*/

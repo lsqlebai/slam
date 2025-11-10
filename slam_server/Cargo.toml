@@ -18,4 +18,3 @@ tracing = "0.1"
 futures = "0.3"
 utoipa = { version = "4.0.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7", features = ["axum", "debug-embed"] }
-async-openai = "0.30.1"
