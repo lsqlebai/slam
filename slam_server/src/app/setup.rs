@@ -5,8 +5,9 @@ use std::net::SocketAddr;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-// 导入AI服务相关模块
+// 导入服务相关模块
 use crate::service::ai_service::AIService;
+
 
 /// 应用配置选项
 pub struct AppConfig;
@@ -41,6 +42,7 @@ pub fn create_app(config: AppConfig) -> Router {
         paths(
             crate::handlers::get_status,
             crate::handlers::generate_text_handler,
+            crate::handlers::compress_image_handler,
             crate::handlers::root
         ),
         components(
@@ -52,7 +54,7 @@ pub fn create_app(config: AppConfig) -> Router {
                 crate::service::ai_service::TextGenerationResponse,
                 crate::handlers::AIResponseText
             )
-        ),
+          ),
         tags(
             (name = "slam server", description = "Slam Server API")
         )
@@ -73,16 +75,14 @@ pub fn create_app(config: AppConfig) -> Router {
 fn create_production_router(_config: AppConfig) -> Router {
     // 创建AI服务实例（使用默认配置）
     let ai_service = Arc::new(AIService::new());
-
     // 导入处理函数
     use crate::handlers::*;
     use crate::app::routes;
 
-    // 创建路由
+    // 创建路由，为所有处理函数提供相同的状态
     Router::new()
         .route("/", get(root))
         .route(routes::API_STATUS, get(get_status))
-        .route(routes::API_AI_GENERATE_TEXT, post(generate_text_handler))
+        .route(routes::API_IMAGE_PARSE, post(generate_text_handler))
         .with_state(ai_service)
-
 }

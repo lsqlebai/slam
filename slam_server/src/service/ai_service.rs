@@ -7,13 +7,16 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::service::common;
+use crate::service::llm;
 use crate::service::llm::ChatCompletionRequest;
 use crate::service::llm::LLM;
-use crate::service::llm;
+
+use crate::service::image_service::ImageService;
 // AI服务核心结构
 pub struct AIService {
     /// 服务配置
-    pub llm: LLM,
+    llm: LLM,
+    image_service: ImageService,
 }
 
 struct ImageParser {}
@@ -27,21 +30,32 @@ impl ImageParser {
             })],
         }
     }
-    fn user_prompt() -> llm::Message {
+    fn user_prompt(base64_data: Vec<String>) -> llm::Message {
+        let mut contents = base64_data
+            .into_iter()
+            .map(|base64| {
+                llm::ContentPart::Image(llm::ImageContent {
+                    r#type: "image_url".to_string(),
+                    image_url: llm::ImageUrl { url: base64 },
+                })
+            })
+            .collect::<Vec<_>>();
+        contents.append(&mut vec![llm::ContentPart::Text(llm::TextContent {
+                r#type: "text".to_string(),
+                text: "请读取图中的数据".to_string(),
+            })]);
         llm::Message {
             role: "user".to_string(),
-            content: vec![
-                    llm::ContentPart::Image(llm::ImageContent {
-                        r#type: "image_url".to_string(),
-                        image_url: llm::ImageUrl {
-                            url: "https://ark-project.tos-cn-beijing.ivolces.com/images/view.jpeg".to_string(),
-                        },
-                    }),
-                    llm::ContentPart::Text(llm::TextContent {
-                        r#type: "text".to_string(),
-                        text: "请读取图中的数据".to_string(),
-                    })
-                ],
+            content: contents,
+        }
+    }
+    /// 创建ChatCompletionRequest
+    fn create_chat_completion_request(base64_data: Vec<String>) -> ChatCompletionRequest {
+        ChatCompletionRequest {
+            messages: vec![
+                ImageParser::system_prompt(),
+                ImageParser::user_prompt(base64_data),
+            ],
         }
     }
 }
@@ -49,27 +63,28 @@ impl ImageParser {
 impl AIService {
     /// 创建新的AI服务实例
     pub fn new() -> Self {
-        Self { llm: LLM::doubao() }
-    }
-    /// 创建ChatCompletionRequest
-    fn create_chat_completion_request(request: &TextGenerationRequest) -> ChatCompletionRequest {
-        ChatCompletionRequest {
-            messages: vec![ImageParser::system_prompt(), ImageParser::user_prompt()],
+        Self {
+            llm: LLM::doubao(),
+            image_service: ImageService::new(),
         }
     }
 
     /// 生成文本内容
     pub async fn generate_text(
         &self,
-        request: TextGenerationRequest,
+        image_data: Vec<u8>,
     ) -> Result<AIResponse<TextGenerationResponse>, common::ServiceError> {
         // 生成请求ID
         let request_id = common::get_current_timestamp();
 
-        // 验证请求参数
-        self.validate_text_request(&request)?;
-
-        let chat_request = Self::create_chat_completion_request(&request);
+        let image_process_result = self.image_service.process_image(image_data.into());
+        let base64_data = image_process_result
+            .map(|res| res.base64_data)
+            .map_err(|e| common::ServiceError {
+                code: 500,
+                message: e.to_string(),
+            })?;
+        let chat_request = ImageParser::create_chat_completion_request(base64_data);
         println!("chat_request: {:?}", chat_request);
         let response = self.llm.chat(chat_request).await.map_err(|e| {
             // A simple mapping for now. A more advanced implementation could inspect `e`

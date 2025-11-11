@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.7", features = ["macros"] }
+axum-extra = { version = "0.9", features = ["multipart"] }
 tokio = { version = "1", features = ["full"] }
 hyper = { version = "1", features = ["full"] }
 tower = "0.4"
@@ -12,9 +13,13 @@ tower-http = { version = "0.5", features = ["cors", "fs"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # AI服务所需的额外依赖
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12.5", features = ["json", "rustls-tls", "multipart"] }
+futures-util = "0.3.30"
 rand = { version = "0.8", features = ["std_rng"] }
 tracing = "0.1"
 futures = "0.3"
 utoipa = { version = "4.0.0", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7", features = ["axum", "debug-embed"] }
+# 图片处理依赖
+image = "0.24"
+base64 = "0.21"
