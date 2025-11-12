@@ -51,7 +51,7 @@ pub fn create_app(config: AppConfig) -> Router {
                 crate::service::ai_service::TextGenerationRequest,
                 crate::service::ai_service::TokenUsage,
                 crate::service::ai_service::ErrorResponse,
-                crate::service::ai_service::TextGenerationResponse,
+                crate::model::sport::Sport,
                 crate::handlers::AIResponseText
             )
           ),

@@ -4,3 +4,5 @@ pub mod app;
 pub mod handlers;
 // 导出service模块
 pub mod service;
+// 导出model模块
+pub mod model;

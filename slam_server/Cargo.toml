@@ -23,3 +23,5 @@ utoipa-swagger-ui = { version = "7", features = ["axum", "debug-embed"] }
 # 图片处理依赖
 image = "0.24"
 base64 = "0.21"
+# XML 解析依赖
+quick-xml = { version = "0.31", features = ["serialize"] }

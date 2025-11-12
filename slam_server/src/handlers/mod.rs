@@ -8,11 +8,10 @@ use crate::service::ai_service::AIService;
 use crate::service::image_service::ImageService;
 use self::response::HandlerResponse;
 use crate::app::routes;
-
 pub mod response;
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
-pub struct AIResponseText(crate::service::ai_service::AIResponse<crate::service::ai_service::TextGenerationResponse>);
+pub struct AIResponseText(crate::service::ai_service::AIResponse<crate::model::sport::Sport>);
 
 
 

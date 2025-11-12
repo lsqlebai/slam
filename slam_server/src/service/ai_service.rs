@@ -6,12 +6,15 @@ use serde::{Deserialize, Serialize};
 // AI服务配置结构
 use utoipa::ToSchema;
 
+use crate::model;
 use crate::service::common;
 use crate::service::llm;
 use crate::service::llm::ChatCompletionRequest;
 use crate::service::llm::LLM;
 
+use crate::model::sport::{Sport};
 use crate::service::image_service::ImageService;
+
 // AI服务核心结构
 pub struct AIService {
     /// 服务配置
@@ -21,12 +24,13 @@ pub struct AIService {
 
 struct ImageParser {}
 impl ImageParser {
+
     fn system_prompt() -> llm::Message {
         llm::Message {
             role: "system".to_string(),
             content: vec![llm::ContentPart::Text(llm::TextContent {
                 r#type: "text".to_string(),
-                text: "你是一个专业的图片文字识别员,你的任务是根据图片中的文字,生成结构化的JSON格式数据。".to_string(),
+                text: format!("你是一个专业的图片文字识别员,你的任务是根据图片中的文字,生成以下的XML格式数据: {}", model::sport::SAMPLE_XML).to_string(),
             })],
         }
     }
@@ -41,9 +45,9 @@ impl ImageParser {
             })
             .collect::<Vec<_>>();
         contents.append(&mut vec![llm::ContentPart::Text(llm::TextContent {
-                r#type: "text".to_string(),
-                text: "请读取图中的数据".to_string(),
-            })]);
+            r#type: "text".to_string(),
+            text: "请读取图中的数据".to_string(),
+        })]);
         llm::Message {
             role: "user".to_string(),
             content: contents,
@@ -58,7 +62,9 @@ impl ImageParser {
             ],
         }
     }
+
 }
+
 // AI服务实现
 impl AIService {
     /// 创建新的AI服务实例
@@ -73,7 +79,7 @@ impl AIService {
     pub async fn generate_text(
         &self,
         image_data: Vec<u8>,
-    ) -> Result<AIResponse<TextGenerationResponse>, common::ServiceError> {
+    ) -> Result<AIResponse<Sport>, common::ServiceError> {
         // 生成请求ID
         let request_id = common::get_current_timestamp();
 
@@ -95,15 +101,16 @@ impl AIService {
             }
         })?;
 
-        // 构建响应
-        let text_response = TextGenerationResponse {
-            generated_text: response,
-        };
-
+        let sport = Sport::parse_from_xml(&response)
+            .map_err(|e| common::ServiceError {
+                code: 500,
+                message: e.to_string(),
+            })?;
+            
         // 返回成功响应
         Ok(AIResponse {
             success: true,
-            data: Some(text_response),
+            data: Some(sport),
             error: None,
             request_id: request_id.to_string(),
         })
@@ -147,12 +154,6 @@ pub struct AIResponse<T> {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct TextGenerationRequest {
     pub messages: String,
-}
-
-// 文本生成响应
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct TextGenerationResponse {
-    pub generated_text: String,
 }
 
 // 令牌使用统计
