@@ -4,10 +4,9 @@ use axum_extra::extract::Multipart;
 use serde::Serialize;
 use std::sync::Arc;
 use utoipa::ToSchema;
-use crate::service::ai_service::AIService;
 use crate::service::image_service::ImageService;
 use self::response::HandlerResponse;
-use crate::app::routes;
+use crate::app::{AppState, routes};
 pub mod response;
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
@@ -69,26 +68,28 @@ pub async fn get_status() -> Json<ApiResponse> {
 )]
 
 pub async fn generate_text_handler(
-    State(ai_service): State<Arc<AIService>>,
+    State(app): State<Arc<AppState>>,
     mut multipart: Multipart,
 ) -> HandlerResponse<AIResponseText> {
+    let mut all_base64: Vec<String> = Vec::new();
     while let Ok(Some(field)) = multipart.next_field().await {
         if field.name() == Some("image") {
             if let Ok(data) = field.bytes().await {
-                // 调用服务处理图片
-                return match ai_service.generate_text(data.into()).await {
-                    Ok(result) => {
-                        // 打印base64数据长度
-                        //println!("Base64 data length: {}", result.base64_data.len());
-                        HandlerResponse::Success(AIResponseText(result))
-                    },
-                    Err(e) => HandlerResponse::Error(e.message),
-                };
+                if let Ok(resp) = app.image_service.process_image(data.into()) {
+                    all_base64.extend(resp.base64_data);
+                }
             }
         }
     }
 
-    HandlerResponse::Error("在multipart请求中未找到 'image' 字段".to_string())
+    if all_base64.is_empty() {
+        return HandlerResponse::Error("在multipart请求中未找到 'image' 字段".to_string());
+    }
+
+    match app.ai_service.ai_image_process(all_base64).await {
+        Ok(result) => HandlerResponse::Success(AIResponseText(result)),
+        Err(e) => HandlerResponse::Error(e.message),
+    }
 }
 
 

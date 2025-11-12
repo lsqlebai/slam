@@ -1,13 +1,15 @@
-use axum::{Router, routing::{get, post}};
-use tower_http::cors::{Any, CorsLayer};
-use std::sync::Arc;
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 // 导入服务相关模块
-use crate::service::ai_service::AIService;
-
+use crate::service::{ai_service::AIService, image_service::ImageService};
 
 /// 应用配置选项
 pub struct AppConfig;
@@ -29,11 +31,8 @@ pub async fn run() {
     // 启动服务器
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     println!("服务器正在监听 http://{}", listener.local_addr().unwrap());
-    axum::serve(listener, app)
-        .await
-        .unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
-
 
 /// 创建应用实例的通用函数
 pub fn create_app(config: AppConfig) -> Router {
@@ -68,21 +67,31 @@ pub fn create_app(config: AppConfig) -> Router {
         .allow_headers(Any);
     // 创建Swagger UI并组合路由和CORS
     let swagger_ui = SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi());
-    create_production_router(config).merge(swagger_ui).layer(cors)
+    create_production_router(config)
+        .merge(swagger_ui)
+        .layer(cors)
 }
 
+pub struct AppState {
+        pub ai_service: AIService,
+        pub image_service: ImageService,
+}
 /// 创建生产环境的路由
 fn create_production_router(_config: AppConfig) -> Router {
     // 创建AI服务实例（使用默认配置）
-    let ai_service = Arc::new(AIService::new());
+
+    let app = Arc::new(AppState {
+        ai_service: AIService::new(),
+        image_service: ImageService::new(),
+    });
     // 导入处理函数
-    use crate::handlers::*;
     use crate::app::routes;
+    use crate::handlers::*;
 
     // 创建路由，为所有处理函数提供相同的状态
     Router::new()
         .route("/", get(root))
         .route(routes::API_STATUS, get(get_status))
         .route(routes::API_IMAGE_PARSE, post(generate_text_handler))
-        .with_state(ai_service)
+        .with_state(app)
 }

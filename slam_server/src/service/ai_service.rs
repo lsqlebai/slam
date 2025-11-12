@@ -13,13 +13,11 @@ use crate::service::llm::ChatCompletionRequest;
 use crate::service::llm::LLM;
 
 use crate::model::sport::{Sport};
-use crate::service::image_service::ImageService;
 
 // AI服务核心结构
 pub struct AIService {
     /// 服务配置
     llm: LLM,
-    image_service: ImageService,
 }
 
 struct ImageParser {}
@@ -30,7 +28,7 @@ impl ImageParser {
             role: "system".to_string(),
             content: vec![llm::ContentPart::Text(llm::TextContent {
                 r#type: "text".to_string(),
-                text: format!("你是一个专业的图片文字识别员,你的任务是根据图片中的文字,生成以下的XML格式数据: {}", model::sport::SAMPLE_XML).to_string(),
+                text: format!("你是一个专业的图片文字识别员,你的任务是根据图片中的文字,生成以下的XML格式数据: {},其中tracks字段是分段数据的数组,请尽量按分段顺序放入数据。注意，如果发现图片中缺少某些字段数据,请在xml中忽略掉", model::sport::SAMPLE_XML).to_string(),
             })],
         }
     }
@@ -71,25 +69,16 @@ impl AIService {
     pub fn new() -> Self {
         Self {
             llm: LLM::doubao(),
-            image_service: ImageService::new(),
         }
     }
 
     /// 生成文本内容
-    pub async fn generate_text(
+    pub async fn ai_image_process(
         &self,
-        image_data: Vec<u8>,
+        base64_data: Vec<String>,
     ) -> Result<AIResponse<Sport>, common::ServiceError> {
         // 生成请求ID
         let request_id = common::get_current_timestamp();
-
-        let image_process_result = self.image_service.process_image(image_data.into());
-        let base64_data = image_process_result
-            .map(|res| res.base64_data)
-            .map_err(|e| common::ServiceError {
-                code: 500,
-                message: e.to_string(),
-            })?;
         let chat_request = ImageParser::create_chat_completion_request(base64_data);
         println!("chat_request: {:?}", chat_request);
         let response = self.llm.chat(chat_request).await.map_err(|e| {

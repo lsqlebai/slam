@@ -191,15 +191,24 @@ async fn test_image_endpoint() {
     let mut app = app::create_app(AppConfig::default());
 
     // Read image data from local test.jpg file
-    let image_data = std::fs::read("tests/test.jpg").expect("Failed to read test.jpg file");
-
-    let form = multipart::Form::new().part(
-        "image",
-        multipart::Part::bytes(image_data)
-            .file_name("test.jpg")
-            .mime_str("image/jpeg")
-            .unwrap(),
-    );
+    let image_data = std::fs::read("tests/test_img/test1.jpg").expect("Failed to read test.jpg file");
+// Read image data from local test.jpg file
+    let image_data2 = std::fs::read("tests/test_img/test2.jpg").expect("Failed to read test2.jpg file");
+    let form = multipart::Form::new()
+        .part(
+            "image",
+            multipart::Part::bytes(image_data)
+                .file_name("sport.jpg")
+                .mime_str("image/jpeg")
+                .unwrap(),
+        )
+        .part(
+            "image",
+            multipart::Part::bytes(image_data2)
+                .file_name("track.jpg")
+                .mime_str("image/jpeg")
+                .unwrap(),
+        );
 
     let boundary = form.boundary().to_string(); // <-- 公有 API
     let stream = form.into_stream();
@@ -208,7 +217,10 @@ async fn test_image_endpoint() {
     let request = Request::builder()
         .uri(routes::API_IMAGE_PARSE)
         .method("POST")
-        .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+        .header(
+            "Content-Type",
+            format!("multipart/form-data; boundary={}", boundary),
+        )
         .body(body)
         .unwrap();
 
