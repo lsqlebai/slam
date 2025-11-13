@@ -6,3 +6,7 @@ pub mod handlers;
 pub mod service;
 // 导出model模块
 pub mod model;
+// 导出dao模块
+pub mod dao;
+// 导出config模块
+pub mod config;

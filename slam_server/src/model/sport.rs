@@ -2,7 +2,7 @@ use quick_xml::de as xml_de;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default, rename = "sport")]
 pub struct Sport {
     pub id: i32,
@@ -20,7 +20,7 @@ pub struct Sport {
 
 // 移除错误的 SportExtra 结构
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default)]
 pub struct Track {
     pub distance_meter: i32,
@@ -29,7 +29,7 @@ pub struct Track {
     pub extra: Swimming,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default)]
 pub struct Swimming {
     pub main_stroke: String,
@@ -37,7 +37,7 @@ pub struct Swimming {
     pub swolf_avg: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 pub struct Running {
     pub test: i32,
 }

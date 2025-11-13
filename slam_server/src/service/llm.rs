@@ -150,8 +150,6 @@ impl LLM {
             "messages": request.messages,
             "reasoning_effort": "medium"
         });
-        let pretty_str = serde_json::to_string_pretty(&body).unwrap();
-        println!("\n美观格式:\n{}", pretty_str);
 
         let resp = self
             .client
@@ -172,10 +170,6 @@ impl LLM {
 
         // 6) Pretty-print the full JSON response
         let v: Value = serde_json::from_str(&text).unwrap();
-        println!(
-            "\n=== Full JSON response ===\n{}\n",
-            serde_json::to_string_pretty(&v).unwrap()
-        );
 
         // 7) Try to extract the assistant's message text (best-effort across common shapes)
         if let Some(extracted) = Self::extract_text_from_response(&v) {

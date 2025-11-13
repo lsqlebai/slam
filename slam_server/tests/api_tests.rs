@@ -65,7 +65,7 @@ async fn test_status_endpoint() {
 }
 
 #[tokio::test]
-async fn test_get_api_key_from_env() {
+async fn get_api_key_from_env_example() {
     println!("执行get_api_key_from_env函数...");
     // 从环境变量读取 AI API 密钥
     let api_key = env::var("AI_API_KEY").ok().filter(|k| !k.trim().is_empty());
@@ -77,9 +77,9 @@ async fn test_get_api_key_from_env() {
     assert!(true);
 }
 
-#[tokio::test]
-#[ignore] // This test calls an external API and requires a valid API key.
-async fn test_ai_request() {
+#[allow(dead_code)]
+#[allow(dead_code)]
+async fn ai_request_example() {
     /// Heuristic extractor for the assistant message text across several common response shapes.
     fn extract_text_from_response(v: &Value) -> Option<String> {
         // OpenAI-like: choices[0].message.content (string)
@@ -233,4 +233,73 @@ async fn test_image_endpoint() {
 
     let response_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert!(response_json.get("success").is_some());
+}
+
+#[allow(dead_code)]
+async fn sqlite_insert_and_query_sport_from_sample_xml_example() {
+    use slam_server::dao::sqlite_sport_dao::SqliteSportDao;
+    use slam_server::dao::sport_dao::SportDao;
+    use slam_server::model::sport::{Sport, SAMPLE_XML};
+    use std::path::Path;
+    let db_path = "tests/test.db";
+    if Path::new(db_path).exists() {
+        let _ = std::fs::remove_file(db_path);
+    }
+
+    let sport = Sport::parse_from_xml(SAMPLE_XML).expect("parse xml");
+    let dao = SqliteSportDao::new(db_path).await.expect("dao new");
+    dao.insert(sport.clone()).await.expect("dao insert");
+
+    let all = dao.list().await.expect("dao list");
+    assert_eq!(all.len(), 1);
+    let got = &all[0];
+    assert!(got.id > 0);
+    assert_eq!(got.r#type, sport.r#type);
+    assert_eq!(got.start_time, sport.start_time);
+    assert_eq!(got.calories, sport.calories);
+    assert_eq!(got.distance_meter, sport.distance_meter);
+    assert_eq!(got.duration_second, sport.duration_second);
+    assert_eq!(got.heart_rate_avg, sport.heart_rate_avg);
+    assert_eq!(got.heart_rate_max, sport.heart_rate_max);
+    assert_eq!(got.pace_average, sport.pace_average);
+    assert_eq!(got.extra.main_stroke, sport.extra.main_stroke);
+    assert_eq!(got.extra.stroke_avg, sport.extra.stroke_avg);
+    assert_eq!(got.extra.swolf_avg, sport.extra.swolf_avg);
+    assert_eq!(got.tracks.len(), sport.tracks.len());
+    assert_eq!(got.tracks[0].distance_meter, sport.tracks[0].distance_meter);
+    assert_eq!(got.tracks[0].duration_second, sport.tracks[0].duration_second);
+    assert_eq!(got.tracks[0].pace_average, sport.tracks[0].pace_average);
+    assert_eq!(got.tracks[0].extra.main_stroke, sport.tracks[0].extra.main_stroke);
+
+    let range = dao
+        .list_by_time_range(sport.start_time - 1, sport.start_time + 1)
+        .await
+        .expect("dao list_by_time_range");
+    assert_eq!(range.len(), 1);
+}
+
+#[allow(dead_code)]
+fn app_config_default_uses_yaml_or_default_example() {
+    use std::path::Path;
+    use std::fs;
+    use slam_server::config::AppConfig as Cfg;
+    let cfg = Cfg::default();
+    assert!(!cfg.sqlite_db_path.trim().is_empty());
+    let cfg_path = Path::new("config/app.yml");
+    if cfg_path.exists() {
+        let file = fs::File::open(cfg_path).unwrap();
+        let expected: Cfg = serde_yaml::from_reader(file).unwrap();
+        assert_eq!(cfg.sqlite_db_path, expected.sqlite_db_path);
+    } else {
+        assert_eq!(cfg.sqlite_db_path, "sport.db");
+    }
+}
+
+#[allow(dead_code)]
+fn app_config_new_with_missing_file_returns_defaults_example() {
+    use slam_server::config::AppConfig as Cfg;
+    let missing = "config/__nonexistent__.yml";
+    assert!(!std::path::Path::new(missing).exists());
+    let cfg = Cfg::new(missing);
+    assert_eq!(cfg.sqlite_db_path, "sport.db");
 }

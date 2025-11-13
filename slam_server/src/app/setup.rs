@@ -10,15 +10,9 @@ use utoipa_swagger_ui::SwaggerUi;
 
 // 导入服务相关模块
 use crate::service::{ai_service::AIService, image_service::ImageService};
+use crate::config::AppConfig;
 
-/// 应用配置选项
-pub struct AppConfig;
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self
-    }
-}
+// AppConfig 已迁移至 crate::config 模块
 
 pub async fn run() {
     let config = AppConfig::default();
@@ -73,8 +67,8 @@ pub fn create_app(config: AppConfig) -> Router {
 }
 
 pub struct AppState {
-        pub ai_service: AIService,
-        pub image_service: ImageService,
+    pub ai_service: AIService,
+    pub image_service: ImageService,
 }
 /// 创建生产环境的路由
 fn create_production_router(_config: AppConfig) -> Router {
