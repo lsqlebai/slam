@@ -7,6 +7,10 @@ pub struct ServiceError {
     pub code: u32,
     pub message: String,
 }
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct Context {
+    pub uid: String,
+}
 
 // 实现Error trait
 impl std::fmt::Display for ServiceError {

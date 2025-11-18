@@ -11,9 +11,8 @@ use crate::service::common;
 use crate::service::llm;
 use crate::service::llm::ChatCompletionRequest;
 use crate::service::llm::LLM;
-
+use crate::handlers::jwt::Context;
 use crate::model::sport::{Sport};
-
 // AI服务核心结构
 pub struct AIService {
     /// 服务配置
@@ -73,15 +72,17 @@ impl AIService {
     }
 
     /// 生成文本内容
-    pub async fn ai_image_process(
+    pub async fn sports_image_recognition(
         &self,
         base64_data: Vec<String>,
+        context: Context,
     ) -> Result<AIResponse<Sport>, common::ServiceError> {
         // 生成请求ID
         let request_id = common::get_current_timestamp();
+        let _uid = context.uid;
         let chat_request = ImageParser::create_chat_completion_request(base64_data);
         println!("chat_request: {:?}", chat_request);
-        let response = self.llm.chat(chat_request).await.map_err(|e| {
+        let content = self.llm.chat(chat_request).await.map_err(|e| {
             // A simple mapping for now. A more advanced implementation could inspect `e`
             // to differentiate between network errors, auth errors, etc.
             common::ServiceError {
@@ -89,8 +90,10 @@ impl AIService {
                 message: e.to_string(),
             }
         })?;
+        println!("content: {:?}", content);
 
-        let sport = Sport::parse_from_xml(&response)
+
+        let sport = Sport::parse_from_xml(&content)
             .map_err(|e| common::ServiceError {
                 code: 500,
                 message: e.to_string(),
@@ -105,21 +108,6 @@ impl AIService {
         })
     }
 
-    /// 验证请求参数
-    pub fn validate_text_request(
-        &self,
-        request: &TextGenerationRequest,
-    ) -> Result<(), common::ServiceError> {
-        // 验证消息不为空
-        if request.messages.is_empty() {
-            return Err(common::ServiceError {
-                code: 400,
-                message: "消息不能为空".to_string(),
-            });
-        }
-
-        Ok(())
-    }
 }
 
 // 错误响应结构

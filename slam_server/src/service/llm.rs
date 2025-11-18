@@ -62,9 +62,38 @@ pub enum ContentPart {
     Image(ImageContent),
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct ImageUrl {
     pub url: String,
+}
+
+impl std::fmt::Debug for ImageUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self.url.as_str();
+        let is_data = s.starts_with("data:") && s.contains(";base64,");
+        let is_http = s.starts_with("http://") || s.starts_with("https://");
+        if is_http {
+            f.debug_struct("ImageUrl")
+                .field("type", &"url")
+                .field("url", &self.url)
+                .finish()
+        } else if is_data || probable_base64(s) {
+            f.debug_struct("ImageUrl")
+                .field("type", &"base64")
+                .field("len", &self.url.len())
+                .finish()
+        } else {
+            f.debug_struct("ImageUrl")
+                .field("type", &"url")
+                .field("url", &self.url)
+                .finish()
+        }
+    }
+}
+
+fn probable_base64(s: &str) -> bool {
+    if s.len() < 64 { return false; }
+    s.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '-' || c == '_')
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

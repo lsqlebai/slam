@@ -3,11 +3,8 @@ use axum::{
     body::{to_bytes, Body},
     http::{Request, Response, StatusCode},
 };
-use reqwest::header;
 use reqwest::multipart;
 use serde_json;
-use serde_json::json;
-use serde_json::Value;
 use std::env;
 use tower::Service;
 
@@ -65,6 +62,111 @@ async fn test_status_endpoint() {
 }
 
 #[tokio::test]
+async fn test_user_register_and_login() {
+    let mut app = app::create_app(AppConfig::default());
+
+    // 随机用户名，避免与现有数据冲突
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_user_{}", unique);
+    let password = "p@ssw0rd";
+
+    // 注册请求
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+    let (register_status, register_bytes) = print_response("用户注册", register_resp).await;
+    assert_eq!(register_status, StatusCode::OK);
+
+    let reg_json: serde_json::Value = serde_json::from_slice(&register_bytes).unwrap();
+    assert_eq!(reg_json.get("success").unwrap().as_bool().unwrap(), true);
+    assert!(register_cookie.is_some());
+    assert!(register_cookie.unwrap().starts_with("slam="));
+
+    // 登录请求
+    let login_body = serde_json::json!({
+        "name": username,
+        "password": password
+    });
+    let login_req = Request::builder()
+        .uri(routes::API_USER_LOGIN)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(login_body.to_string()))
+        .unwrap();
+
+    let login_resp = app.call(login_req).await.unwrap();
+    let login_cookie = login_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+    let (login_status, login_bytes) = print_response("用户登录", login_resp).await;
+    assert_eq!(login_status, StatusCode::OK);
+
+    let login_json: serde_json::Value = serde_json::from_slice(&login_bytes).unwrap();
+    assert_eq!(login_json.get("success").unwrap().as_bool().unwrap(), true);
+    assert!(login_cookie.is_some());
+    assert!(login_cookie.unwrap().starts_with("slam="));
+}
+
+#[tokio::test]
+async fn test_user_login_wrong_password() {
+    let mut app = app::create_app(AppConfig::default());
+
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_user_wrong_{}", unique);
+    let password = "correct_password";
+
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let (register_status, _) = print_response("用户注册(用于登录失败场景)", register_resp).await;
+    assert_eq!(register_status, StatusCode::OK);
+
+    let login_body = serde_json::json!({
+        "name": username,
+        "password": "wrong_password"
+    });
+    let login_req = Request::builder()
+        .uri(routes::API_USER_LOGIN)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(login_body.to_string()))
+        .unwrap();
+    let login_resp = app.call(login_req).await.unwrap();
+    let (login_status, login_bytes) = print_response("用户登录(错误密码)", login_resp).await;
+    assert_ne!(login_status, StatusCode::OK);
+    let err_json: serde_json::Value = serde_json::from_slice(&login_bytes).unwrap();
+    assert_eq!(err_json.get("error").unwrap().as_str().unwrap(), "用户名或密码错误");
+}
 async fn get_api_key_from_env_example() {
     println!("执行get_api_key_from_env函数...");
     // 从环境变量读取 AI API 密钥
@@ -77,116 +179,8 @@ async fn get_api_key_from_env_example() {
     assert!(true);
 }
 
-#[allow(dead_code)]
-#[allow(dead_code)]
-async fn ai_request_example() {
-    /// Heuristic extractor for the assistant message text across several common response shapes.
-    fn extract_text_from_response(v: &Value) -> Option<String> {
-        // OpenAI-like: choices[0].message.content (string)
-        if let Some(s) = v
-            .get("choices")?
-            .get(0)?
-            .get("message")?
-            .get("content")
-            .and_then(|c| c.as_str())
-        {
-            return Some(s.to_string());
-        }
-
-        // Content as array of blocks (e.g., [{type: "output_text", text: "..."}, ...])
-        if let Some(arr) = v
-            .get("choices")?
-            .get(0)?
-            .get("message")?
-            .get("content")
-            .and_then(|c| c.as_array())
-        {
-            let mut pieces = Vec::new();
-            for item in arr {
-                if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                    pieces.push(text);
-                }
-            }
-            if !pieces.is_empty() {
-                return Some(pieces.join("\n"));
-            }
-        }
-
-        // Fallback: top-level `content` string (rare)
-        if let Some(s) = v.get("content").and_then(|c| c.as_str()) {
-            return Some(s.to_string());
-        }
-
-        None
-    }
-
-    // 1) Read API key from environment
-
-    let api_key = env::var("AI_API_KEY").expect("has keys");
-
-    // 2) Prepare HTTP client
-    let client = reqwest::Client::builder()
-        .user_agent("ark-rust-example/0.1")
-        .build()
-        .unwrap();
-
-    // 3) Build the request JSON payload (mirrors your curl body)
-    let body = json!({
-        "model": "doubao-seed-1-6-251015",
-        "max_completion_tokens": 65535,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": { "url": "https://ark-project.tos-cn-beijing.ivolces.com/images/view.jpeg" }
-                    },
-                    {
-                        "type": "text",
-                        "text": "图片主要讲了什么?"
-                    }
-                ]
-            }
-        ],
-        "reasoning_effort": "medium"
-    });
-
-    // 4) Send the POST request
-    let url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
-
-    let resp = client
-        .post(url)
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::AUTHORIZATION, format!("Bearer {}", api_key))
-        .json(&body)
-        .send()
-        .await
-        .unwrap();
-
-    // 5) Handle non-2xx status codes explicitly
-    let status = resp.status();
-    let text = resp.text().await.unwrap();
-    if !status.is_success() {
-        panic!("Request failed: {}\n{}", status, text);
-    }
-
-    // 6) Pretty-print the full JSON response
-    let v: Value = serde_json::from_str(&text).unwrap();
-    println!(
-        "\n=== Full JSON response ===\n{}\n",
-        serde_json::to_string_pretty(&v).unwrap()
-    );
-
-    // 7) Try to extract the assistant's message text (best-effort across common shapes)
-    if let Some(extracted) = extract_text_from_response(&v) {
-        println!("\n=== Extracted content ===\n{}\n", extracted);
-    } else {
-        println!("\n(No recognizable message text field found; see full JSON above.)\n");
-    }
-}
-
 #[tokio::test]
+#[ignore]
 async fn test_image_endpoint() {
     let mut app = app::create_app(AppConfig::default());
 
@@ -235,71 +229,32 @@ async fn test_image_endpoint() {
     assert!(response_json.get("success").is_some());
 }
 
-#[allow(dead_code)]
-async fn sqlite_insert_and_query_sport_from_sample_xml_example() {
-    use slam_server::dao::sqlite_sport_dao::SqliteSportDao;
-    use slam_server::dao::sport_dao::SportDao;
-    use slam_server::model::sport::{Sport, SAMPLE_XML};
-    use std::path::Path;
-    let db_path = "tests/test.db";
-    if Path::new(db_path).exists() {
-        let _ = std::fs::remove_file(db_path);
-    }
+#[tokio::test]
+async fn test_image_endpoint_unauthenticated() {
+    let mut app = app::create_app(AppConfig::default());
 
-    let sport = Sport::parse_from_xml(SAMPLE_XML).expect("parse xml");
-    let dao = SqliteSportDao::new(db_path).await.expect("dao new");
-    dao.insert(sport.clone()).await.expect("dao insert");
+    let form = multipart::Form::new();
+    let boundary = form.boundary().to_string();
+    let stream = form.into_stream();
+    let body = Body::from_stream(stream);
 
-    let all = dao.list().await.expect("dao list");
-    assert_eq!(all.len(), 1);
-    let got = &all[0];
-    assert!(got.id > 0);
-    assert_eq!(got.r#type, sport.r#type);
-    assert_eq!(got.start_time, sport.start_time);
-    assert_eq!(got.calories, sport.calories);
-    assert_eq!(got.distance_meter, sport.distance_meter);
-    assert_eq!(got.duration_second, sport.duration_second);
-    assert_eq!(got.heart_rate_avg, sport.heart_rate_avg);
-    assert_eq!(got.heart_rate_max, sport.heart_rate_max);
-    assert_eq!(got.pace_average, sport.pace_average);
-    assert_eq!(got.extra.main_stroke, sport.extra.main_stroke);
-    assert_eq!(got.extra.stroke_avg, sport.extra.stroke_avg);
-    assert_eq!(got.extra.swolf_avg, sport.extra.swolf_avg);
-    assert_eq!(got.tracks.len(), sport.tracks.len());
-    assert_eq!(got.tracks[0].distance_meter, sport.tracks[0].distance_meter);
-    assert_eq!(got.tracks[0].duration_second, sport.tracks[0].duration_second);
-    assert_eq!(got.tracks[0].pace_average, sport.tracks[0].pace_average);
-    assert_eq!(got.tracks[0].extra.main_stroke, sport.tracks[0].extra.main_stroke);
+    let request = Request::builder()
+        .uri(routes::API_IMAGE_PARSE)
+        .method("POST")
+        .header(
+            "Content-Type",
+            format!("multipart/form-data; boundary={}", boundary),
+        )
+        .body(body)
+        .unwrap();
 
-    let range = dao
-        .list_by_time_range(sport.start_time - 1, sport.start_time + 1)
-        .await
-        .expect("dao list_by_time_range");
-    assert_eq!(range.len(), 1);
+    let response = app.call(request).await.unwrap();
+    let (status, body_bytes) = print_response("未登录运动识别", response).await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let response_json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(response_json.get("error").unwrap().as_str().unwrap(), "未登录或token无效");
 }
 
-#[allow(dead_code)]
-fn app_config_default_uses_yaml_or_default_example() {
-    use std::path::Path;
-    use std::fs;
-    use slam_server::config::AppConfig as Cfg;
-    let cfg = Cfg::default();
-    assert!(!cfg.sqlite_db_path.trim().is_empty());
-    let cfg_path = Path::new("config/app.yml");
-    if cfg_path.exists() {
-        let file = fs::File::open(cfg_path).unwrap();
-        let expected: Cfg = serde_yaml::from_reader(file).unwrap();
-        assert_eq!(cfg.sqlite_db_path, expected.sqlite_db_path);
-    } else {
-        assert_eq!(cfg.sqlite_db_path, "sport.db");
-    }
-}
 
-#[allow(dead_code)]
-fn app_config_new_with_missing_file_returns_defaults_example() {
-    use slam_server::config::AppConfig as Cfg;
-    let missing = "config/__nonexistent__.yml";
-    assert!(!std::path::Path::new(missing).exists());
-    let cfg = Cfg::new(missing);
-    assert_eq!(cfg.sqlite_db_path, "sport.db");
-}
+

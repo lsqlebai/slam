@@ -45,8 +45,8 @@ async fn test_doubao_request() {
 
 #[tokio::test]
 async fn test_sqlite_insert_and_query_sport_from_sample_xml() {
-    use slam_server::dao::sqlite_sport_dao::SqliteSportDao;
-    use slam_server::dao::sport_dao::SportDao;
+use slam_server::dao::sqlite_impl::SqliteImpl;
+    use slam_server::dao::idl::SportDao;
     use slam_server::model::sport::{Sport, SAMPLE_XML};
     use std::path::Path;
     let db_path = "tests/test.db";
@@ -54,9 +54,9 @@ async fn test_sqlite_insert_and_query_sport_from_sample_xml() {
         let _ = std::fs::remove_file(db_path);
     }
     let sport = Sport::parse_from_xml(SAMPLE_XML).expect("parse xml");
-    let dao = SqliteSportDao::new(db_path).await.expect("dao new");
-    dao.insert(sport.clone()).await.expect("dao insert");
-    let all = dao.list().await.expect("dao list");
+    let dao = SqliteImpl::new(db_path).await.expect("dao new");
+    dao.insert(0, sport.clone()).await.expect("dao insert");
+    let all = dao.list(0).await.expect("dao list");
     assert_eq!(all.len(), 1);
 }
 
@@ -66,14 +66,20 @@ fn test_app_config_default_uses_yaml_or_default() {
     use std::fs;
     use slam_server::config::AppConfig as Cfg;
     let cfg = Cfg::default();
-    assert!(!cfg.sqlite_db_path.trim().is_empty());
+    assert!(!cfg.db.path.trim().is_empty());
     let cfg_path = Path::new("config/app.yml");
     if cfg_path.exists() {
         let file = fs::File::open(cfg_path).unwrap();
         let expected: Cfg = serde_yaml::from_reader(file).unwrap();
-        assert_eq!(cfg.sqlite_db_path, expected.sqlite_db_path);
+        assert_eq!(cfg.db.path, expected.db.path);
+        assert_eq!(cfg.server.ip, expected.server.ip);
+        assert_eq!(cfg.server.port, expected.server.port);
+        assert_eq!(cfg.ai.key, expected.ai.key);
     } else {
-        assert_eq!(cfg.sqlite_db_path, "sport.db");
+        assert_eq!(cfg.db.path, "sport.db");
+        assert_eq!(cfg.server.ip, "127.0.0.1");
+        assert_eq!(cfg.server.port, 3000);
+        assert_eq!(cfg.ai.key, "");
     }
 }
 
@@ -83,5 +89,8 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
     let missing = "config/__nonexistent__.yml";
     assert!(!std::path::Path::new(missing).exists());
     let cfg = Cfg::new(missing);
-    assert_eq!(cfg.sqlite_db_path, "sport.db");
+    assert_eq!(cfg.db.path, "sport.db");
+    assert_eq!(cfg.server.ip, "127.0.0.1");
+    assert_eq!(cfg.server.port, 3000);
+    assert_eq!(cfg.ai.key, "");
 }

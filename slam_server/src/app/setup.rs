@@ -9,20 +9,22 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 // 导入服务相关模块
-use crate::service::{ai_service::AIService, image_service::ImageService};
+use crate::service::{ai_service::AIService, image_service::ImageService, user_service::UserService};
+use crate::dao::sqlite_impl::SqliteImpl;
+use std::sync::Arc as StdArc;
 use crate::config::AppConfig;
+use crate::handlers::jwt::Jwt;
 
 // AppConfig 已迁移至 crate::config 模块
 
 pub async fn run() {
     let config = AppConfig::default();
-    let app = create_app(config);
+    let app = create_app(config.clone());
 
-    // 设置监听地址
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr_str = format!("{}:{}", config.server.ip, config.server.port);
+    let addr: SocketAddr = addr_str.parse().unwrap();
     println!("服务器正在监听 http://{}...", addr);
 
-    // 启动服务器
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     println!("服务器正在监听 http://{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
@@ -34,9 +36,10 @@ pub fn create_app(config: AppConfig) -> Router {
     #[openapi(
         paths(
             crate::handlers::get_status,
-            crate::handlers::generate_text_handler,
-            crate::handlers::compress_image_handler,
-            crate::handlers::root
+            crate::handlers::ai_handler::sports_image_recognition_handler,
+            crate::handlers::root,
+            crate::handlers::user_handler::user_register_handler,
+            crate::handlers::user_handler::user_login_handler
         ),
         components(
             schemas(
@@ -45,7 +48,9 @@ pub fn create_app(config: AppConfig) -> Router {
                 crate::service::ai_service::TokenUsage,
                 crate::service::ai_service::ErrorResponse,
                 crate::model::sport::Sport,
-                crate::handlers::AIResponseText
+                crate::handlers::ai_handler::AIResponseText,
+                crate::handlers::user_handler::UserAuthRequest,
+                crate::handlers::user_handler::UserActionResponse
             )
           ),
         tags(
@@ -69,14 +74,20 @@ pub fn create_app(config: AppConfig) -> Router {
 pub struct AppState {
     pub ai_service: AIService,
     pub image_service: ImageService,
+    pub user_service: UserService,
+    pub jwt: Jwt,
 }
 /// 创建生产环境的路由
-fn create_production_router(_config: AppConfig) -> Router {
+fn create_production_router(config: AppConfig) -> Router {
     // 创建AI服务实例（使用默认配置）
 
+    let sqlite_db = StdArc::new(SqliteImpl::new_sync(&config.db.path).expect("init sqlite dao"));
+    let jwt = Jwt::new(config.security.jwt_ttl_seconds, config.security.key.clone());
     let app = Arc::new(AppState {
         ai_service: AIService::new(),
         image_service: ImageService::new(),
+        user_service: UserService::new(sqlite_db, config.security.clone()),
+        jwt,
     });
     // 导入处理函数
     use crate::app::routes;
@@ -86,6 +97,8 @@ fn create_production_router(_config: AppConfig) -> Router {
     Router::new()
         .route("/", get(root))
         .route(routes::API_STATUS, get(get_status))
-        .route(routes::API_IMAGE_PARSE, post(generate_text_handler))
+        .route(routes::API_IMAGE_PARSE, post(crate::handlers::ai_handler::sports_image_recognition_handler))
+        .route(routes::API_USER_REGISTER, post(crate::handlers::user_handler::user_register_handler))
+        .route(routes::API_USER_LOGIN, post(crate::handlers::user_handler::user_login_handler))
         .with_state(app)
 }

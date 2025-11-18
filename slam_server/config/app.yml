@@ -1,1 +1,14 @@
-sqlite_db_path: sport.db
+server:
+  ip: 127.0.0.1
+  port: 3000
+
+db:
+  path: sport.db
+
+ai:
+  key: ""
+
+security:
+  salt: "slam-server-salt"
+  key: "change-me-key"
+  jwt_ttl_seconds: 2592000
