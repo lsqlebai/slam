@@ -7,6 +7,7 @@ pub mod response;
 pub mod jwt;
 pub mod user_handler;
 pub mod ai_handler;
+pub mod sport_handler;
 
 // 定义响应数据结构
 #[derive(Serialize, ToSchema)]
@@ -14,10 +15,6 @@ pub struct ApiResponse {
     message: String,
     status: String,
     timestamp: u64,
-}
-
-pub struct Context {
-    pub uid: String,
 }
 
 /// Root 端点

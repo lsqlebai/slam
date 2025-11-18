@@ -5,7 +5,7 @@ use crate::model::user::User;
 #[async_trait]
 pub trait SportDao {
     async fn insert(&self, uid: i32, sport: Sport) -> Result<(), String>;
-    async fn list(&self, uid: i32) -> Result<Vec<Sport>, String>;
+    async fn list(&self, uid: i32, page: i32, size: i32) -> Result<Vec<Sport>, String>;
     async fn list_by_time_range(&self, uid: i32, start_time: i64, end_time: i64) -> Result<Vec<Sport>, String>;
 }
 

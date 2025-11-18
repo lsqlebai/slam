@@ -133,7 +133,10 @@ impl SportDao for SqliteImpl {
         Ok(())
     }
 
-    async fn list(&self, uid: i32) -> Result<Vec<Sport>, String> {
+    async fn list(&self, uid: i32, page: i32, size: i32) -> Result<Vec<Sport>, String> {
+        let safe_size = if size <= 0 { 20 } else { size.min(100) } as i64;
+        let safe_page = if page < 0 { 0 } else { page } as i64;
+        let offset = safe_page * safe_size;
         let conn = self.open_conn()?;
         let mut stmt = conn
             .prepare(
@@ -143,12 +146,13 @@ impl SportDao for SqliteImpl {
                 FROM sports
                 WHERE uid = ?
                 ORDER BY start_time DESC
+                LIMIT ? OFFSET ?
                 "#,
             )
             .map_err(|e| format!("查询失败: {}", e))?;
 
         let rows = stmt
-            .query_map(params![uid], |row| {
+            .query_map(params![uid, safe_size, offset], |row| {
                 let id: i32 = row.get::<_, i64>(0).unwrap_or(0) as i32;
                 let r#type: String = row.get(1).unwrap_or_default();
                 let start_time: i64 = row.get(2).unwrap_or(0);

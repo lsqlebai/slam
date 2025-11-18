@@ -9,7 +9,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 // 导入服务相关模块
-use crate::service::{ai_service::AIService, image_service::ImageService, user_service::UserService};
+use crate::service::{ai_service::AIService, image_service::ImageService, user_service::UserService, sport_service::SportService};
 use crate::dao::sqlite_impl::SqliteImpl;
 use std::sync::Arc as StdArc;
 use crate::config::AppConfig;
@@ -39,7 +39,10 @@ pub fn create_app(config: AppConfig) -> Router {
             crate::handlers::ai_handler::sports_image_recognition_handler,
             crate::handlers::root,
             crate::handlers::user_handler::user_register_handler,
-            crate::handlers::user_handler::user_login_handler
+            crate::handlers::user_handler::user_login_handler,
+            crate::handlers::sport_handler::insert_sport_handler,
+            crate::handlers::sport_handler::list_sport_handler,
+            crate::handlers::sport_handler::stats_handler
         ),
         components(
             schemas(
@@ -50,7 +53,10 @@ pub fn create_app(config: AppConfig) -> Router {
                 crate::model::sport::Sport,
                 crate::handlers::ai_handler::AIResponseText,
                 crate::handlers::user_handler::UserAuthRequest,
-                crate::handlers::user_handler::UserActionResponse
+                crate::handlers::user_handler::UserActionResponse,
+                crate::service::sport_service::StatBucket,
+                crate::service::sport_service::StatSummary,
+                crate::handlers::sport_handler::ActionResponse
             )
           ),
         tags(
@@ -75,6 +81,7 @@ pub struct AppState {
     pub ai_service: AIService,
     pub image_service: ImageService,
     pub user_service: UserService,
+    pub sport_service: SportService,
     pub jwt: Jwt,
 }
 /// 创建生产环境的路由
@@ -86,7 +93,8 @@ fn create_production_router(config: AppConfig) -> Router {
     let app = Arc::new(AppState {
         ai_service: AIService::new(),
         image_service: ImageService::new(),
-        user_service: UserService::new(sqlite_db, config.security.clone()),
+        user_service: UserService::new(sqlite_db.clone(), config.security.clone()),
+        sport_service: SportService::new(sqlite_db.clone()),
         jwt,
     });
     // 导入处理函数
@@ -100,5 +108,8 @@ fn create_production_router(config: AppConfig) -> Router {
         .route(routes::API_IMAGE_PARSE, post(crate::handlers::ai_handler::sports_image_recognition_handler))
         .route(routes::API_USER_REGISTER, post(crate::handlers::user_handler::user_register_handler))
         .route(routes::API_USER_LOGIN, post(crate::handlers::user_handler::user_login_handler))
+        .route(routes::API_SPORT_INSERT, post(crate::handlers::sport_handler::insert_sport_handler))
+        .route(routes::API_SPORT_LIST, get(crate::handlers::sport_handler::list_sport_handler))
+        .route(routes::API_SPORT_STATS, get(crate::handlers::sport_handler::stats_handler))
         .with_state(app)
 }

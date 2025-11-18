@@ -56,7 +56,9 @@ use slam_server::dao::sqlite_impl::SqliteImpl;
     let sport = Sport::parse_from_xml(SAMPLE_XML).expect("parse xml");
     let dao = SqliteImpl::new(db_path).await.expect("dao new");
     dao.insert(0, sport.clone()).await.expect("dao insert");
-    let all = dao.list(0).await.expect("dao list");
+    let default_page = 0;
+    let default_size = 20;
+    let all = dao.list(0, default_page, default_size).await.expect("dao list");
     assert_eq!(all.len(), 1);
 }
 

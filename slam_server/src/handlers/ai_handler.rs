@@ -26,7 +26,7 @@ pub async fn sports_image_recognition_handler(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> HandlerResponse<AIResponseText> {
-    let context = match app.jwt.create_context_from_cookie(&headers) {
+    let _context = match app.jwt.create_context_from_cookie(&headers) {
         Ok(ctx) => ctx,
         Err(e) => return HandlerResponse::Unauthorized(e),
     };
@@ -45,7 +45,7 @@ pub async fn sports_image_recognition_handler(
         return HandlerResponse::Error("在multipart请求中未找到 'image' 字段".to_string());
     }
 
-    match app.ai_service.sports_image_recognition(all_base64, context).await {
+    match app.ai_service.sports_image_recognition(all_base64).await {
         Ok(result) => HandlerResponse::Success(AIResponseText(result)),
         Err(e) => HandlerResponse::Error(e.message),
     }

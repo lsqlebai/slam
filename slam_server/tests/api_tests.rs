@@ -12,6 +12,7 @@ use tower::Service;
 use slam_server::app;
 use slam_server::app::routes;
 use slam_server::app::AppConfig;
+use chrono::{Utc, TimeZone, Datelike};
 
 /// 通用的响应打印函数
 /// 打印指定接口的响应状态和响应体
@@ -167,6 +168,131 @@ async fn test_user_login_wrong_password() {
     let err_json: serde_json::Value = serde_json::from_slice(&login_bytes).unwrap();
     assert_eq!(err_json.get("error").unwrap().as_str().unwrap(), "用户名或密码错误");
 }
+
+#[tokio::test]
+async fn test_sport_insert_list_stats() {
+    let mut app = app::create_app(AppConfig::default());
+
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_sport_user_{}", unique);
+    let password = "p@ssw0rd";
+
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("register set-cookie");
+    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+
+    let dt = Utc.with_ymd_and_hms(2025, 11, 17, 0, 0, 0).unwrap();
+    let ts = dt.timestamp();
+    let sport_body = serde_json::json!({
+        "type": "Swimming",
+        "start_time": ts,
+        "calories": 123,
+        "distance_meter": 1000,
+        "duration_second": 600,
+        "heart_rate_avg": 120,
+        "heart_rate_max": 140,
+        "pace_average": "3'59''"
+    });
+    let insert_req = Request::builder()
+        .uri(routes::API_SPORT_INSERT)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::from(sport_body.to_string()))
+        .unwrap();
+    let insert_resp = app.call(insert_req).await.unwrap();
+    let (insert_status, insert_bytes) = print_response("运动插入", insert_resp).await;
+    assert_eq!(insert_status, StatusCode::OK);
+    let insert_json: serde_json::Value = serde_json::from_slice(&insert_bytes).unwrap();
+    assert_eq!(insert_json.get("success").unwrap().as_bool().unwrap(), true);
+
+    let list_req = Request::builder()
+        .uri(format!("{}?page=0&size=20", routes::API_SPORT_LIST))
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let list_resp = app.call(list_req).await.unwrap();
+    let (list_status, list_bytes) = print_response("运动列表", list_resp).await;
+    assert_eq!(list_status, StatusCode::OK);
+    let list_json: serde_json::Value = serde_json::from_slice(&list_bytes).unwrap();
+    assert!(list_json.is_array());
+    let arr = list_json.as_array().unwrap();
+    assert!(arr.len() >= 1);
+    let first = &arr[0];
+    assert_eq!(first.get("type").unwrap().as_str().unwrap(), "Swimming");
+    assert_eq!(first.get("start_time").unwrap().as_i64().unwrap(), ts);
+
+    let year = dt.year();
+    let month = dt.month();
+    let week = dt.iso_week().week();
+
+    let stats_year_req = Request::builder()
+        .uri(format!("{}?kind=year&year={}", routes::API_SPORT_STATS, year))
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let stats_year_resp = app.call(stats_year_req).await.unwrap();
+    let (stats_year_status, stats_year_bytes) = print_response("年度统计", stats_year_resp).await;
+    assert_eq!(stats_year_status, StatusCode::OK);
+    let stats_year_json: serde_json::Value = serde_json::from_slice(&stats_year_bytes).unwrap();
+    assert_eq!(stats_year_json.get("total_count").unwrap().as_i64().unwrap(), 1);
+    assert_eq!(stats_year_json.get("total_calories").unwrap().as_i64().unwrap(), 123);
+    assert_eq!(stats_year_json.get("total_duration_second").unwrap().as_i64().unwrap(), 600);
+    assert!(stats_year_json.get("sports").unwrap().is_array());
+    assert_eq!(stats_year_json.get("sports").unwrap().as_array().unwrap().len(), 1);
+    let buckets_year = stats_year_json.get("buckets").unwrap().as_array().unwrap();
+    assert_eq!(buckets_year.len(), 1);
+    assert_eq!(buckets_year[0].get("date").unwrap().as_i64().unwrap(), month as i64);
+
+    let stats_month_req = Request::builder()
+        .uri(format!("{}?kind=month&year={}&month={}", routes::API_SPORT_STATS, year, month))
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let stats_month_resp = app.call(stats_month_req).await.unwrap();
+    let (stats_month_status, stats_month_bytes) = print_response("月度统计", stats_month_resp).await;
+    assert_eq!(stats_month_status, StatusCode::OK);
+    let stats_month_json: serde_json::Value = serde_json::from_slice(&stats_month_bytes).unwrap();
+    let buckets_month = stats_month_json.get("buckets").unwrap().as_array().unwrap();
+    assert_eq!(buckets_month.len(), 1);
+    assert_eq!(buckets_month[0].get("date").unwrap().as_i64().unwrap(), 17);
+
+    let stats_week_req = Request::builder()
+        .uri(format!("{}?kind=week&year={}&week={}", routes::API_SPORT_STATS, year, week))
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let stats_week_resp = app.call(stats_week_req).await.unwrap();
+    let (stats_week_status, stats_week_bytes) = print_response("周度统计", stats_week_resp).await;
+    assert_eq!(stats_week_status, StatusCode::OK);
+    let stats_week_json: serde_json::Value = serde_json::from_slice(&stats_week_bytes).unwrap();
+    let buckets_week = stats_week_json.get("buckets").unwrap().as_array().unwrap();
+    assert_eq!(buckets_week.len(), 1);
+    assert_eq!(buckets_week[0].get("date").unwrap().as_i64().unwrap(), 1);
+}
+
 async fn get_api_key_from_env_example() {
     println!("执行get_api_key_from_env函数...");
     // 从环境变量读取 AI API 密钥

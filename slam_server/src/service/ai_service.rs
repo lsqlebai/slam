@@ -11,8 +11,9 @@ use crate::service::common;
 use crate::service::llm;
 use crate::service::llm::ChatCompletionRequest;
 use crate::service::llm::LLM;
-use crate::handlers::jwt::Context;
 use crate::model::sport::{Sport};
+use crate::dao::idl::SportDao;
+use std::sync::Arc;
 // AI服务核心结构
 pub struct AIService {
     /// 服务配置
@@ -65,21 +66,15 @@ impl ImageParser {
 // AI服务实现
 impl AIService {
     /// 创建新的AI服务实例
-    pub fn new() -> Self {
-        Self {
-            llm: LLM::doubao(),
-        }
-    }
+    pub fn new() -> Self { Self { llm: LLM::doubao() } }
 
     /// 生成文本内容
     pub async fn sports_image_recognition(
         &self,
         base64_data: Vec<String>,
-        context: Context,
     ) -> Result<AIResponse<Sport>, common::ServiceError> {
         // 生成请求ID
         let request_id = common::get_current_timestamp();
-        let _uid = context.uid;
         let chat_request = ImageParser::create_chat_completion_request(base64_data);
         println!("chat_request: {:?}", chat_request);
         let content = self.llm.chat(chat_request).await.map_err(|e| {
@@ -97,8 +92,7 @@ impl AIService {
             .map_err(|e| common::ServiceError {
                 code: 500,
                 message: e.to_string(),
-            })?;
-            
+            })?;            
         // 返回成功响应
         Ok(AIResponse {
             success: true,

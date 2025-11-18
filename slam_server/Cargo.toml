@@ -34,4 +34,5 @@ cipher = { version = "0.4", features = ["block-padding"] }
 sha2 = "0.10"
 jsonwebtoken = "9"
 headers = "0.4"
-ctx-marco = { path = "macros" }
+ctx_marco = { path = "macros", package = "ctx-marco" }
+chrono = { version = "0.4", features = ["serde"] }
