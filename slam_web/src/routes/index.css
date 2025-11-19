@@ -148,8 +148,6 @@ main {
     calc(env(safe-area-inset-bottom) + 16px);
 }
 
-
-
 @keyframes bgMove {
   0% {
     background-position: 0% 0%, center;
