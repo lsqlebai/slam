@@ -12,8 +12,6 @@ use crate::service::llm;
 use crate::service::llm::ChatCompletionRequest;
 use crate::service::llm::LLM;
 use crate::model::sport::{Sport};
-use crate::dao::idl::SportDao;
-use std::sync::Arc;
 // AI服务核心结构
 pub struct AIService {
     /// 服务配置

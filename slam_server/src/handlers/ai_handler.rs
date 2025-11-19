@@ -1,8 +1,8 @@
 use axum::extract::State;
 use axum_extra::extract::Multipart;
-use axum::http::HeaderMap;
 use std::sync::Arc;
 use utoipa::ToSchema;
+use super::jwt::Context;
 use crate::app::{AppState, routes};
 use super::response::HandlerResponse;
 
@@ -23,13 +23,9 @@ pub struct AIResponseText(pub crate::service::ai_service::AIResponse<crate::mode
 #[axum::debug_handler]
 pub async fn sports_image_recognition_handler(
     State(app): State<Arc<AppState>>,
-    headers: HeaderMap,
+    _ctx: Context,
     mut multipart: Multipart,
 ) -> HandlerResponse<AIResponseText> {
-    let _context = match app.jwt.create_context_from_cookie(&headers) {
-        Ok(ctx) => ctx,
-        Err(e) => return HandlerResponse::Unauthorized(e),
-    };
     let mut all_base64: Vec<String> = Vec::new();
     while let Ok(Some(field)) = multipart.next_field().await {
         if field.name() == Some("image") {
