@@ -1,8 +1,8 @@
 use axum::extract::State;
-use axum::http::HeaderMap;
 use axum::extract::Json;
 use std::sync::Arc;
 use utoipa::ToSchema;
+use super::jwt::Context;
 
 use crate::app::{AppState, routes};
 use crate::model::sport::Sport;
@@ -28,10 +28,9 @@ pub struct ActionResponse { pub success: bool }
 #[axum::debug_handler]
 pub async fn insert_sport_handler(
     State(app): State<Arc<AppState>>,
-    headers: HeaderMap,
+    ctx: Context,
     Json(sport): Json<Sport>,
 ) -> axum::response::Response {
-    let ctx = match app.jwt.create_context_from_cookie(&headers) { Ok(c) => c, Err(e) => return HandlerResponse::<ActionResponse>::Unauthorized(e).into_response() };
     match app.sport_service.insert(ctx.uid, sport).await {
         Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse { success: true }).into_response(),
         Err(e) => HandlerResponse::<ActionResponse>::Error(e.message).into_response(),
@@ -50,10 +49,9 @@ pub async fn insert_sport_handler(
 #[axum::debug_handler]
 pub async fn list_sport_handler(
     State(app): State<Arc<AppState>>,
-    headers: HeaderMap,
+    ctx: Context,
     Query(q): Query<ListQuery>,
 ) -> axum::response::Response {
-    let ctx = match app.jwt.create_context_from_cookie(&headers) { Ok(c) => c, Err(e) => return HandlerResponse::<Vec<Sport>>::Unauthorized(e).into_response() };
     let page = q.page.unwrap_or(0);
     let size = q.size.unwrap_or(20);
     match app.sport_service.list(ctx.uid, page, size).await {
@@ -80,10 +78,9 @@ pub struct StatsQuery { pub kind: String, pub year: i32, pub month: Option<u32>,
 #[axum::debug_handler]
 pub async fn stats_handler(
     State(app): State<Arc<AppState>>,
-    headers: HeaderMap,
+    ctx: Context,
     Query(q): Query<StatsQuery>,
 ) -> axum::response::Response {
-    let ctx = match app.jwt.create_context_from_cookie(&headers) { Ok(c) => c, Err(e) => return HandlerResponse::<StatSummary>::Unauthorized(e).into_response() };
     let kind = match q.kind.to_lowercase().as_str() {
         "year" => StatKind::Year,
         "month" => StatKind::Month,
