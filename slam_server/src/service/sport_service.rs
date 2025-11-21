@@ -1,3 +1,4 @@
+use ctx_marco::inject_ctx;
 use serde::{Serialize, Deserialize};
 use utoipa::ToSchema;
 use std::collections::HashMap;
@@ -5,8 +6,9 @@ use std::sync::Arc;
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 
 use crate::dao::idl::SportDao;
-use crate::model::sport::Sport;
+use crate::model::sport::{Sport, SportType};
 use crate::service::common::{ServiceError};
+use crate::handlers::jwt::Context;
 
 pub struct SportService {
     dao: Arc<dyn SportDao + Send + Sync>,
@@ -15,15 +17,30 @@ pub struct SportService {
 impl SportService {
     pub fn new(dao: Arc<dyn SportDao + Send + Sync>) -> Self { Self { dao } }
 
-    pub async fn insert(&self, uid: i32, sport: Sport) -> Result<(), ServiceError> {
-        self.dao.insert(uid, sport).await.map_err(|e| ServiceError { code: 500, message: e })
+    #[inject_ctx]
+    pub async fn insert(&self, sport: Sport) -> Result<(), ServiceError> {
+        self.dao.insert(ctx.uid, sport).await.map_err(|e| ServiceError { code: 500, message: e })
     }
 
-    pub async fn list(&self, uid: i32, page: i32, size: i32) -> Result<Vec<Sport>, ServiceError> {
-        self.dao.list(uid, page, size).await.map_err(|e| ServiceError { code: 500, message: e })
+    #[inject_ctx]
+    pub async fn list(&self, page: i32, size: i32) -> Result<Vec<Sport>, ServiceError> {
+        self.dao.list(ctx.uid, page, size).await.map_err(|e| ServiceError { code: 500, message: e })
+    }
+    #[inject_ctx]
+    pub async fn update(&self, sport: Sport) -> Result<(), ServiceError> {
+        self.dao.update(ctx.uid, sport).await.map_err(|e| ServiceError { code: 500, message: e })
     }
 
-    pub async fn stats(&self, uid: i32, spec: StatsParam) -> Result<StatSummary, ServiceError> {
+    #[inject_ctx]
+    pub async fn import<R: std::io::Read>(&self, vendor: String, mut reader: csv::Reader<R>) -> Result<usize, ServiceError> {
+        let mut r = reader;
+        let sports = parse_sports_from_csv(&vendor, &mut r);
+        if sports.is_empty() { return Err(ServiceError { code: 400, message: "no valid rows".to_string() }); }
+        self.dao.insert_many(ctx.uid, sports).await.map_err(|e| ServiceError { code: 500, message: e })
+    }
+
+    #[inject_ctx]
+    pub async fn stats(&self, spec: StatsParam) -> Result<StatSummary, ServiceError> {
         let (start_time, end_time) = match spec.kind {
             StatKind::Year => {
                 let y = spec.year;
@@ -48,7 +65,7 @@ impl SportService {
                 (start_dt.timestamp(), end_dt.timestamp())
             }
         };
-        let sports = self.dao.list_by_time_range(uid, start_time, end_time).await.map_err(|e| ServiceError { code: 500, message: e })?;
+        let sports = self.dao.list_by_time_range(ctx.uid, start_time, end_time).await.map_err(|e| ServiceError { code: 500, message: e })?;
         let total_count:i32 = sports.len() as i32;
         let total_calories:i32 = sports.iter().map(|s| s.calories).sum();
         let total_duration_second:i32 = sports.iter().map(|s| s.duration_second).sum();
@@ -123,4 +140,93 @@ fn group_by_key(items: Vec<Sport>, key: impl Fn(&DateTime<Utc>) -> u32) -> Vec<S
     let mut v: Vec<StatBucket> = acc.into_iter().map(|(_, b)| b).collect();
     v.sort_by_key(|b| b.date);
     v
+}
+
+trait VendorFileParser { fn parse<R: std::io::Read>(&self, reader: &mut csv::Reader<R>) -> Vec<Sport>; }
+
+struct HuaweiParser;
+struct XiaomiParser;
+
+impl VendorFileParser for HuaweiParser {
+    fn parse<R: std::io::Read>(&self, _reader: &mut csv::Reader<R>) -> Vec<Sport> { panic!("huawei parser not implemented") }
+}
+
+#[derive(Deserialize)]
+struct XiaomiCsvRow {
+    #[serde(rename = "Time")] time: i64,
+    #[serde(rename = "Category")] category: String,
+    #[serde(rename = "Value")] value: String,
+}
+
+#[derive(Deserialize, Default)]
+struct XiaomiValue {
+    #[serde(rename = "calories")] calories: Option<i32>,
+    #[serde(rename = "total_cal")] total_cal: Option<i32>,
+    #[serde(rename = "distance")] distance: Option<i32>,
+    #[serde(rename = "duration")] duration: Option<i32>,
+    #[serde(rename = "valid_duration")] valid_duration: Option<i32>,
+    #[serde(rename = "avg_swolf")] avg_swolf: Option<i32>,
+    #[serde(rename = "best_swolf")] best_swolf: Option<i32>,
+    #[serde(rename = "main_posture")] main_posture: Option<i32>,
+    #[serde(rename = "max_stroke_freq")] max_stroke_freq: Option<i32>,
+    #[serde(rename = "stroke_count")] stroke_count: Option<i32>,
+    #[serde(rename = "turn_count")] turn_count: Option<i32>,
+    #[serde(rename = "pool_width")] pool_width: Option<i32>,
+    #[serde(rename = "start_time")] start_time: Option<i64>,
+    #[serde(rename = "time")] value_time: Option<i64>,
+    #[serde(rename = "end_time")] end_time: Option<i64>,
+}
+
+impl VendorFileParser for XiaomiParser {
+
+    fn parse<R: std::io::Read>(&self, reader: &mut csv::Reader<R>) -> Vec<Sport> { 
+        let mut res = Vec::new();
+        for rec in reader.deserialize() {
+            let Ok(row) = rec else { continue };
+            let row: XiaomiCsvRow = row;
+            let mut start_time = row.time;
+            if start_time > 1_000_000_000_000 { start_time /= 1000; }
+            if row.category.to_lowercase() != "swimming" { continue; }
+            let parsed: XiaomiValue = serde_json::from_str(&row.value).unwrap_or_default();
+            let calories = parsed.calories.or(parsed.total_cal).unwrap_or(0);
+            let distance_meter = parsed.distance.unwrap_or(0);
+            let duration_second = parsed.valid_duration.or(parsed.duration).unwrap_or(0);
+            let swolf_avg = parsed.avg_swolf.unwrap_or(0);
+            let stroke_avg = parsed.max_stroke_freq.unwrap_or(0);
+            let main_stroke = match parsed.main_posture.unwrap_or(0) {
+                1 => "freestyle",
+                2 => "backstroke",
+                3 => "breaststroke",
+                4 => "butterfly",
+                _ => "unknown",
+            };
+            let sport = Sport {
+                id: 0,
+                r#type: SportType::Swimming,
+                start_time,
+                calories,
+                distance_meter,
+                duration_second,
+                heart_rate_avg: 0,
+                heart_rate_max: 0,
+                pace_average: String::new(),
+                extra: crate::model::sport::Swimming { main_stroke: main_stroke.to_string(), stroke_avg, swolf_avg },
+                tracks: vec![],
+            };
+            res.push(sport);
+        }
+        res
+    }
+}
+
+
+
+// removed unused common parser placeholder
+
+pub fn parse_sports_from_csv<R: std::io::Read>(vendor: &str, reader: &mut csv::Reader<R>) -> Vec<Sport> {
+    match vendor.to_lowercase().as_str() {
+        "huawei" => HuaweiParser.parse(reader),
+        "xiaomi" => XiaomiParser.parse(reader),
+        _ => panic!("unsupported vendor"),
+    }
 }

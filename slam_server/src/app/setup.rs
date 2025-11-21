@@ -4,7 +4,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower_http::cors::{Any, CorsLayer};
+// removed unused imports
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -40,7 +40,11 @@ pub fn create_app(config: AppConfig) -> Router {
             crate::handlers::root,
             crate::handlers::user_handler::user_register_handler,
             crate::handlers::user_handler::user_login_handler,
+            crate::handlers::user_handler::user_info_handler,
+            crate::handlers::user_handler::user_logout_handler,
             crate::handlers::sport_handler::insert_sport_handler,
+            crate::handlers::sport_handler::import_sport_handler,
+            crate::handlers::sport_handler::update_sport_handler,
             crate::handlers::sport_handler::list_sport_handler,
             crate::handlers::sport_handler::stats_handler
         ),
@@ -52,11 +56,13 @@ pub fn create_app(config: AppConfig) -> Router {
                 crate::service::ai_service::ErrorResponse,
                 crate::model::sport::Sport,
                 crate::handlers::ai_handler::AIResponseText,
-                crate::handlers::user_handler::UserAuthRequest,
+                crate::handlers::user_handler::UserRegisterRequest,
+                crate::handlers::user_handler::UserLoginRequest,
                 crate::handlers::user_handler::UserActionResponse,
                 crate::service::sport_service::StatBucket,
                 crate::service::sport_service::StatSummary,
-                crate::handlers::sport_handler::ActionResponse
+                crate::handlers::sport_handler::ActionResponse,
+                crate::handlers::sport_handler::ImportResponse
             )
           ),
         tags(
@@ -64,17 +70,11 @@ pub fn create_app(config: AppConfig) -> Router {
         )
     )]
     struct ApiDoc;
-
-    // 配置CORS中间件
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    
     // 创建Swagger UI并组合路由和CORS
     let swagger_ui = SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi());
     create_production_router(config)
         .merge(swagger_ui)
-        .layer(cors)
 }
 
 pub struct AppState {
@@ -108,7 +108,11 @@ fn create_production_router(config: AppConfig) -> Router {
         .route(routes::API_IMAGE_PARSE, post(crate::handlers::ai_handler::sports_image_recognition_handler))
         .route(routes::API_USER_REGISTER, post(crate::handlers::user_handler::user_register_handler))
         .route(routes::API_USER_LOGIN, post(crate::handlers::user_handler::user_login_handler))
+        .route(routes::API_USER_INFO, get(crate::handlers::user_handler::user_info_handler))
+        .route(routes::API_USER_LOGOUT, post(crate::handlers::user_handler::user_logout_handler))
         .route(routes::API_SPORT_INSERT, post(crate::handlers::sport_handler::insert_sport_handler))
+        .route(routes::API_SPORT_IMPORT, post(crate::handlers::sport_handler::import_sport_handler))
+        .route(routes::API_SPORT_UPDATE, post(crate::handlers::sport_handler::update_sport_handler))
         .route(routes::API_SPORT_LIST, get(crate::handlers::sport_handler::list_sport_handler))
         .route(routes::API_SPORT_STATS, get(crate::handlers::sport_handler::stats_handler))
         .with_state(app)

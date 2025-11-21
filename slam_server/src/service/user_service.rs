@@ -44,9 +44,10 @@ impl UserService {
         BASE64_ENGINE.encode(ct)
     }
 
-    pub async fn register(&self, name: String, password: String) -> Result<i32, ServiceError> {
-        let encrypted = self.encrypt_password(&password);
-        let user = User { id: 0, name, password: encrypted };
+    pub async fn register(&self, mut user: User) -> Result<i32, ServiceError> {
+        let encrypted = self.encrypt_password(&user.password);
+        user.password = encrypted;
+        user.id = 0;
         match self.dao.insert(user.clone()).await {
             Ok(uid) => Ok(uid),
             Err(e) => Err(ServiceError { code: 500, message: e }),

@@ -77,7 +77,8 @@ async fn test_user_register_and_login() {
     // 注册请求
     let register_body = serde_json::json!({
         "name": username,
-        "password": password
+        "password": password,
+        "nickname": "Nick"
     });
     let register_req = Request::builder()
         .uri(routes::API_USER_REGISTER)
@@ -140,7 +141,8 @@ async fn test_user_login_wrong_password() {
 
     let register_body = serde_json::json!({
         "name": username,
-        "password": password
+        "password": password,
+        "nickname": "WrongPWUser"
     });
     let register_req = Request::builder()
         .uri(routes::API_USER_REGISTER)
@@ -182,7 +184,8 @@ async fn test_sport_insert_list_stats() {
 
     let register_body = serde_json::json!({
         "name": username,
-        "password": password
+        "password": password,
+        "nickname": "SportsUser"
     });
     let register_req = Request::builder()
         .uri(routes::API_USER_REGISTER)
@@ -378,9 +381,308 @@ async fn test_image_endpoint_unauthenticated() {
     let (status, body_bytes) = print_response("未登录运动识别", response).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
-    let response_json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
-    assert_eq!(response_json.get("error").unwrap().as_str().unwrap(), "未登录或token无效");
+    let body_str = String::from_utf8(body_bytes.clone()).unwrap();
+    assert_eq!(body_str, "未登录或token无效");
 }
 
 
+#[tokio::test]
+async fn test_user_info_endpoint() {
+    let mut app = app::create_app(AppConfig::default());
 
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_user_info_{}", unique);
+    let password = "p@ssw0rd";
+
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password,
+        "nickname": "Tester"
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("register set-cookie");
+    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+
+    let info_req = Request::builder()
+        .uri(routes::API_USER_INFO)
+        .method("GET")
+        .header("Cookie", cookie_header)
+        .body(Body::empty())
+        .unwrap();
+    let info_resp = app.call(info_req).await.unwrap();
+    let (info_status, info_bytes) = print_response("用户信息", info_resp).await;
+    assert_eq!(info_status, StatusCode::OK);
+    let info_json: serde_json::Value = serde_json::from_slice(&info_bytes).unwrap();
+    assert_eq!(info_json.get("nickname").unwrap().as_str().unwrap(), "Tester");
+}
+
+
+#[tokio::test]
+async fn test_user_logout() {
+    let mut app = app::create_app(AppConfig::default());
+
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_logout_{}", unique);
+    let password = "p@ssw0rd";
+
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password,
+        "nickname": "LogoutUser"
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("register set-cookie");
+    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+
+    let info_req = Request::builder()
+        .uri(routes::API_USER_INFO)
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let info_resp = app.call(info_req).await.unwrap();
+    let (info_status, _) = print_response("用户信息(登录态)", info_resp).await;
+    assert_eq!(info_status, StatusCode::OK);
+
+    let logout_req = Request::builder()
+        .uri(routes::API_USER_LOGOUT)
+        .method("POST")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let logout_resp = app.call(logout_req).await.unwrap();
+    let logout_cookie = logout_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("logout set-cookie");
+    let cleared_cookie_header = logout_cookie.split(';').next().unwrap().to_string();
+    assert!(cleared_cookie_header.starts_with("slam="));
+
+    let info_req2 = Request::builder()
+        .uri(routes::API_USER_INFO)
+        .method("GET")
+        .header("Cookie", cleared_cookie_header)
+        .body(Body::empty())
+        .unwrap();
+    let info_resp2 = app.call(info_req2).await.unwrap();
+    let (info_status2, info_bytes2) = print_response("用户信息(注销后)", info_resp2).await;
+    assert_eq!(info_status2, StatusCode::UNAUTHORIZED);
+    let body_str2 = String::from_utf8(info_bytes2).unwrap();
+    assert!(!body_str2.is_empty());
+}
+
+
+#[tokio::test]
+async fn test_sport_update() {
+    let mut app = app::create_app(AppConfig::default());
+
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_sport_update_{}", unique);
+    let password = "p@ssw0rd";
+
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password,
+        "nickname": "Updater"
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("register set-cookie");
+    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+
+    let dt = chrono::Utc.with_ymd_and_hms(2025, 11, 18, 0, 0, 0).unwrap();
+    let ts = dt.timestamp();
+    let sport_body = serde_json::json!({
+        "type": "Swimming",
+        "start_time": ts,
+        "calories": 100,
+        "distance_meter": 500,
+        "duration_second": 300,
+        "heart_rate_avg": 110,
+        "heart_rate_max": 130,
+        "pace_average": "4'10''",
+        "extra": {"main_stroke": "freestyle", "stroke_avg": 18, "swolf_avg": 78},
+        "tracks": []
+    });
+    let insert_req = Request::builder()
+        .uri(routes::API_SPORT_INSERT)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::from(sport_body.to_string()))
+        .unwrap();
+    let insert_resp = app.call(insert_req).await.unwrap();
+    let (insert_status, _) = print_response("运动插入(更新前)", insert_resp).await;
+    assert_eq!(insert_status, StatusCode::OK);
+
+    let list_req = Request::builder()
+        .uri(format!("{}?page=0&size=20", routes::API_SPORT_LIST))
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let list_resp = app.call(list_req).await.unwrap();
+    let (list_status, list_bytes) = print_response("运动列表(更新前)", list_resp).await;
+    assert_eq!(list_status, StatusCode::OK);
+    let list_json: serde_json::Value = serde_json::from_slice(&list_bytes).unwrap();
+    let arr = list_json.as_array().unwrap();
+    assert!(arr.len() >= 1);
+    let first = &arr[0];
+    let sport_id = first.get("id").unwrap().as_i64().unwrap() as i32;
+
+    let update_body = serde_json::json!({
+        "id": sport_id,
+        "type": "Swimming",
+        "start_time": ts,
+        "calories": 200,
+        "distance_meter": 800,
+        "duration_second": 450,
+        "heart_rate_avg": 115,
+        "heart_rate_max": 140,
+        "pace_average": "4'00''",
+        "extra": {"main_stroke": "freestyle", "stroke_avg": 20, "swolf_avg": 80},
+        "tracks": []
+    });
+    let update_req = Request::builder()
+        .uri(routes::API_SPORT_UPDATE)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::from(update_body.to_string()))
+        .unwrap();
+    let update_resp = app.call(update_req).await.unwrap();
+    let (update_status, update_bytes) = print_response("运动更新", update_resp).await;
+    assert_eq!(update_status, StatusCode::OK);
+    let update_json: serde_json::Value = serde_json::from_slice(&update_bytes).unwrap();
+    assert_eq!(update_json.get("success").unwrap().as_bool().unwrap(), true);
+
+    let list_req2 = Request::builder()
+        .uri(format!("{}?page=0&size=20", routes::API_SPORT_LIST))
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let list_resp2 = app.call(list_req2).await.unwrap();
+    let (list_status2, list_bytes2) = print_response("运动列表(更新后)", list_resp2).await;
+    assert_eq!(list_status2, StatusCode::OK);
+    let list_json2: serde_json::Value = serde_json::from_slice(&list_bytes2).unwrap();
+    let first2 = &list_json2.as_array().unwrap()[0];
+    assert_eq!(first2.get("id").unwrap().as_i64().unwrap() as i32, sport_id);
+    assert_eq!(first2.get("calories").unwrap().as_i64().unwrap(), 200);
+    assert_eq!(first2.get("distance_meter").unwrap().as_i64().unwrap(), 800);
+    assert_eq!(first2.get("duration_second").unwrap().as_i64().unwrap(), 450);
+}
+#[tokio::test]
+async fn test_sport_import_csv() {
+    let mut app = app::create_app(AppConfig::default());
+
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_sport_import_{}", unique);
+    let password = "p@ssw0rd";
+
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password,
+        "nickname": "Importer"
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("register set-cookie");
+    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+
+    let csv = "Uid,Sid,Key,Time,Category,Value,UpdateTime\n49767842,609301467,pool_swimm,1731888000,swimming,{\"anaerobic_train_e\":1},1731888000\n49767842,609301467,pool_swimm,1731889000,swimming,{\"anaerobic_train_e\":1},1731889000";
+    let form = multipart::Form::new()
+        .text("vendor", "xiaomi")
+        .part(
+            "file",
+            multipart::Part::text(csv)
+                .file_name("sports.csv")
+                .mime_str("text/csv")
+                .unwrap(),
+        );
+    let boundary = form.boundary().to_string();
+    let stream = form.into_stream();
+    let body = Body::from_stream(stream);
+
+    let import_req = Request::builder()
+        .uri(routes::API_SPORT_IMPORT)
+        .method("POST")
+        .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+        .header("Cookie", cookie_header.clone())
+        .body(body)
+        .unwrap();
+    let import_resp = app.call(import_req).await.unwrap();
+    let (import_status, import_bytes) = print_response("运动导入", import_resp).await;
+    assert_eq!(import_status, StatusCode::OK);
+    let import_json: serde_json::Value = serde_json::from_slice(&import_bytes).unwrap();
+    assert_eq!(import_json.get("success").unwrap().as_bool().unwrap(), true);
+    assert_eq!(import_json.get("inserted").unwrap().as_u64().unwrap(), 2);
+
+    let list_req = Request::builder()
+        .uri(format!("{}?page=0&size=20", routes::API_SPORT_LIST))
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let list_resp = app.call(list_req).await.unwrap();
+    let (list_status, list_bytes) = print_response("运动列表(导入后)", list_resp).await;
+    assert_eq!(list_status, StatusCode::OK);
+    let list_json: serde_json::Value = serde_json::from_slice(&list_bytes).unwrap();
+    assert!(list_json.as_array().unwrap().len() >= 2);
+}

@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 #[serde(default, rename = "sport")]
 pub struct Sport {
     pub id: i32,
-    pub r#type: String,
+    pub r#type: SportType,
     pub start_time: i64,
     pub calories: i32,
     pub distance_meter: i32,
@@ -100,7 +100,7 @@ mod tests {
         let sport = crate::model::sport::Sport::parse_from_xml(SAMPLE_XML)
             .expect("parse_sample_swim 应该成功");
 
-        assert_eq!(sport.r#type, "Swimming");
+        assert_eq!(sport.r#type, SportType::Swimming);
         assert_eq!(sport.start_time, 1694560000);
         assert_eq!(sport.calories, 200);
         assert_eq!(sport.distance_meter, 1000);
@@ -138,7 +138,7 @@ mod tests {
 
         let sport = Sport {
             id: 1,
-            r#type: "Swimming".to_string(),
+            r#type: SportType::Swimming,
             start_time: 1694560000,
             calories: 200,
             distance_meter: 1000,
@@ -178,5 +178,33 @@ mod tests {
         let xml = xml_se::to_string(&sport).expect("serialize sport to xml");
         println!("{}", xml);
         assert!(!xml.is_empty());
+    }
+}
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "PascalCase")]
+pub enum SportType {
+    #[default]
+    Unknown,
+    Swimming,
+    Running,
+    Cycling,
+}
+
+impl SportType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SportType::Unknown => "Unknown",
+            SportType::Swimming => "Swimming",
+            SportType::Running => "Running",
+            SportType::Cycling => "Cycling",
+        }
+    }
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "swimming" => SportType::Swimming,
+            "running" => SportType::Running,
+            "cycling" => SportType::Cycling,
+            _ => SportType::Unknown,
+        }
     }
 }

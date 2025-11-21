@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use rusqlite::{params, Connection, OpenFlags};
 use serde_json;
 
-use crate::model::sport::{Sport, Swimming, Track};
+use crate::model::sport::{Sport, Swimming, Track, SportType};
 use crate::model::user::User;
 use super::idl::{SportDao, UserDao};
 
@@ -54,13 +54,17 @@ impl SqliteImpl {
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            nickname TEXT NOT NULL DEFAULT '',
+            avatar TEXT NOT NULL DEFAULT ''
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_users_name ON users(name);
         "#;
-        let conn = self.open_conn()?;
+        let mut conn = self.open_conn()?;
         conn.execute_batch(create_sql)
             .map_err(|e| format!("建表失败: {}", e))?;
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT ''", params![]);
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''", params![]);
         Ok(())
     }
 
@@ -87,13 +91,17 @@ impl SqliteImpl {
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            nickname TEXT NOT NULL DEFAULT '',
+            avatar TEXT NOT NULL DEFAULT ''
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_users_name ON users(name);
         "#;
         let conn = self.open_conn()?;
         conn.execute_batch(create_sql)
             .map_err(|e| format!("建表失败: {}", e))?;
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT ''", params![]);
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''", params![]);
         Ok(())
     }
 }
@@ -117,7 +125,7 @@ impl SportDao for SqliteImpl {
                 "#,
                 params![
                     uid,
-                    sport.r#type,
+                    sport.r#type.as_str(),
                     sport.start_time,
                     sport.calories,
                     sport.distance_meter,
@@ -131,6 +139,42 @@ impl SportDao for SqliteImpl {
             )
             .map_err(|e| format!("插入失败: {}", e))?;
         Ok(())
+    }
+
+    async fn insert_many(&self, uid: i32, sports: Vec<Sport>) -> Result<usize, String> {
+        let mut conn = self.open_conn()?;
+        let tx = conn.transaction().map_err(|e| format!("开启事务失败: {}", e))?;
+        let mut count = 0usize;
+        {
+            let mut stmt = tx.prepare(
+                r#"
+                INSERT INTO sports (
+                    uid, type, start_time, calories, distance_meter, duration_second,
+                    heart_rate_avg, heart_rate_max, pace_average, extra, tracks
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                "#,
+            ).map_err(|e| format!("预编译失败: {}", e))?;
+            for sport in sports {
+                let extra_json = serde_json::to_string(&sport.extra).map_err(|e| e.to_string())?;
+                let tracks_json = serde_json::to_string(&sport.tracks).map_err(|e| e.to_string())?;
+                stmt.execute(params![
+                    uid,
+                    sport.r#type.as_str(),
+                    sport.start_time,
+                    sport.calories,
+                    sport.distance_meter,
+                    sport.duration_second,
+                    sport.heart_rate_avg,
+                    sport.heart_rate_max,
+                    sport.pace_average,
+                    extra_json,
+                    tracks_json,
+                ]).map_err(|e| format!("插入失败: {}", e))?;
+                count += 1;
+            }
+        }
+        tx.commit().map_err(|e| format!("提交事务失败: {}", e))?;
+        Ok(count)
     }
 
     async fn list(&self, uid: i32, page: i32, size: i32) -> Result<Vec<Sport>, String> {
@@ -154,7 +198,7 @@ impl SportDao for SqliteImpl {
         let rows = stmt
             .query_map(params![uid, safe_size, offset], |row| {
                 let id: i32 = row.get::<_, i64>(0).unwrap_or(0) as i32;
-                let r#type: String = row.get(1).unwrap_or_default();
+                let type_str: String = row.get(1).unwrap_or_default();
                 let start_time: i64 = row.get(2).unwrap_or(0);
                 let calories: i32 = row.get::<_, i64>(3).unwrap_or(0) as i32;
                 let distance_meter: i32 = row.get::<_, i64>(4).unwrap_or(0) as i32;
@@ -170,7 +214,7 @@ impl SportDao for SqliteImpl {
 
                 Ok(Sport {
                     id,
-                    r#type,
+                    r#type: SportType::from_str(&type_str),
                     start_time,
                     calories,
                     distance_meter,
@@ -208,7 +252,7 @@ impl SportDao for SqliteImpl {
         let rows = stmt
             .query_map(params![uid, start_time, end_time], |row| {
                 let id: i32 = row.get::<_, i64>(0).unwrap_or(0) as i32;
-                let r#type: String = row.get(1).unwrap_or_default();
+                let type_str: String = row.get(1).unwrap_or_default();
                 let start_time: i64 = row.get(2).unwrap_or(0);
                 let calories: i32 = row.get::<_, i64>(3).unwrap_or(0) as i32;
                 let distance_meter: i32 = row.get::<_, i64>(4).unwrap_or(0) as i32;
@@ -224,7 +268,7 @@ impl SportDao for SqliteImpl {
 
                 Ok(Sport {
                     id,
-                    r#type,
+                    r#type: SportType::from_str(&type_str),
                     start_time,
                     calories,
                     distance_meter,
@@ -244,6 +288,41 @@ impl SportDao for SqliteImpl {
         }
         Ok(result)
     }
+
+    async fn update(&self, uid: i32, sport: Sport) -> Result<(), String> {
+        if sport.id <= 0 { return Err("invalid sport id".to_string()); }
+        let extra_json = serde_json::to_string(&sport.extra)
+            .map_err(|e| format!("extra 序列化失败: {}", e))?;
+        let tracks_json = serde_json::to_string(&sport.tracks)
+            .map_err(|e| format!("tracks 序列化失败: {}", e))?;
+        let conn = self.open_conn()?;
+        let affected = conn
+            .execute(
+                r#"
+                UPDATE sports SET
+                    type = ?, start_time = ?, calories = ?, distance_meter = ?, duration_second = ?,
+                    heart_rate_avg = ?, heart_rate_max = ?, pace_average = ?, extra = ?, tracks = ?
+                WHERE id = ? AND uid = ?
+                "#,
+                params![
+                    sport.r#type.as_str(),
+                    sport.start_time,
+                    sport.calories,
+                    sport.distance_meter,
+                    sport.duration_second,
+                    sport.heart_rate_avg,
+                    sport.heart_rate_max,
+                    sport.pace_average,
+                    extra_json,
+                    tracks_json,
+                    sport.id,
+                    uid,
+                ],
+            )
+            .map_err(|e| format!("更新失败: {}", e))?;
+        if affected == 0 { return Err("记录不存在或无权限".to_string()); }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -253,10 +332,10 @@ impl UserDao for SqliteImpl {
         conn
             .execute(
                 r#"
-                INSERT INTO users (name, password)
-                VALUES (?, ?)
+                INSERT INTO users (name, password, nickname)
+                VALUES (?, ?, ?)
                 "#,
-                params![user.name, user.password],
+                params![user.name, user.password, user.nickname],
             )
             .map_err(|e| format!("插入用户失败: {}", e))?;
         Ok(conn.last_insert_rowid() as i32)
@@ -267,7 +346,7 @@ impl UserDao for SqliteImpl {
         let mut stmt = conn
             .prepare(
                 r#"
-                SELECT id, name, password FROM users WHERE id = ?
+                SELECT id, name, password, nickname FROM users WHERE id = ?
                 "#,
             )
             .map_err(|e| format!("查询用户失败: {}", e))?;
@@ -280,7 +359,8 @@ impl UserDao for SqliteImpl {
             let id: i32 = row.get::<_, i64>(0).unwrap_or(0) as i32;
             let name: String = row.get(1).unwrap_or_default();
             let password: String = row.get(2).unwrap_or_default();
-            Ok(Some(User { id, name, password }))
+            let nickname: String = row.get(3).unwrap_or_default();
+            Ok(Some(User { id, name, password, nickname }))
         } else {
             Ok(None)
         }
@@ -291,7 +371,7 @@ impl UserDao for SqliteImpl {
         let mut stmt = conn
             .prepare(
                 r#"
-                SELECT id, name, password FROM users WHERE name = ? AND password = ?
+                SELECT id, name, password, nickname FROM users WHERE name = ? AND password = ?
                 "#,
             )
             .map_err(|e| format!("查询用户失败: {}", e))?;
@@ -304,7 +384,8 @@ impl UserDao for SqliteImpl {
             let id: i32 = row.get::<_, i64>(0).unwrap_or(0) as i32;
             let name: String = row.get(1).unwrap_or_default();
             let password: String = row.get(2).unwrap_or_default();
-            Ok(Some(User { id, name, password }))
+            let nickname: String = row.get(3).unwrap_or_default();
+            Ok(Some(User { id, name, password, nickname }))
         } else {
             Ok(None)
         }

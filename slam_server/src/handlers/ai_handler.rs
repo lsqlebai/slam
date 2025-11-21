@@ -12,9 +12,8 @@ pub struct AIResponseText(pub crate::service::ai_service::AIResponse<crate::mode
 #[utoipa::path(
     post,
     path = routes::API_IMAGE_PARSE,
-    request_body = crate::service::ai_service::TextGenerationRequest,
     responses(
-        (status = 200, description = "Generate text", body = AIResponseText),
+        (status = 200, description = "Sports image parse", body = AIResponseText),
         (status = 401, description = "Unauthorized", body = String),
         (status = 500, description = "Internal server error", body = String)
     )

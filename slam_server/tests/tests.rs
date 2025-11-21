@@ -66,7 +66,7 @@ use slam_server::dao::sqlite_impl::SqliteImpl;
 fn test_app_config_default_uses_yaml_or_default() {
     use std::path::Path;
     use std::fs;
-    use slam_server::config::AppConfig as Cfg;
+use slam_server::config::AppConfig as Cfg;
     let cfg = Cfg::default();
     assert!(!cfg.db.path.trim().is_empty());
     let cfg_path = Path::new("config/app.yml");
@@ -82,6 +82,57 @@ fn test_app_config_default_uses_yaml_or_default() {
         assert_eq!(cfg.server.ip, "127.0.0.1");
         assert_eq!(cfg.server.port, 3000);
         assert_eq!(cfg.ai.key, "");
+    }
+}
+
+#[test]
+fn test_xiaomi_parser_parse_from_csv_file() {
+    use std::fs::File;
+    use csv::ReaderBuilder;
+    use slam_server::service::sport_service::parse_sports_from_csv;
+    use slam_server::model::sport::SportType;
+
+    let file = File::open("tests/test.csv").expect("tests/test.csv should exist");
+    let mut reader = ReaderBuilder::new().has_headers(true).from_reader(file);
+    let sports = parse_sports_from_csv("xiaomi", &mut reader);
+    assert!(!sports.is_empty());
+    for s in &sports {
+        assert_eq!(s.r#type, SportType::Swimming);
+        assert!(s.start_time > 0);
+        assert!(s.calories >= 0);
+        assert!(s.distance_meter >= 0);
+        assert!(s.duration_second >= 0);
+        assert!(s.extra.swolf_avg >= 0);
+    }
+
+    let file2 = File::open("tests/test.csv").expect("tests/test.csv should exist");
+    let mut reader2 = ReaderBuilder::new().has_headers(true).from_reader(file2);
+    let mut expected = Vec::new();
+    for rec in reader2.records() {
+        let rec = rec.expect("csv record");
+        let category = rec.get(4).unwrap_or("");
+        if category.to_lowercase() != "swimming" { continue; }
+        let time_str = rec.get(3).unwrap_or("0");
+        let mut start_time: i64 = time_str.parse().unwrap_or(0);
+        if start_time > 1_000_000_000_000 { start_time /= 1000; }
+        let val_str = rec.get(5).unwrap_or("{}");
+        let val: serde_json::Value = serde_json::from_str(val_str).unwrap_or(serde_json::json!({}));
+        let calories = val.get("calories").and_then(|v| v.as_i64()).or_else(|| val.get("total_cal").and_then(|v| v.as_i64())).unwrap_or(0) as i32;
+        let distance_meter = val.get("distance").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        let duration_second = val.get("valid_duration").and_then(|v| v.as_i64()).or_else(|| val.get("duration").and_then(|v| v.as_i64())).unwrap_or(0) as i32;
+        let swolf_avg = val.get("avg_swolf").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        let stroke_avg = val.get("max_stroke_freq").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        expected.push((start_time, calories, distance_meter, duration_second, swolf_avg, stroke_avg));
+    }
+    assert_eq!(sports.len(), expected.len());
+    for (i, s) in sports.iter().enumerate() {
+        let (et, ec, ed, edur, eswolf, estroke) = expected[i];
+        assert_eq!(s.start_time, et);
+        assert_eq!(s.calories, ec);
+        assert_eq!(s.distance_meter, ed);
+        assert_eq!(s.duration_second, edur);
+        assert_eq!(s.extra.swolf_avg, eswolf);
+        assert_eq!(s.extra.stroke_avg, estroke);
     }
 }
 
