@@ -1,19 +1,19 @@
 import { useNavigate } from '@modern-js/runtime/router';
+import { UploadFile } from '@mui/icons-material';
 import {
   Box,
   Button,
+  Divider,
   MenuItem,
   Select,
   Typography,
-  Divider,
 } from '@mui/material';
-import { UploadFile } from '@mui/icons-material';
+import { useRef, useState } from 'react';
 import { LANGUAGE_NAMES, TEXTS, saveLang } from '../../i18n';
 import type { Lang } from '../../i18n';
+import { importSportsCsv } from '../../services/sport';
 import { logout } from '../../services/user';
 import { useToast } from '../PageBase';
-import { importSportsCsv } from '../../services/sport';
-import { useRef, useState } from 'react';
 
 export default function Settings({
   lang,
@@ -33,7 +33,6 @@ export default function Settings({
         gap: 16,
       }}
     >
-      
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Box>
           <input
@@ -61,8 +60,16 @@ export default function Settings({
               }
             }}
           />
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{TEXTS[lang].home.miImport}</Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {TEXTS[lang].home.miImport}
+            </Typography>
             <Button
               variant="outlined"
               startIcon={<UploadFile />}
@@ -76,8 +83,16 @@ export default function Settings({
 
         <Divider sx={{ my: 0 }} />
 
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{TEXTS[lang].home.language}</Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {TEXTS[lang].home.language}
+          </Typography>
           <Select
             value={lang}
             onChange={e => {
@@ -102,7 +117,6 @@ export default function Settings({
           </Select>
         </Box>
       </Box>
-      
 
       <Box
         sx={{

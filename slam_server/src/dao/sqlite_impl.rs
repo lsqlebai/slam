@@ -323,6 +323,59 @@ impl SportDao for SqliteImpl {
         if affected == 0 { return Err("记录不存在或无权限".to_string()); }
         Ok(())
     }
+
+    async fn get_first(&self, uid: i32) -> Result<Option<Sport>, String> {
+        let conn = self.open_conn()?;
+        let mut stmt = conn
+            .prepare(
+                r#"
+                SELECT id, type, start_time, calories, distance_meter, duration_second,
+                       heart_rate_avg, heart_rate_max, pace_average, extra, tracks
+                FROM sports
+                WHERE uid = ?
+                ORDER BY start_time ASC
+                LIMIT 1
+                "#,
+            )
+            .map_err(|e| format!("查询失败: {}", e))?;
+
+        let mut rows = stmt
+            .query(params![uid])
+            .map_err(|e| format!("查询失败: {}", e))?;
+
+        if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            let id: i32 = row.get::<_, i64>(0).unwrap_or(0) as i32;
+            let type_str: String = row.get(1).unwrap_or_default();
+            let start_time: i64 = row.get(2).unwrap_or(0);
+            let calories: i32 = row.get::<_, i64>(3).unwrap_or(0) as i32;
+            let distance_meter: i32 = row.get::<_, i64>(4).unwrap_or(0) as i32;
+            let duration_second: i32 = row.get::<_, i64>(5).unwrap_or(0) as i32;
+            let heart_rate_avg: i32 = row.get::<_, i64>(6).unwrap_or(0) as i32;
+            let heart_rate_max: i32 = row.get::<_, i64>(7).unwrap_or(0) as i32;
+            let pace_average: String = row.get(8).unwrap_or_default();
+            let extra_json: String = row.get(9).unwrap_or_else(|_| "{}".to_string());
+            let tracks_json: String = row.get(10).unwrap_or_else(|_| "[]".to_string());
+
+            let extra: Swimming = serde_json::from_str(&extra_json).unwrap_or_default();
+            let tracks: Vec<Track> = serde_json::from_str(&tracks_json).unwrap_or_default();
+
+            Ok(Some(Sport {
+                id,
+                r#type: SportType::from_str(&type_str),
+                start_time,
+                calories,
+                distance_meter,
+                duration_second,
+                heart_rate_avg,
+                heart_rate_max,
+                pace_average,
+                extra,
+                tracks,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[async_trait]

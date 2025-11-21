@@ -1,29 +1,23 @@
 import { useNavigate } from '@modern-js/runtime/router';
 import {
+  AccessTime,
   Add,
+  AltRoute,
+  AvTimer,
   BarChart,
   DirectionsBike,
   DirectionsRun,
   DirectionsWalk,
-  Pool,
   HelpOutline,
-  AccessTime,
-  AvTimer,
-  AltRoute,
   LocalFireDepartment,
+  Pool,
 } from '@mui/icons-material';
-import {
-  Box,
-  Card,
-  CardContent,
-  Fab,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Card, CardContent, Fab, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Lang } from '../../i18n';
 import { type Sport, listSports } from '../../services/sport';
+import SportList from '../sport/SportList';
 
 export default function Sporting({ lang }: { lang: Lang }) {
   const [items, setItems] = useState<Sport[]>([]);
@@ -132,7 +126,10 @@ export default function Sporting({ lang }: { lang: Lang }) {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
-  const monthTitle = new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(now);
+  const monthTitle = new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'long',
+  }).format(now);
   const firstDay = new Date(year, month, 1);
   const startOffset = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -147,6 +144,13 @@ export default function Sporting({ lang }: { lang: Lang }) {
       ),
     ),
   );
+  const blankKeys = useMemo(
+    () =>
+      Array.from({ length: startOffset }, (_, i) =>
+        new Date(year, month, 1 - (startOffset - i)).toISOString(),
+      ),
+    [startOffset, year, month],
+  );
   const activeDays = useMemo(() => {
     const s = new Set<number>();
     for (const it of items) {
@@ -160,24 +164,63 @@ export default function Sporting({ lang }: { lang: Lang }) {
 
   return (
     <Box sx={{ px: 0, py: 0 }}>
-      <Box sx={{ px: 2, pb: 1 }}>
+      <Box sx={{ px: 2, pb: 1, mt: 2 }}>
         <Stack spacing={1}>
-          <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#fff', boxShadow: '0 2px 10px rgba(0,0,0,0.08)' }}>
-            <Stack direction="row" justifyContent="center" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
-              <LocalFireDepartment fontSize="small" sx={{ color: 'primary.main' }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{monthTitle}</Typography>
-              <LocalFireDepartment fontSize="small" sx={{ color: 'primary.main' }} />
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2,
+              bgcolor: '#fff',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+            }}
+          >
+            <Stack
+              direction="row"
+              justifyContent="center"
+              alignItems="center"
+              spacing={0.75}
+              sx={{ mb: 1 }}
+            >
+              <LocalFireDepartment
+                fontSize="small"
+                sx={{ color: 'primary.main' }}
+              />
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                {monthTitle}
+              </Typography>
+              <LocalFireDepartment
+                fontSize="small"
+                sx={{ color: 'primary.main' }}
+              />
             </Stack>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
-              {weekdayLabels.map((w, idx) => (
-                <Typography key={`wd-${idx}`} variant="caption" color="text.secondary" sx={{ textAlign: 'center', fontWeight: 600 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, 1fr)',
+                gap: 1,
+              }}
+            >
+              {weekdayLabels.map(w => (
+                <Typography
+                  key={w}
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ textAlign: 'center', fontWeight: 600 }}
+                >
                   {w}
                 </Typography>
               ))}
             </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.75, mt: 1 }}>
-              {Array.from({ length: startOffset }).map((_, i) => (
-                <Box key={`blank-${i}`} />
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, 1fr)',
+                gap: 0.75,
+                mt: 1,
+              }}
+            >
+              {blankKeys.map(k => (
+                <Box key={k} />
               ))}
               {Array.from({ length: daysInMonth }, (_, i) => {
                 const day = i + 1;
@@ -210,75 +253,15 @@ export default function Sporting({ lang }: { lang: Lang }) {
             <BarChart fontSize="small" />
             <Typography variant="subtitle2">{g.month}</Typography>
           </Stack>
-          <Stack spacing={1}>
-            {g.list.map(s => (
-              <Card
-                key={`${s.id}-${s.start_time}`}
-                variant="outlined"
-                sx={{
-                  borderRadius: 2,
-                  bgcolor: '#fff',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-                  transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-                  '&:hover': {
-                    boxShadow: '0 6px 20px rgba(0,0,0,0.16)',
-                    transform: 'translateY(-2px)'
-                  },
-                  cursor: 'pointer'
-                }}
-                onClick={() => navigate('/addsports/submit', { state: { sport: s, readonly: true } })}
-              >
-                <CardContent sx={{ pt: 1, pb: 1, '&.MuiCardContent-root:last-child': { paddingBottom: 1.5 } }}>
-                  <Stack spacing={0.5}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {IconFor(s.type)}
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                        {TypeLabelFor(s.type)}
-                      </Typography>
-                      <Box sx={{ flex: 1 }} />
-                      <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                        <AccessTime fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
-                        <Typography variant="body2" color="text.secondary" noWrap sx={{ minWidth: 0 }}>
-                          {formatDateOnly(s.start_time)}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', columnGap: 2, mt: 0, mb: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', minWidth: 0 }}>
-                        <AvTimer fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
-                        <Typography variant="body2" color="text.secondary" noWrap sx={{ minWidth: 0, lineHeight: 1.1 }}>
-                          {formatDurationHMS(s.duration_second)}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', minWidth: 0 }}>
-                        <AltRoute fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', minWidth: 0, gap: 0.25, ml: 'auto', justifyContent: 'flex-end', maxWidth: '100%' }}>
-                          <Typography component="span" variant="body2" color="text.secondary" noWrap sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1, textAlign: 'right' }}>
-                            {s.distance_meter}
-                          </Typography>
-                          <Typography component="span" variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap', lineHeight: 1.1, flexShrink: 0 }}>
-                            m
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', minWidth: 0 }}>
-                        <LocalFireDepartment fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', minWidth: 0, gap: 0.25, ml: 'auto', justifyContent: 'flex-end', maxWidth: '100%' }}>
-                          <Typography component="span" variant="body2" color="text.secondary" noWrap sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1, textAlign: 'right' }}>
-                            {s.calories}
-                          </Typography>
-                          <Typography component="span" variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap', lineHeight: 1.1, flexShrink: 0 }}>
-                            kcal
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-          
+          <SportList
+            lang={lang}
+            items={g.list}
+            onItemClick={s =>
+              navigate('/sport/detail', {
+                state: { sport: s, readonly: true },
+              })
+            }
+          />
         </Box>
       ))}
       <Box ref={sentinelRef} sx={{ height: 1 }} />

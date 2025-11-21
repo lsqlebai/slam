@@ -63,7 +63,7 @@ function AddSportsInner() {
         showError('识别失败');
         return;
       }
-      navigate('/addsports/submit', { state: { sport: resp.data } });
+      navigate('/sport/detail', { state: { sport: resp.data } });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       showError(msg || '识别失败');
@@ -215,7 +215,7 @@ function AddSportsInner() {
           <Button
             variant="outlined"
             startIcon={<Edit />}
-            onClick={() => navigate('/addsports/submit')}
+            onClick={() => navigate('/sport/detail')}
             fullWidth
           >
             {TEXTS[lang].addsports.manualButton}

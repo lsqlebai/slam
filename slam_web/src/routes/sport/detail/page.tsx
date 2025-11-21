@@ -1,6 +1,13 @@
 import { Helmet } from '@modern-js/runtime/head';
 import { useLocation, useNavigate } from '@modern-js/runtime/router';
-import { ArrowBack, Info, Pool, Timeline, Add, Delete } from '@mui/icons-material';
+import {
+  Add,
+  ArrowBack,
+  Delete,
+  Info,
+  Pool,
+  Timeline,
+} from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -10,13 +17,13 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Fab,
   IconButton,
   MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
-  Fab,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import PageBase, { useToast } from '../../../components/PageBase';
@@ -36,7 +43,9 @@ function SubmitInner() {
   type LocationState = { sport?: Sport; readonly?: boolean } | null;
   const initial: Sport | null =
     (location.state as LocationState)?.sport ?? null;
-  const readonly: boolean = Boolean((location.state as LocationState)?.readonly);
+  const readonly: boolean = Boolean(
+    (location.state as LocationState)?.readonly,
+  );
   const [sport, setSport] = useState<Sport>(
     () =>
       initial ?? {
@@ -67,7 +76,9 @@ function SubmitInner() {
   const [trackDraft, setTrackDraft] = useState<Track>(defaultTrack);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  useEffect(() => { setLang(getSavedLang()); }, []);
+  useEffect(() => {
+    setLang(getSavedLang());
+  }, []);
 
   const update = (patch: Partial<Sport>) =>
     setSport(prev => ({ ...prev, ...patch }));
@@ -86,7 +97,7 @@ function SubmitInner() {
   const removeTrack = (idx: number) =>
     update({ tracks: sport.tracks.filter((_, i) => i !== idx) });
   const updateTrackDraft = (patch: Partial<Track>) =>
-    setTrackDraft(prev => ({ ...prev, ...patch } as Track));
+    setTrackDraft(prev => ({ ...prev, ...patch }) as Track);
   const editTrack = (idx: number) => {
     setEditingIndex(idx);
     setTrackDraft(sport.tracks[idx]);
@@ -169,7 +180,11 @@ function SubmitInner() {
         >
           <ArrowBack fontSize="large" />
         </IconButton>
-        <Typography variant="h6" noWrap sx={{ textAlign: 'right', fontWeight: 600 }}>
+        <Typography
+          variant="h6"
+          noWrap
+          sx={{ textAlign: 'right', fontWeight: 600 }}
+        >
           {TEXTS[lang].addsports.title}
         </Typography>
       </Box>
@@ -184,9 +199,16 @@ function SubmitInner() {
       >
         <Stack spacing={3} sx={{ width: '100%', maxWidth: 840, pl: 1 }}>
           <Stack spacing={1} sx={{ mt: 0 }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{ pl: 1 }}
+            >
               <Info fontSize="small" />
-              <Typography variant="subtitle1">{TEXTS[lang].addsports.submitBasicTitle}</Typography>
+              <Typography variant="subtitle1">
+                {TEXTS[lang].addsports.submitBasicTitle}
+              </Typography>
             </Stack>
             <Paper elevation={3} sx={{ p: 2, borderRadius: 2 }}>
               <Stack spacing={2} sx={{ pb: 2 }}>
@@ -201,12 +223,26 @@ function SubmitInner() {
                     fullWidth
                   >
                     {[
-                      { label: TEXTS[lang].addsports.optUnknown, value: 'Unknown' },
-                      { label: TEXTS[lang].addsports.optSwimming, value: 'Swimming' },
-                      { label: TEXTS[lang].addsports.optRunning, value: 'Running' },
-                      { label: TEXTS[lang].addsports.optCycling, value: 'Cycling' },
-                    ].map((opt) => (
-                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      {
+                        label: TEXTS[lang].addsports.optUnknown,
+                        value: 'Unknown',
+                      },
+                      {
+                        label: TEXTS[lang].addsports.optSwimming,
+                        value: 'Swimming',
+                      },
+                      {
+                        label: TEXTS[lang].addsports.optRunning,
+                        value: 'Running',
+                      },
+                      {
+                        label: TEXTS[lang].addsports.optCycling,
+                        value: 'Cycling',
+                      },
+                    ].map(opt => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
                     ))}
                   </TextField>
                   <TextField
@@ -215,7 +251,9 @@ function SubmitInner() {
                     type="datetime-local"
                     value={toInputDateTime(sport.start_time)}
                     slotProps={{ htmlInput: { step: 1 } }}
-                    onChange={e => update({ start_time: fromInputDateTime(e.target.value) })}
+                    onChange={e =>
+                      update({ start_time: fromInputDateTime(e.target.value) })
+                    }
                     disabled={readonly}
                     fullWidth
                   />
@@ -226,7 +264,11 @@ function SubmitInner() {
                     label={TEXTS[lang].addsports.submitCaloriesLabel}
                     type="number"
                     value={sport.calories === 0 ? '' : sport.calories}
-                    onChange={e => update({ calories: Number.parseInt(e.target.value || '0') })}
+                    onChange={e =>
+                      update({
+                        calories: Number.parseInt(e.target.value || '0'),
+                      })
+                    }
                     disabled={readonly}
                     fullWidth
                   />
@@ -234,8 +276,14 @@ function SubmitInner() {
                     variant="standard"
                     label={TEXTS[lang].addsports.submitDistanceLabel}
                     type="number"
-                    value={sport.distance_meter === 0 ? '' : sport.distance_meter}
-                    onChange={e => update({ distance_meter: Number.parseInt(e.target.value || '0') })}
+                    value={
+                      sport.distance_meter === 0 ? '' : sport.distance_meter
+                    }
+                    onChange={e =>
+                      update({
+                        distance_meter: Number.parseInt(e.target.value || '0'),
+                      })
+                    }
                     disabled={readonly}
                     fullWidth
                   />
@@ -247,7 +295,9 @@ function SubmitInner() {
                     type="time"
                     value={toHMS(sport.duration_second)}
                     slotProps={{ htmlInput: { step: 1 } }}
-                    onChange={e => update({ duration_second: fromHMS(e.target.value) })}
+                    onChange={e =>
+                      update({ duration_second: fromHMS(e.target.value) })
+                    }
                     disabled={readonly}
                     fullWidth
                   />
@@ -265,8 +315,14 @@ function SubmitInner() {
                     variant="standard"
                     label={TEXTS[lang].addsports.submitHRAvgLabel}
                     type="number"
-                    value={sport.heart_rate_avg === 0 ? '' : sport.heart_rate_avg}
-                    onChange={e => update({ heart_rate_avg: Number.parseInt(e.target.value || '0') })}
+                    value={
+                      sport.heart_rate_avg === 0 ? '' : sport.heart_rate_avg
+                    }
+                    onChange={e =>
+                      update({
+                        heart_rate_avg: Number.parseInt(e.target.value || '0'),
+                      })
+                    }
                     disabled={readonly}
                     fullWidth
                   />
@@ -274,8 +330,14 @@ function SubmitInner() {
                     variant="standard"
                     label={TEXTS[lang].addsports.submitHRMaxLabel}
                     type="number"
-                    value={sport.heart_rate_max === 0 ? '' : sport.heart_rate_max}
-                    onChange={e => update({ heart_rate_max: Number.parseInt(e.target.value || '0') })}
+                    value={
+                      sport.heart_rate_max === 0 ? '' : sport.heart_rate_max
+                    }
+                    onChange={e =>
+                      update({
+                        heart_rate_max: Number.parseInt(e.target.value || '0'),
+                      })
+                    }
                     disabled={readonly}
                     fullWidth
                   />
@@ -285,9 +347,16 @@ function SubmitInner() {
           </Stack>
 
           <Stack spacing={1} sx={{ mt: 4 }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{ pl: 1 }}
+            >
               <Pool fontSize="small" />
-              <Typography variant="subtitle1">{TEXTS[lang].addsports.submitSwimTitle}</Typography>
+              <Typography variant="subtitle1">
+                {TEXTS[lang].addsports.submitSwimTitle}
+              </Typography>
             </Stack>
             <Paper elevation={3} sx={{ p: 2, borderRadius: 2 }}>
               <Stack spacing={2} sx={{ pb: 2 }}>
@@ -302,22 +371,48 @@ function SubmitInner() {
                     fullWidth
                   >
                     {[
-                      { label: TEXTS[lang].addsports.strokeUnknown, value: 'unknown' },
-                      { label: TEXTS[lang].addsports.strokeFreestyle, value: 'freestyle' },
-                      { label: TEXTS[lang].addsports.strokeButterfly, value: 'butterfly' },
-                      { label: TEXTS[lang].addsports.strokeBreaststroke, value: 'breaststroke' },
-                      { label: TEXTS[lang].addsports.strokeBackstroke, value: 'backstroke' },
-                      { label: TEXTS[lang].addsports.strokeMedley, value: 'medley' },
-                    ].map((opt) => (
-                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      {
+                        label: TEXTS[lang].addsports.strokeUnknown,
+                        value: 'unknown',
+                      },
+                      {
+                        label: TEXTS[lang].addsports.strokeFreestyle,
+                        value: 'freestyle',
+                      },
+                      {
+                        label: TEXTS[lang].addsports.strokeButterfly,
+                        value: 'butterfly',
+                      },
+                      {
+                        label: TEXTS[lang].addsports.strokeBreaststroke,
+                        value: 'breaststroke',
+                      },
+                      {
+                        label: TEXTS[lang].addsports.strokeBackstroke,
+                        value: 'backstroke',
+                      },
+                      {
+                        label: TEXTS[lang].addsports.strokeMedley,
+                        value: 'medley',
+                      },
+                    ].map(opt => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
                     ))}
                   </TextField>
                   <TextField
                     variant="standard"
                     label={TEXTS[lang].addsports.submitStrokeAvgLabel}
                     type="number"
-                    value={sport.extra.stroke_avg === 0 ? '' : sport.extra.stroke_avg}
-                    onChange={e => updateExtra({ stroke_avg: Number.parseInt(e.target.value || '0') })}
+                    value={
+                      sport.extra.stroke_avg === 0 ? '' : sport.extra.stroke_avg
+                    }
+                    onChange={e =>
+                      updateExtra({
+                        stroke_avg: Number.parseInt(e.target.value || '0'),
+                      })
+                    }
                     disabled={readonly}
                     fullWidth
                   />
@@ -325,8 +420,14 @@ function SubmitInner() {
                     variant="standard"
                     label={TEXTS[lang].addsports.submitSwolfAvgLabel}
                     type="number"
-                    value={sport.extra.swolf_avg === 0 ? '' : sport.extra.swolf_avg}
-                    onChange={e => updateExtra({ swolf_avg: Number.parseInt(e.target.value || '0') })}
+                    value={
+                      sport.extra.swolf_avg === 0 ? '' : sport.extra.swolf_avg
+                    }
+                    onChange={e =>
+                      updateExtra({
+                        swolf_avg: Number.parseInt(e.target.value || '0'),
+                      })
+                    }
                     disabled={readonly}
                     fullWidth
                   />
@@ -336,36 +437,50 @@ function SubmitInner() {
           </Stack>
 
           <Stack spacing={1} sx={{ mt: 4 }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{ pl: 1 }}
+            >
               <Timeline fontSize="small" />
-              <Typography variant="subtitle1" noWrap>{TEXTS[lang].addsports.submitTracksTitle}</Typography>
+              <Typography variant="subtitle1" noWrap>
+                {TEXTS[lang].addsports.submitTracksTitle}
+              </Typography>
               <Box sx={{ flex: 1 }} />
               {readonly ? null : (
-              <Fab
-                size="small"
-                aria-label="add-track"
-                onClick={addTrack}
-                sx={{
-                  bgcolor: 'success.main',
-                  color: 'common.white',
-                  width: 28,
-                  height: 28,
-                  minWidth: 28,
-                  minHeight: 28,
-                  borderRadius: '50%',
-                  p: 0,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.24)',
-                  '&:hover': { bgcolor: 'success.dark', boxShadow: '0 3px 12px rgba(0,0,0,0.28)' },
-                  '&:active': { boxShadow: '0 1px 6px rgba(0,0,0,0.25)' }
-                }}
-              >
-                <Add sx={{ fontSize: 16 }} />
-              </Fab>
+                <Fab
+                  size="small"
+                  aria-label="add-track"
+                  onClick={addTrack}
+                  sx={{
+                    bgcolor: 'success.main',
+                    color: 'common.white',
+                    width: 28,
+                    height: 28,
+                    minWidth: 28,
+                    minHeight: 28,
+                    borderRadius: '50%',
+                    p: 0,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.24)',
+                    '&:hover': {
+                      bgcolor: 'success.dark',
+                      boxShadow: '0 3px 12px rgba(0,0,0,0.28)',
+                    },
+                    '&:active': { boxShadow: '0 1px 6px rgba(0,0,0,0.25)' },
+                  }}
+                >
+                  <Add sx={{ fontSize: 16 }} />
+                </Fab>
               )}
             </Stack>
             <Paper elevation={3} sx={{ p: 2, borderRadius: 2 }}>
               {sport.tracks.length === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ textAlign: 'center', py: 4 }}
+                >
                   无分段数据
                 </Typography>
               ) : (
@@ -373,12 +488,18 @@ function SubmitInner() {
                   {sport.tracks.map((t, idx) => {
                     const strokeLabel = (v: string) => {
                       switch (v) {
-                        case 'freestyle': return TEXTS[lang].addsports.strokeFreestyle;
-                        case 'butterfly': return TEXTS[lang].addsports.strokeButterfly;
-                        case 'breaststroke': return TEXTS[lang].addsports.strokeBreaststroke;
-                        case 'backstroke': return TEXTS[lang].addsports.strokeBackstroke;
-                        case 'medley': return TEXTS[lang].addsports.strokeMedley;
-                        default: return TEXTS[lang].addsports.strokeUnknown;
+                        case 'freestyle':
+                          return TEXTS[lang].addsports.strokeFreestyle;
+                        case 'butterfly':
+                          return TEXTS[lang].addsports.strokeButterfly;
+                        case 'breaststroke':
+                          return TEXTS[lang].addsports.strokeBreaststroke;
+                        case 'backstroke':
+                          return TEXTS[lang].addsports.strokeBackstroke;
+                        case 'medley':
+                          return TEXTS[lang].addsports.strokeMedley;
+                        default:
+                          return TEXTS[lang].addsports.strokeUnknown;
                       }
                     };
                     return (
@@ -402,7 +523,9 @@ function SubmitInner() {
                             py: 1,
                             borderRadius: 1,
                             cursor: readonly ? 'default' : 'pointer',
-                            '&:hover': readonly ? undefined : { bgcolor: 'action.hover' },
+                            '&:hover': readonly
+                              ? undefined
+                              : { bgcolor: 'action.hover' },
                             transition: 'background-color 0.2s ease',
                           }}
                         >
@@ -415,75 +538,129 @@ function SubmitInner() {
                             }}
                           >
                             <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                noWrap
+                              >
                                 {TEXTS[lang].addsports.submitDistanceLabel}
                               </Typography>
-                              <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+                              <Typography
+                                variant="body1"
+                                noWrap
+                                sx={{ fontWeight: 600 }}
+                              >
                                 {t.distance_meter} m
                               </Typography>
                             </Box>
                             <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                noWrap
+                              >
                                 {TEXTS[lang].addsports.submitDurationLabel}
                               </Typography>
-                              <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+                              <Typography
+                                variant="body1"
+                                noWrap
+                                sx={{ fontWeight: 600 }}
+                              >
                                 {toHMS(t.duration_second)}
                               </Typography>
                             </Box>
                             <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                noWrap
+                              >
                                 {TEXTS[lang].addsports.submitPaceLabel}
                               </Typography>
-                              <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+                              <Typography
+                                variant="body1"
+                                noWrap
+                                sx={{ fontWeight: 600 }}
+                              >
                                 {t.pace_average}
                               </Typography>
                             </Box>
                             <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                noWrap
+                              >
                                 {TEXTS[lang].addsports.submitStrokeLabel}
                               </Typography>
-                              <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+                              <Typography
+                                variant="body1"
+                                noWrap
+                                sx={{ fontWeight: 600 }}
+                              >
                                 {strokeLabel(t.extra.main_stroke)}
                               </Typography>
                             </Box>
                             <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                noWrap
+                              >
                                 {TEXTS[lang].addsports.submitStrokeAvgLabel}
                               </Typography>
-                              <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+                              <Typography
+                                variant="body1"
+                                noWrap
+                                sx={{ fontWeight: 600 }}
+                              >
                                 {t.extra.stroke_avg}
                               </Typography>
                             </Box>
                             <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                noWrap
+                              >
                                 {TEXTS[lang].addsports.submitSwolfAvgLabel}
                               </Typography>
-                              <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+                              <Typography
+                                variant="body1"
+                                noWrap
+                                sx={{ fontWeight: 600 }}
+                              >
                                 {t.extra.swolf_avg}
                               </Typography>
                             </Box>
                           </Box>
                         </Box>
                         {readonly ? null : (
-                        <IconButton
-                          aria-label="delete"
-                          onClick={e => { e.stopPropagation(); removeTrack(idx); }}
-                          sx={{
-                            gridColumn: 2,
-                            gridRow: 2,
-                            width: 40,
-                            border: '1px solid',
-                            borderColor: 'error.main',
-                            color: 'error.main',
-                            borderRadius: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            '&:hover': { bgcolor: 'error.light', color: '#fff' },
-                          }}
-                        >
-                          <Delete />
-                        </IconButton>
+                          <IconButton
+                            aria-label="delete"
+                            onClick={e => {
+                              e.stopPropagation();
+                              removeTrack(idx);
+                            }}
+                            sx={{
+                              gridColumn: 2,
+                              gridRow: 2,
+                              width: 40,
+                              border: '1px solid',
+                              borderColor: 'error.main',
+                              color: 'error.main',
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              '&:hover': {
+                                bgcolor: 'error.light',
+                                color: '#fff',
+                              },
+                            }}
+                          >
+                            <Delete />
+                          </IconButton>
                         )}
                       </Box>
                     );
@@ -492,7 +669,15 @@ function SubmitInner() {
               )}
             </Paper>
           </Stack>
-          <Dialog open={trackDialogOpen} onClose={() => { setTrackDialogOpen(false); setEditingIndex(null); }} maxWidth="md" fullWidth>
+          <Dialog
+            open={trackDialogOpen}
+            onClose={() => {
+              setTrackDialogOpen(false);
+              setEditingIndex(null);
+            }}
+            maxWidth="md"
+            fullWidth
+          >
             <DialogTitle>{TEXTS[lang].addsports.submitTrackAdd}</DialogTitle>
             <DialogContent>
               <Stack spacing={2} sx={{ pt: 1 }}>
@@ -500,8 +685,16 @@ function SubmitInner() {
                   variant="standard"
                   label={TEXTS[lang].addsports.submitDistanceLabel}
                   type="number"
-                  value={trackDraft.distance_meter === 0 ? '' : trackDraft.distance_meter}
-                  onChange={e => updateTrackDraft({ distance_meter: Number.parseInt(e.target.value || '0') })}
+                  value={
+                    trackDraft.distance_meter === 0
+                      ? ''
+                      : trackDraft.distance_meter
+                  }
+                  onChange={e =>
+                    updateTrackDraft({
+                      distance_meter: Number.parseInt(e.target.value || '0'),
+                    })
+                  }
                   fullWidth
                 />
                 <TextField
@@ -510,14 +703,20 @@ function SubmitInner() {
                   type="time"
                   value={toHMS(trackDraft.duration_second)}
                   slotProps={{ htmlInput: { step: 1 } }}
-                  onChange={e => updateTrackDraft({ duration_second: fromHMS(e.target.value) })}
+                  onChange={e =>
+                    updateTrackDraft({
+                      duration_second: fromHMS(e.target.value),
+                    })
+                  }
                   fullWidth
                 />
                 <TextField
                   variant="standard"
                   label={TEXTS[lang].addsports.submitPaceLabel}
                   value={trackDraft.pace_average}
-                  onChange={e => updateTrackDraft({ pace_average: e.target.value })}
+                  onChange={e =>
+                    updateTrackDraft({ pace_average: e.target.value })
+                  }
                   fullWidth
                 />
                 <TextField
@@ -525,40 +724,97 @@ function SubmitInner() {
                   select
                   label={TEXTS[lang].addsports.submitStrokeLabel}
                   value={trackDraft.extra.main_stroke}
-                  onChange={e => updateTrackDraft({ extra: { ...trackDraft.extra, main_stroke: e.target.value } })}
+                  onChange={e =>
+                    updateTrackDraft({
+                      extra: {
+                        ...trackDraft.extra,
+                        main_stroke: e.target.value,
+                      },
+                    })
+                  }
                   fullWidth
                 >
                   {[
-                    { label: TEXTS[lang].addsports.strokeUnknown, value: 'unknown' },
-                    { label: TEXTS[lang].addsports.strokeFreestyle, value: 'freestyle' },
-                    { label: TEXTS[lang].addsports.strokeButterfly, value: 'butterfly' },
-                    { label: TEXTS[lang].addsports.strokeBreaststroke, value: 'breaststroke' },
-                    { label: TEXTS[lang].addsports.strokeBackstroke, value: 'backstroke' },
-                    { label: TEXTS[lang].addsports.strokeMedley, value: 'medley' },
+                    {
+                      label: TEXTS[lang].addsports.strokeUnknown,
+                      value: 'unknown',
+                    },
+                    {
+                      label: TEXTS[lang].addsports.strokeFreestyle,
+                      value: 'freestyle',
+                    },
+                    {
+                      label: TEXTS[lang].addsports.strokeButterfly,
+                      value: 'butterfly',
+                    },
+                    {
+                      label: TEXTS[lang].addsports.strokeBreaststroke,
+                      value: 'breaststroke',
+                    },
+                    {
+                      label: TEXTS[lang].addsports.strokeBackstroke,
+                      value: 'backstroke',
+                    },
+                    {
+                      label: TEXTS[lang].addsports.strokeMedley,
+                      value: 'medley',
+                    },
                   ].map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
                   ))}
                 </TextField>
                 <TextField
                   variant="standard"
                   label={TEXTS[lang].addsports.submitStrokeAvgLabel}
                   type="number"
-                  value={trackDraft.extra.stroke_avg === 0 ? '' : trackDraft.extra.stroke_avg}
-                  onChange={e => updateTrackDraft({ extra: { ...trackDraft.extra, stroke_avg: Number.parseInt(e.target.value || '0') } })}
+                  value={
+                    trackDraft.extra.stroke_avg === 0
+                      ? ''
+                      : trackDraft.extra.stroke_avg
+                  }
+                  onChange={e =>
+                    updateTrackDraft({
+                      extra: {
+                        ...trackDraft.extra,
+                        stroke_avg: Number.parseInt(e.target.value || '0'),
+                      },
+                    })
+                  }
                   fullWidth
                 />
                 <TextField
                   variant="standard"
                   label={TEXTS[lang].addsports.submitSwolfAvgLabel}
                   type="number"
-                  value={trackDraft.extra.swolf_avg === 0 ? '' : trackDraft.extra.swolf_avg}
-                  onChange={e => updateTrackDraft({ extra: { ...trackDraft.extra, swolf_avg: Number.parseInt(e.target.value || '0') } })}
+                  value={
+                    trackDraft.extra.swolf_avg === 0
+                      ? ''
+                      : trackDraft.extra.swolf_avg
+                  }
+                  onChange={e =>
+                    updateTrackDraft({
+                      extra: {
+                        ...trackDraft.extra,
+                        swolf_avg: Number.parseInt(e.target.value || '0'),
+                      },
+                    })
+                  }
                   fullWidth
                 />
               </Stack>
             </DialogContent>
             <DialogActions>
-              <Button variant="outlined" onClick={() => { setTrackDialogOpen(false); setEditingIndex(null); }}>{TEXTS[lang].register.cancel}</Button>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setTrackDialogOpen(false);
+                  setEditingIndex(null);
+                }}
+              >
+                {TEXTS[lang].register.cancel}
+              </Button>
               <Button
                 variant="contained"
                 onClick={() => {
@@ -582,23 +838,23 @@ function SubmitInner() {
       </Container>
 
       {readonly ? null : (
-      <Box
-        sx={{
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 'calc(env(safe-area-inset-bottom) + 20px)',
-          display: 'flex',
-          justifyContent: 'center',
-          px: 2,
-        }}
-      >
-        <Box sx={{ display: 'flex', gap: 2, width: '100%', maxWidth: 380 }}>
-          <Button variant="contained" onClick={handleSubmit} fullWidth>
-            {TEXTS[lang].addsports.submitButton}
-          </Button>
+        <Box
+          sx={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 'calc(env(safe-area-inset-bottom) + 20px)',
+            display: 'flex',
+            justifyContent: 'center',
+            px: 2,
+          }}
+        >
+          <Box sx={{ display: 'flex', gap: 2, width: '100%', maxWidth: 380 }}>
+            <Button variant="contained" onClick={handleSubmit} fullWidth>
+              {TEXTS[lang].addsports.submitButton}
+            </Button>
+          </Box>
         </Box>
-      </Box>
       )}
     </Box>
   );

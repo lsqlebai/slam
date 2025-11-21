@@ -59,7 +59,7 @@ export default function PageBase({ children }: { children: React.ReactNode }) {
           severity={severity}
           onClose={handleClose}
           variant="filled"
-          sx={(theme) => ({
+          sx={theme => ({
             width: '100%',
             borderRadius: 2,
             boxShadow: '0 10px 24px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.1)',

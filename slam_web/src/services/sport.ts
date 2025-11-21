@@ -70,3 +70,30 @@ export async function importSportsCsv(
   const data = res.data as { success?: boolean };
   return !!data?.success;
 }
+
+export type StatBucket = {
+  date: number;
+  duration: number;
+  calories: number;
+  count: number;
+};
+export type StatSummary = {
+  buckets: StatBucket[];
+  total_count: number;
+  total_calories: number;
+  total_duration_second: number;
+  sports: Sport[];
+  earliest_year?: number;
+};
+
+export async function getSportStats(
+  kind: 'year' | 'month' | 'week',
+  year: number,
+  month?: number,
+  week?: number,
+): Promise<StatSummary> {
+  const res = await http.get('/sport/stats', {
+    params: { kind, year, month, week },
+  });
+  return res.data as StatSummary;
+}

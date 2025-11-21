@@ -5,14 +5,14 @@ import {
   BottomNavigation,
   BottomNavigationAction,
   Box,
-  Typography,
   Divider,
+  Typography,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import PageBase from '../components/PageBase';
 import SettingsPage from '../components/home/Settings';
 import Sporting from '../components/home/Sporting';
-import Stats from '../components/home/Stats';
+import Stats from '../components/stats/Stats';
 import { TEXTS, getSavedLang } from '../i18n';
 import { info } from '../services/user';
 
@@ -53,7 +53,14 @@ function HomeInner() {
   })();
 
   const content = (
-    <Box sx={{ px: 2, pb: 'calc(env(safe-area-inset-bottom) + 72px)', flex: 1, overflowY: 'auto' }}>
+    <Box
+      sx={{
+        px: 2,
+        pb: 'calc(env(safe-area-inset-bottom) + 72px)',
+        flex: 1,
+        overflowY: 'auto',
+      }}
+    >
       {value === 0 && <Sporting lang={lang} />}
       {value === 1 && <Stats lang={lang} />}
       {value === 2 && <SettingsPage lang={lang} onLangChange={setLang} />}
@@ -80,13 +87,15 @@ function HomeInner() {
         sx={{
           pt: 'calc(env(safe-area-inset-top) + 12px)',
           px: 2,
-          pb: 2,
+          pb: 1,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <Typography variant="h6" noWrap sx={{ minWidth: 0 }}>{title}</Typography>
+        <Typography variant="h6" noWrap sx={{ minWidth: 0 }}>
+          {title}
+        </Typography>
         {nickname && (
           <Typography
             variant="subtitle1"

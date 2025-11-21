@@ -74,7 +74,15 @@ impl SportService {
             StatKind::Month => group_by_month_day(sports.clone()),
             StatKind::Week => group_by_week_day(sports.clone()),
         };
-        Ok(StatSummary { buckets, total_count, total_calories, total_duration_second, sports })
+        let earliest_year = match spec.kind {
+            StatKind::Year => match self.dao.get_first(ctx.uid).await {
+                Ok(Some(first)) => DateTime::from_timestamp(first.start_time, 0).map(|dt| dt.year()),
+                Ok(None) => None,
+                Err(_) => None,
+            },
+            _ => None,
+        };
+        Ok(StatSummary { buckets, total_count, total_calories, total_duration_second, sports, earliest_year })
     }
 
     pub async fn group_by_year(&self, uid: i32, start_time: i64, end_time: i64) -> Result<Vec<StatBucket>, ServiceError> {
@@ -113,6 +121,7 @@ pub struct StatSummary {
     pub total_calories: i32,
     pub total_duration_second: i32,
     pub sports: Vec<Sport>,
+    pub earliest_year: Option<i32>,
 }
 
 fn group_by_month(items: Vec<Sport>) -> Vec<StatBucket> {
