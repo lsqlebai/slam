@@ -5,7 +5,6 @@ use axum::{
 };
 use reqwest::multipart;
 use serde_json;
-use std::env;
 use tower::Service;
 
 // 导入项目模块
@@ -296,17 +295,7 @@ async fn test_sport_insert_list_stats() {
     assert_eq!(buckets_week[0].get("date").unwrap().as_i64().unwrap(), 1);
 }
 
-async fn get_api_key_from_env_example() {
-    println!("执行get_api_key_from_env函数...");
-    // 从环境变量读取 AI API 密钥
-    let api_key = env::var("AI_API_KEY").ok().filter(|k| !k.trim().is_empty());
-    match api_key {
-        Some(key) => println!("成功获取到API Key: {}", key),
-        None => println!("未获取到API Key，环境变量中可能没有设置"),
-    }
-    // 测试总是通过，因为我们只想看到输出
-    assert!(true);
-}
+// 删除未使用示例函数以避免警告
 
 #[tokio::test]
 #[ignore]
@@ -685,4 +674,52 @@ async fn test_sport_import_csv() {
     assert_eq!(list_status, StatusCode::OK);
     let list_json: serde_json::Value = serde_json::from_slice(&list_bytes).unwrap();
     assert!(list_json.as_array().unwrap().len() >= 2);
+}
+#[tokio::test]
+async fn test_sport_stats_total() {
+    let mut app = app::create_app(AppConfig::default());
+
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_stats_total_{}", unique);
+    let password = "p@ssw0rd";
+
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password,
+        "nickname": "StatsTotal"
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("register set-cookie");
+    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+
+    let year = 2025;
+    let req = Request::builder()
+        .uri(format!("{}?kind=total&year={}", routes::API_SPORT_STATS, year))
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let resp = app.call(req).await.unwrap();
+    let (status, bytes) = print_response("运动统计(总计)", resp).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(json.get("sports").unwrap().as_array().unwrap().is_empty());
+    assert!(json.get("total_count").is_some());
+    assert!(json.get("total_calories").is_some());
+    assert!(json.get("total_duration_second").is_some());
+    assert!(json.get("type_buckets").unwrap().as_array().is_some());
 }

@@ -4,6 +4,8 @@ import { TEXTS } from '../../i18n';
 import type { Lang } from '../../i18n';
 import { type StatSummary, getSportStats } from '../../services/sport';
 import StatsSection from './StatsSection';
+import SummaryStats from './SummaryStats';
+import TypeBucketsChart from './TypeBucketsChart';
 
 export default function Stats({ lang }: { lang: Lang }) {
   const tabs = useMemo(
@@ -49,6 +51,11 @@ export default function Stats({ lang }: { lang: Lang }) {
     setSummary(s);
   }, []);
 
+  const loadTotalStats = useCallback(async (y: number) => {
+    const s = await getSportStats('total', y);
+    setSummary(s);
+  }, []);
+
   useEffect(() => {
     if (tabIndex === 2) loadYearStats(selectedYear);
   }, [loadYearStats, selectedYear, tabIndex]);
@@ -60,6 +67,10 @@ export default function Stats({ lang }: { lang: Lang }) {
   useEffect(() => {
     if (tabIndex === 0) loadWeekStats(selectedWeek.year, selectedWeek.week);
   }, [loadWeekStats, selectedWeek, tabIndex]);
+
+  useEffect(() => {
+    if (tabIndex === 3) loadTotalStats(selectedYear);
+  }, [loadTotalStats, selectedYear, tabIndex]);
 
   const years = useMemo(() => {
     const now = new Date().getFullYear();
@@ -398,6 +409,19 @@ export default function Stats({ lang }: { lang: Lang }) {
             })()}
             sports={summary?.sports || []}
           />
+        </Box>
+      )}
+      {tabIndex === 3 && (
+        <Box sx={{ mt: 2 }}>
+          <Box sx={{ mb: 2 }}>
+            <SummaryStats
+              lang={lang}
+              durationSeconds={summary?.total_duration_second || 0}
+              calories={summary?.total_calories || 0}
+              count={summary?.total_count || 0}
+            />
+          </Box>
+          <TypeBucketsChart lang={lang} buckets={summary?.type_buckets || []} />
         </Box>
       )}
     </Box>

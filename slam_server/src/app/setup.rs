@@ -10,6 +10,8 @@ use utoipa_swagger_ui::SwaggerUi;
 
 // 导入服务相关模块
 use crate::service::{ai_service::AIService, image_service::ImageService, user_service::UserService, sport_service::SportService};
+use crate::dao::memory_cache::MemoryResultCache;
+use crate::service::sport_service::StatSummary;
 use crate::dao::sqlite_impl::SqliteImpl;
 use std::sync::Arc as StdArc;
 use crate::config::AppConfig;
@@ -60,6 +62,7 @@ pub fn create_app(config: AppConfig) -> Router {
                 crate::handlers::user_handler::UserLoginRequest,
                 crate::handlers::user_handler::UserActionResponse,
                 crate::service::sport_service::StatBucket,
+                crate::service::sport_service::TypeBucket,
                 crate::service::sport_service::StatSummary,
                 crate::handlers::sport_handler::ActionResponse,
                 crate::handlers::sport_handler::ImportResponse
@@ -90,11 +93,12 @@ fn create_production_router(config: AppConfig) -> Router {
 
     let sqlite_db = StdArc::new(SqliteImpl::new_sync(&config.db.path).expect("init sqlite dao"));
     let jwt = Jwt::new(config.security.jwt_ttl_seconds, config.security.key.clone());
+    let cache = StdArc::new(MemoryResultCache::<StatSummary>::new());
     let app = Arc::new(AppState {
         ai_service: AIService::new(),
         image_service: ImageService::new(),
         user_service: UserService::new(sqlite_db.clone(), config.security.clone()),
-        sport_service: SportService::new(sqlite_db.clone()),
+        sport_service: SportService::new(sqlite_db.clone(), cache.clone()),
         jwt,
     });
     // 导入处理函数

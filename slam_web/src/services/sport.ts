@@ -77,8 +77,15 @@ export type StatBucket = {
   calories: number;
   count: number;
 };
+export type TypeBucket = {
+  type: string;
+  duration: number;
+  calories: number;
+  count: number;
+};
 export type StatSummary = {
   buckets: StatBucket[];
+  type_buckets: TypeBucket[];
   total_count: number;
   total_calories: number;
   total_duration_second: number;
@@ -87,7 +94,7 @@ export type StatSummary = {
 };
 
 export async function getSportStats(
-  kind: 'year' | 'month' | 'week',
+  kind: 'year' | 'month' | 'week' | 'total',
   year: number,
   month?: number,
   week?: number,

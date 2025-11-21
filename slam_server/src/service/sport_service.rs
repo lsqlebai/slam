@@ -1,96 +1,189 @@
-use ctx_marco::inject_ctx;
-use serde::{Serialize, Deserialize};
-use utoipa::ToSchema;
-use std::collections::HashMap;
-use std::sync::Arc;
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
+use ctx_marco::inject_ctx;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use utoipa::ToSchema;
 
 use crate::dao::idl::SportDao;
-use crate::model::sport::{Sport, SportType};
-use crate::service::common::{ServiceError};
+use crate::dao::cache::ResultCache;
 use crate::handlers::jwt::Context;
+use crate::model::sport::{Sport, SportType};
+use crate::service::common::ServiceError;
 
 pub struct SportService {
     dao: Arc<dyn SportDao + Send + Sync>,
+    cache: Arc<dyn ResultCache<StatSummary> + Send + Sync>,
 }
 
 impl SportService {
-    pub fn new(dao: Arc<dyn SportDao + Send + Sync>) -> Self { Self { dao } }
+    pub fn new(dao: Arc<dyn SportDao + Send + Sync>, cache: Arc<dyn ResultCache<StatSummary> + Send + Sync>) -> Self {
+        Self { dao, cache }
+    }
 
     #[inject_ctx]
     pub async fn insert(&self, sport: Sport) -> Result<(), ServiceError> {
-        self.dao.insert(ctx.uid, sport).await.map_err(|e| ServiceError { code: 500, message: e })
+        self
+            .dao
+            .insert(ctx.uid, sport)
+            .await
+            .map_err(|e| ServiceError { code: 500, message: e })?;
+        self.cache.invalidate(ctx.uid).await;
+        Ok(())
     }
 
     #[inject_ctx]
     pub async fn list(&self, page: i32, size: i32) -> Result<Vec<Sport>, ServiceError> {
-        self.dao.list(ctx.uid, page, size).await.map_err(|e| ServiceError { code: 500, message: e })
+        self.dao
+            .list(ctx.uid, page, size)
+            .await
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })
     }
     #[inject_ctx]
     pub async fn update(&self, sport: Sport) -> Result<(), ServiceError> {
-        self.dao.update(ctx.uid, sport).await.map_err(|e| ServiceError { code: 500, message: e })
+        self
+            .dao
+            .update(ctx.uid, sport)
+            .await
+            .map_err(|e| ServiceError { code: 500, message: e })?;
+        self.cache.invalidate(ctx.uid).await;
+        Ok(())
     }
 
     #[inject_ctx]
-    pub async fn import<R: std::io::Read>(&self, vendor: String, mut reader: csv::Reader<R>) -> Result<usize, ServiceError> {
+    pub async fn import<R: std::io::Read>(
+        &self,
+        vendor: String,
+        reader: csv::Reader<R>,
+    ) -> Result<usize, ServiceError> {
         let mut r = reader;
         let sports = parse_sports_from_csv(&vendor, &mut r);
-        if sports.is_empty() { return Err(ServiceError { code: 400, message: "no valid rows".to_string() }); }
-        self.dao.insert_many(ctx.uid, sports).await.map_err(|e| ServiceError { code: 500, message: e })
+        if sports.is_empty() {
+            return Err(ServiceError {
+                code: 400,
+                message: "no valid rows".to_string(),
+            });
+        }
+        let inserted = self
+            .dao
+            .insert_many(ctx.uid, sports)
+            .await
+            .map_err(|e| ServiceError { code: 500, message: e })?;
+        self.cache.invalidate(ctx.uid).await;
+        Ok(inserted)
     }
 
     #[inject_ctx]
     pub async fn stats(&self, spec: StatsParam) -> Result<StatSummary, ServiceError> {
+        if let StatKind::Total = spec.kind {
+            if let Some(cached) = self.cache.get(ctx.uid).await {
+                return Ok(cached);
+            }
+        }
         let (start_time, end_time) = match spec.kind {
             StatKind::Year => {
                 let y = spec.year;
                 let start = Utc.with_ymd_and_hms(y, 1, 1, 0, 0, 0).unwrap().timestamp();
-                let end = Utc.with_ymd_and_hms(y + 1, 1, 1, 0, 0, 0).unwrap().timestamp();
+                let end = Utc
+                    .with_ymd_and_hms(y + 1, 1, 1, 0, 0, 0)
+                    .unwrap()
+                    .timestamp();
                 (start, end)
             }
             StatKind::Month => {
                 let y = spec.year;
-                let m = spec.month.ok_or(ServiceError { code: 400, message: "invalid month".to_string() })?;
+                let m = spec.month.ok_or(ServiceError {
+                    code: 400,
+                    message: "invalid month".to_string(),
+                })?;
                 let start = Utc.with_ymd_and_hms(y, m, 1, 0, 0, 0).unwrap().timestamp();
                 let (ny, nm) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
-                let end = Utc.with_ymd_and_hms(ny, nm, 1, 0, 0, 0).unwrap().timestamp();
+                let end = Utc
+                    .with_ymd_and_hms(ny, nm, 1, 0, 0, 0)
+                    .unwrap()
+                    .timestamp();
                 (start, end)
             }
             StatKind::Week => {
                 let y = spec.year;
-                let w = spec.week.ok_or(ServiceError { code: 400, message: "invalid week".to_string() })?;
-                let start_date = NaiveDate::from_isoywd_opt(y, w, Weekday::Mon).ok_or(ServiceError { code: 400, message: "invalid iso week".to_string() })?;
+                let w = spec.week.ok_or(ServiceError {
+                    code: 400,
+                    message: "invalid week".to_string(),
+                })?;
+                let start_date =
+                    NaiveDate::from_isoywd_opt(y, w, Weekday::Mon).ok_or(ServiceError {
+                        code: 400,
+                        message: "invalid iso week".to_string(),
+                    })?;
                 let start_dt = Utc.from_utc_datetime(&start_date.and_hms_opt(0, 0, 0).unwrap());
                 let end_dt = start_dt + Duration::days(7);
                 (start_dt.timestamp(), end_dt.timestamp())
             }
+            StatKind::Total => (0, i64::MAX),
         };
-        let sports = self.dao.list_by_time_range(ctx.uid, start_time, end_time).await.map_err(|e| ServiceError { code: 500, message: e })?;
-        let total_count:i32 = sports.len() as i32;
-        let total_calories:i32 = sports.iter().map(|s| s.calories).sum();
-        let total_duration_second:i32 = sports.iter().map(|s| s.duration_second).sum();
+        let sports = self
+            .dao
+            .list_by_time_range(ctx.uid, start_time, end_time)
+            .await
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })?;
+        let total_count: i32 = sports.len() as i32;
+        let total_calories: i32 = sports.iter().map(|s| s.calories).sum();
+        let total_duration_second: i32 = sports.iter().map(|s| s.duration_second).sum();
         let buckets = match spec.kind {
             StatKind::Year => group_by_month(sports.clone()),
             StatKind::Month => group_by_month_day(sports.clone()),
             StatKind::Week => group_by_week_day(sports.clone()),
+            StatKind::Total => Vec::new(),
         };
         let earliest_year = match spec.kind {
             StatKind::Year => match self.dao.get_first(ctx.uid).await {
-                Ok(Some(first)) => DateTime::from_timestamp(first.start_time, 0).map(|dt| dt.year()),
+                Ok(Some(first)) => {
+                    DateTime::from_timestamp(first.start_time, 0).map(|dt| dt.year())
+                }
                 Ok(None) => None,
                 Err(_) => None,
             },
             _ => None,
         };
-        Ok(StatSummary { buckets, total_count, total_calories, total_duration_second, sports, earliest_year })
+        let type_buckets = group_by_type(sports.clone());
+        let sports_field = match spec.kind {
+            StatKind::Total => Vec::new(),
+            _ => sports,
+        };
+        let summary = StatSummary {
+            buckets,
+            type_buckets,
+            total_count,
+            total_calories,
+            total_duration_second,
+            sports: sports_field,
+            earliest_year,
+        };
+        if let StatKind::Total = spec.kind {
+            self.cache.set(ctx.uid, summary.clone()).await;
+        }
+        Ok(summary)
     }
 
-    pub async fn group_by_year(&self, uid: i32, start_time: i64, end_time: i64) -> Result<Vec<StatBucket>, ServiceError> {
+    pub async fn group_by_year(
+        &self,
+        uid: i32,
+        start_time: i64,
+        end_time: i64,
+    ) -> Result<Vec<StatBucket>, ServiceError> {
         let items = self
             .dao
             .list_by_time_range(uid, start_time, end_time)
             .await
-            .map_err(|e| ServiceError { code: 500, message: e })?;
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })?;
         Ok(group_by_month(items))
     }
 }
@@ -104,7 +197,12 @@ pub struct StatBucket {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum StatKind { Year, Month, Week }
+pub enum StatKind {
+    Year,
+    Month,
+    Week,
+    Total,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct StatsParam {
@@ -117,6 +215,7 @@ pub struct StatsParam {
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct StatSummary {
     pub buckets: Vec<StatBucket>,
+    pub type_buckets: Vec<TypeBucket>,
     pub total_count: i32,
     pub total_calories: i32,
     pub total_duration_second: i32,
@@ -137,11 +236,16 @@ fn group_by_week_day(items: Vec<Sport>) -> Vec<StatBucket> {
 }
 
 fn group_by_key(items: Vec<Sport>, key: impl Fn(&DateTime<Utc>) -> u32) -> Vec<StatBucket> {
-    let mut acc: HashMap<u32, StatBucket> = HashMap::new();
+    let mut acc: std::collections::HashMap<u32, StatBucket> = std::collections::HashMap::new();
     for sport in items.into_iter() {
         let dt = DateTime::from_timestamp(sport.start_time, 0).expect("invalid timestamp");
         let k = key(&dt);
-        let entry = acc.entry(k).or_insert(StatBucket { date: k as i32, duration: 0, calories: 0, count: 0 });
+        let entry = acc.entry(k).or_insert(StatBucket {
+            date: k as i32,
+            duration: 0,
+            calories: 0,
+            count: 0,
+        });
         entry.count += 1;
         entry.duration += sport.duration_second;
         entry.calories += sport.calories;
@@ -151,51 +255,97 @@ fn group_by_key(items: Vec<Sport>, key: impl Fn(&DateTime<Utc>) -> u32) -> Vec<S
     v
 }
 
-trait VendorFileParser { fn parse<R: std::io::Read>(&self, reader: &mut csv::Reader<R>) -> Vec<Sport>; }
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+pub struct TypeBucket {
+    pub r#type: SportType,
+    pub duration: i32,
+    pub calories: i32,
+    pub count: i32,
+}
+
+fn group_by_type(items: Vec<Sport>) -> Vec<TypeBucket> {
+    let mut acc: std::collections::HashMap<SportType, TypeBucket> =
+        std::collections::HashMap::new();
+    for sport in items.into_iter() {
+        let key = sport.r#type;
+        let entry = acc.entry(key).or_insert(TypeBucket {
+            r#type: key,
+            duration: 0,
+            calories: 0,
+            count: 0,
+        });
+        entry.count += 1;
+        entry.duration += sport.duration_second;
+        entry.calories += sport.calories;
+    }
+    let mut v: Vec<TypeBucket> = acc.into_values().collect();
+    v.sort_by_key(|b| b.r#type.as_str().to_string());
+    v
+}
+
+trait VendorFileParser {
+    fn parse<R: std::io::Read>(&self, reader: &mut csv::Reader<R>) -> Vec<Sport>;
+}
 
 struct HuaweiParser;
 struct XiaomiParser;
 
 impl VendorFileParser for HuaweiParser {
-    fn parse<R: std::io::Read>(&self, _reader: &mut csv::Reader<R>) -> Vec<Sport> { panic!("huawei parser not implemented") }
+    fn parse<R: std::io::Read>(&self, _reader: &mut csv::Reader<R>) -> Vec<Sport> {
+        panic!("huawei parser not implemented")
+    }
 }
 
 #[derive(Deserialize)]
 struct XiaomiCsvRow {
-    #[serde(rename = "Time")] time: i64,
-    #[serde(rename = "Category")] category: String,
-    #[serde(rename = "Value")] value: String,
+    #[serde(rename = "Time")]
+    time: i64,
+    #[serde(rename = "Category")]
+    category: String,
+    #[serde(rename = "Value")]
+    value: String,
 }
 
 #[derive(Deserialize, Default)]
 struct XiaomiValue {
-    #[serde(rename = "calories")] calories: Option<i32>,
-    #[serde(rename = "total_cal")] total_cal: Option<i32>,
-    #[serde(rename = "distance")] distance: Option<i32>,
-    #[serde(rename = "duration")] duration: Option<i32>,
-    #[serde(rename = "valid_duration")] valid_duration: Option<i32>,
-    #[serde(rename = "avg_swolf")] avg_swolf: Option<i32>,
-    #[serde(rename = "best_swolf")] best_swolf: Option<i32>,
-    #[serde(rename = "main_posture")] main_posture: Option<i32>,
-    #[serde(rename = "max_stroke_freq")] max_stroke_freq: Option<i32>,
-    #[serde(rename = "stroke_count")] stroke_count: Option<i32>,
-    #[serde(rename = "turn_count")] turn_count: Option<i32>,
-    #[serde(rename = "pool_width")] pool_width: Option<i32>,
-    #[serde(rename = "start_time")] start_time: Option<i64>,
-    #[serde(rename = "time")] value_time: Option<i64>,
-    #[serde(rename = "end_time")] end_time: Option<i64>,
+    #[serde(rename = "calories")]
+    calories: Option<i32>,
+    #[serde(rename = "total_cal")]
+    total_cal: Option<i32>,
+    #[serde(rename = "distance")]
+    distance: Option<i32>,
+    #[serde(rename = "duration")]
+    duration: Option<i32>,
+    #[serde(rename = "valid_duration")]
+    valid_duration: Option<i32>,
+    #[serde(rename = "avg_swolf")]
+    avg_swolf: Option<i32>,
+    //#[serde(rename = "best_swolf")] best_swolf: Option<i32>, // 未被使用，保留供后续扩展
+    #[serde(rename = "main_posture")]
+    main_posture: Option<i32>,
+    #[serde(rename = "max_stroke_freq")]
+    max_stroke_freq: Option<i32>,
+    //#[serde(rename = "stroke_count")] stroke_count: Option<i32>,// 未被使用，保留供后续扩展
+    //#[serde(rename = "turn_count")] turn_count: Option<i32>,// 未被使用，保留供后续扩展
+    //#[serde(rename = "pool_width")] pool_width: Option<i32>,// 未被使用，保留供后续扩展
+    //#[serde(rename = "start_time")] start_time: Option<i64>,// 未被使用，保留供后续扩展
+    //#[serde(rename = "time")] value_time: Option<i64>,// 未被使用，保留供后续扩展
+    //#[serde(rename = "end_time")] end_time: Option<i64>,// 未被使用，保留供后续扩展
 }
 
 impl VendorFileParser for XiaomiParser {
-
-    fn parse<R: std::io::Read>(&self, reader: &mut csv::Reader<R>) -> Vec<Sport> { 
+    fn parse<R: std::io::Read>(&self, reader: &mut csv::Reader<R>) -> Vec<Sport> {
         let mut res = Vec::new();
         for rec in reader.deserialize() {
             let Ok(row) = rec else { continue };
             let row: XiaomiCsvRow = row;
             let mut start_time = row.time;
-            if start_time > 1_000_000_000_000 { start_time /= 1000; }
-            if row.category.to_lowercase() != "swimming" { continue; }
+            if start_time > 1_000_000_000_000 {
+                start_time /= 1000;
+            }
+            if row.category.to_lowercase() != "swimming" {
+                continue;
+            }
             let parsed: XiaomiValue = serde_json::from_str(&row.value).unwrap_or_default();
             let calories = parsed.calories.or(parsed.total_cal).unwrap_or(0);
             let distance_meter = parsed.distance.unwrap_or(0);
@@ -219,7 +369,11 @@ impl VendorFileParser for XiaomiParser {
                 heart_rate_avg: 0,
                 heart_rate_max: 0,
                 pace_average: String::new(),
-                extra: crate::model::sport::Swimming { main_stroke: main_stroke.to_string(), stroke_avg, swolf_avg },
+                extra: crate::model::sport::Swimming {
+                    main_stroke: main_stroke.to_string(),
+                    stroke_avg,
+                    swolf_avg,
+                },
                 tracks: vec![],
             };
             res.push(sport);
@@ -228,11 +382,12 @@ impl VendorFileParser for XiaomiParser {
     }
 }
 
-
-
 // removed unused common parser placeholder
 
-pub fn parse_sports_from_csv<R: std::io::Read>(vendor: &str, reader: &mut csv::Reader<R>) -> Vec<Sport> {
+pub fn parse_sports_from_csv<R: std::io::Read>(
+    vendor: &str,
+    reader: &mut csv::Reader<R>,
+) -> Vec<Sport> {
     match vendor.to_lowercase().as_str() {
         "huawei" => HuaweiParser.parse(reader),
         "xiaomi" => XiaomiParser.parse(reader),

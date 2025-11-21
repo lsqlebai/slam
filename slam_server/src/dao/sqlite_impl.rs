@@ -60,7 +60,7 @@ impl SqliteImpl {
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_users_name ON users(name);
         "#;
-        let mut conn = self.open_conn()?;
+        let conn = self.open_conn()?;
         conn.execute_batch(create_sql)
             .map_err(|e| format!("建表失败: {}", e))?;
         let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT ''", params![]);

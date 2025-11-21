@@ -90,6 +90,7 @@ pub async fn stats_handler(
         "year" => StatKind::Year,
         "month" => StatKind::Month,
         "week" => StatKind::Week,
+        "total" => StatKind::Total,
         _ => return HandlerResponse::<StatSummary>::Error("invalid kind".to_string()).into_response(),
     };
     match app.sport_service.stats(StatsParam { kind, year: q.year, month: q.month, week: q.week },&ctx).await {

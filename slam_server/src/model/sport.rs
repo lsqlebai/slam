@@ -180,7 +180,7 @@ mod tests {
         assert!(!xml.is_empty());
     }
 }
-#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[serde(rename_all = "PascalCase")]
 pub enum SportType {
     #[default]
