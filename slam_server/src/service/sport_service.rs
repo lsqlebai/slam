@@ -76,6 +76,17 @@ impl SportService {
     }
 
     #[inject_ctx]
+    pub async fn delete(&self, id: i32) -> Result<(), ServiceError> {
+        self
+            .dao
+            .remove(ctx.uid, id)
+            .await
+            .map_err(|e| ServiceError { code: 500, message: e })?;
+        self.cache.invalidate(ctx.uid).await;
+        Ok(())
+    }
+
+    #[inject_ctx]
     pub async fn stats(&self, spec: StatsParam) -> Result<StatSummary, ServiceError> {
         if let StatKind::Total = spec.kind {
             if let Some(cached) = self.cache.get(ctx.uid).await {

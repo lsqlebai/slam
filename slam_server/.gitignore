@@ -1,3 +1,5 @@
 /target
 .vscode
 tests/test.db
+sport.db
+compressed_*.jpeg

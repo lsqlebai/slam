@@ -9,3 +9,4 @@ pub const API_SPORT_LIST: &str = "/api/sport/list";
 pub const API_SPORT_STATS: &str = "/api/sport/stats";
 pub const API_SPORT_UPDATE: &str = "/api/sport/update";
 pub const API_SPORT_IMPORT: &str = "/api/sport/import";
+pub const API_SPORT_DELETE: &str = "/api/sport/delete";

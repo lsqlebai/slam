@@ -324,6 +324,21 @@ impl SportDao for SqliteImpl {
         Ok(())
     }
 
+    async fn remove(&self, uid: i32, id: i32) -> Result<(), String> {
+        if id <= 0 { return Err("invalid sport id".to_string()); }
+        let conn = self.open_conn()?;
+        let affected = conn
+            .execute(
+                r#"
+                DELETE FROM sports WHERE id = ? AND uid = ?
+                "#,
+                params![id, uid],
+            )
+            .map_err(|e| format!("删除失败: {}", e))?;
+        if affected == 0 { return Err("记录不存在或无权限".to_string()); }
+        Ok(())
+    }
+
     async fn get_first(&self, uid: i32) -> Result<Option<Sport>, String> {
         let conn = self.open_conn()?;
         let mut stmt = conn

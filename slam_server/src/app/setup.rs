@@ -48,7 +48,8 @@ pub fn create_app(config: AppConfig) -> Router {
             crate::handlers::sport_handler::import_sport_handler,
             crate::handlers::sport_handler::update_sport_handler,
             crate::handlers::sport_handler::list_sport_handler,
-            crate::handlers::sport_handler::stats_handler
+            crate::handlers::sport_handler::stats_handler,
+            crate::handlers::sport_handler::delete_sport_handler
         ),
         components(
             schemas(
@@ -65,7 +66,8 @@ pub fn create_app(config: AppConfig) -> Router {
                 crate::service::sport_service::TypeBucket,
                 crate::service::sport_service::StatSummary,
                 crate::handlers::sport_handler::ActionResponse,
-                crate::handlers::sport_handler::ImportResponse
+                crate::handlers::sport_handler::ImportResponse,
+                crate::handlers::sport_handler::DeleteRequest
             )
           ),
         tags(
@@ -117,6 +119,7 @@ fn create_production_router(config: AppConfig) -> Router {
         .route(routes::API_SPORT_INSERT, post(crate::handlers::sport_handler::insert_sport_handler))
         .route(routes::API_SPORT_IMPORT, post(crate::handlers::sport_handler::import_sport_handler))
         .route(routes::API_SPORT_UPDATE, post(crate::handlers::sport_handler::update_sport_handler))
+        .route(routes::API_SPORT_DELETE, post(crate::handlers::sport_handler::delete_sport_handler))
         .route(routes::API_SPORT_LIST, get(crate::handlers::sport_handler::list_sport_handler))
         .route(routes::API_SPORT_STATS, get(crate::handlers::sport_handler::stats_handler))
         .with_state(app)

@@ -20,6 +20,9 @@ pub struct ActionResponse { pub success: bool }
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ImportResponse { pub success: bool, pub inserted: usize }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DeleteRequest { pub id: i32 }
+
 #[utoipa::path(
     post,
     path = routes::API_SPORT_INSERT,
@@ -158,5 +161,28 @@ pub async fn import_sport_handler(
     match app.sport_service.import(vendor, reader, &ctx).await {
         Ok(n) => HandlerResponse::<ImportResponse>::Success(ImportResponse { success: n > 0, inserted: n }).into_response(),
         Err(e) => HandlerResponse::<ImportResponse>::Error(e.message).into_response(),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = routes::API_SPORT_DELETE,
+    request_body = DeleteRequest,
+    responses(
+        (status = 200, description = "Delete sport", body = ActionResponse),
+        (status = 401, description = "Unauthorized", body = String),
+        (status = 500, description = "Internal error", body = String)
+    )
+)]
+#[axum::debug_handler]
+pub async fn delete_sport_handler(
+    State(app): State<Arc<AppState>>,
+    ctx: Context,
+    Json(req): Json<DeleteRequest>,
+) -> axum::response::Response {
+    if req.id <= 0 { return HandlerResponse::<ActionResponse>::Error("invalid id".to_string()).into_response(); }
+    match app.sport_service.delete(req.id, &ctx).await {
+        Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse { success: true }).into_response(),
+        Err(e) => HandlerResponse::<ActionResponse>::Error(e.message).into_response(),
     }
 }
