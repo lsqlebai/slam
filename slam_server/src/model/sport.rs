@@ -1,6 +1,7 @@
 use quick_xml::de as xml_de;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use chrono::{NaiveDate, NaiveDateTime, Local, TimeZone};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default, rename = "sport")]
@@ -44,15 +45,28 @@ pub struct Running {
 
 impl Sport {
     pub fn parse_from_xml(xml: &str) -> Result<Sport, String> {
-        let data: Sport = xml_de::from_str(xml).map_err(|e| format!("XML解析失败: {}", e))?;
-        Ok(data)
+        let data: SportXML = xml_de::from_str(xml).map_err(|e| format!("XML解析失败: {}", e))?;
+        let ts = parse_timestamp(&data.start_time)?;
+        Ok(Sport {
+            id: 0,
+            r#type: data.r#type,
+            start_time: ts,
+            calories: data.calories,
+            distance_meter: data.distance_meter,
+            duration_second: data.duration_second,
+            heart_rate_avg: data.heart_rate_avg,
+            heart_rate_max: data.heart_rate_max,
+            pace_average: data.pace_average,
+            extra: data.extra,
+            tracks: data.tracks,
+        })
     }
 }
 
 pub const SAMPLE_XML: &'static str = r#"
     <sport>
         <type>Swimming</type>
-        <start_time>1694560000</start_time>
+        <start_time>2025-11-05 20:02:00</start_time>
         <calories>200</calories>
         <distance_meter>1000</distance_meter>
         <duration_second>600</duration_second>
@@ -95,13 +109,16 @@ pub const SAMPLE_XML: &'static str = r#"
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{NaiveDateTime, Local, TimeZone};
     #[test]
     fn test_parse_sample_swim() {
         let sport = crate::model::sport::Sport::parse_from_xml(SAMPLE_XML)
             .expect("parse_sample_swim 应该成功");
 
         assert_eq!(sport.r#type, SportType::Swimming);
-        assert_eq!(sport.start_time, 1694560000);
+        let ndt = chrono::NaiveDateTime::parse_from_str("2025-11-05 20:02:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let expected = chrono::Local.from_local_datetime(&ndt).earliest().unwrap().timestamp();
+        assert_eq!(sport.start_time, expected);
         assert_eq!(sport.calories, 200);
         assert_eq!(sport.distance_meter, 1000);
         assert_eq!(sport.duration_second, 600);
@@ -179,6 +196,20 @@ mod tests {
         println!("{}", xml);
         assert!(!xml.is_empty());
     }
+
+    #[test]
+    fn test_parse_timestamp_local_full() {
+        let s = "2025-11-6 10:22:00";
+        let ts = parse_timestamp(s).expect("parse should succeed");
+        let ndt = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").expect("format ok");
+        let expected = Local
+            .from_local_datetime(&ndt)
+            .earliest()
+            .expect("local mapping should exist")
+            .timestamp();
+        println!("parsed timestamp: {}", ts);
+        assert_eq!(ts, expected);
+    }
 }
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[serde(rename_all = "PascalCase")]
@@ -207,4 +238,36 @@ impl SportType {
             _ => SportType::Unknown,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
+#[serde(default, rename = "sport")]
+pub struct SportXML {
+    pub r#type: SportType,
+    pub start_time: String,
+    pub calories: i32,
+    pub distance_meter: i32,
+    pub duration_second: i32,
+    pub heart_rate_avg: i32,
+    pub heart_rate_max: i32,
+    pub pace_average: String,
+    pub extra: Swimming,
+    pub tracks: Vec<Track>,
+}
+
+fn parse_timestamp(s: &str) -> Result<i64, String> {
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+    }
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M") {
+        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+    }
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H") {
+        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+    }
+    if let Ok(nd) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        let ndt = nd.and_hms_opt(0, 0, 0).unwrap();
+        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+    }
+    Err("时间格式错误".to_string())
 }

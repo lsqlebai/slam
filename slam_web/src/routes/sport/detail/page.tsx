@@ -25,6 +25,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import TrackItem from '../../../components/sport/TrackItem';
 import { useEffect, useState } from 'react';
 import PageBase, { useToast } from '../../../components/PageBase';
 import { TEXTS, getSavedLang } from '../../../i18n';
@@ -33,6 +34,8 @@ import {
   type Swimming,
   type Track,
   insertSport,
+  updateSport,
+  deleteSport,
 } from '../../../services/sport';
 
 function SubmitInner() {
@@ -46,6 +49,8 @@ function SubmitInner() {
   const readonly: boolean = Boolean(
     (location.state as LocationState)?.readonly,
   );
+  const fromDetail = 'readonly' in ((location.state as unknown as Record<string, unknown>) || {});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sport, setSport] = useState<Sport>(
     () =>
       initial ?? {
@@ -75,10 +80,21 @@ function SubmitInner() {
   const [trackDialogOpen, setTrackDialogOpen] = useState(false);
   const [trackDraft, setTrackDraft] = useState<Track>(defaultTrack);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [trackDeleteIndex, setTrackDeleteIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setLang(getSavedLang());
   }, []);
+
+  useEffect(() => {
+    const st = (location.state as Record<string, unknown>) || {};
+    const ai = st.aiToast as string | undefined;
+    if (typeof ai === 'string' && ai) {
+      showSuccess(ai);
+      navigate('.', { state: { sport }, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   const update = (patch: Partial<Sport>) =>
     setSport(prev => ({ ...prev, ...patch }));
@@ -114,8 +130,10 @@ function SubmitInner() {
     const ss = pad(d.getSeconds());
     return `${y}-${m}-${day}T${hh}:${mm}:${ss}`;
   };
+  const toDisplayDateTime = (s: number) => toInputDateTime(s).replace('T', ' ');
   const fromInputDateTime = (v: string) => {
-    const [date, time] = v.split('T');
+    const norm = v.replace(' ', 'T');
+    const [date, time] = norm.split('T');
     const [y, m, d] = date.split('-').map(Number);
     const [hh, mm, ss] = time.split(':').map(Number);
     const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, ss || 0);
@@ -136,7 +154,7 @@ function SubmitInner() {
 
   const handleSubmit = async () => {
     try {
-      const ok = await insertSport(sport);
+      const ok = sport.id > 0 ? await updateSport(sport) : await insertSport(sport);
       if (ok) {
         showSuccess('提交成功');
         navigate('/');
@@ -146,6 +164,39 @@ function SubmitInner() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       showError(msg || '提交失败');
+    }
+  };
+
+  const handleCancel = () => {
+    if (fromDetail) {
+      navigate('.', { state: { sport, readonly: true }, replace: true });
+    } else {
+      navigate('/addsports');
+    }
+  };
+
+  const handleEdit = () => {
+    navigate('.', { state: { sport, readonly: false }, replace: true });
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      if (!sport.id || sport.id <= 0) {
+        showError('删除失败');
+        return;
+      }
+      const ok = await deleteSport(sport.id);
+      if (ok) {
+        showSuccess('删除成功');
+        navigate('/');
+      } else {
+        showError('删除失败');
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      showError(msg || '删除失败');
+    } finally {
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -220,6 +271,15 @@ function SubmitInner() {
                     value={sport.type}
                     onChange={e => update({ type: e.target.value })}
                     disabled={readonly}
+                    sx={{
+                      '& .MuiInputBase-input.Mui-disabled': {
+                        WebkitTextFillColor: 'inherit',
+                        color: 'text.primary',
+                      },
+                      '& .MuiInputLabel-root.Mui-disabled': {
+                        color: 'text.secondary',
+                      },
+                    }}
                     fullWidth
                   >
                     {[
@@ -248,13 +308,13 @@ function SubmitInner() {
                   <TextField
                     variant="standard"
                     label={TEXTS[lang].addsports.submitStartTimeLabel}
-                    type="datetime-local"
-                    value={toInputDateTime(sport.start_time)}
-                    slotProps={{ htmlInput: { step: 1 } }}
+                    type={readonly ? 'text' : 'datetime-local'}
+                    value={readonly ? toDisplayDateTime(sport.start_time) : toInputDateTime(sport.start_time)}
+                    slotProps={readonly ? undefined : { htmlInput: { step: 1 } }}
                     onChange={e =>
                       update({ start_time: fromInputDateTime(e.target.value) })
                     }
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                 </Stack>
@@ -269,7 +329,7 @@ function SubmitInner() {
                         calories: Number.parseInt(e.target.value || '0'),
                       })
                     }
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                   <TextField
@@ -284,7 +344,7 @@ function SubmitInner() {
                         distance_meter: Number.parseInt(e.target.value || '0'),
                       })
                     }
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                 </Stack>
@@ -298,7 +358,7 @@ function SubmitInner() {
                     onChange={e =>
                       update({ duration_second: fromHMS(e.target.value) })
                     }
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                   <TextField
@@ -306,7 +366,7 @@ function SubmitInner() {
                     label={TEXTS[lang].addsports.submitPaceLabel}
                     value={sport.pace_average}
                     onChange={e => update({ pace_average: e.target.value })}
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                 </Stack>
@@ -323,7 +383,7 @@ function SubmitInner() {
                         heart_rate_avg: Number.parseInt(e.target.value || '0'),
                       })
                     }
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                   <TextField
@@ -338,7 +398,7 @@ function SubmitInner() {
                         heart_rate_max: Number.parseInt(e.target.value || '0'),
                       })
                     }
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                 </Stack>
@@ -368,6 +428,15 @@ function SubmitInner() {
                     value={sport.extra.main_stroke}
                     onChange={e => updateExtra({ main_stroke: e.target.value })}
                     disabled={readonly}
+                    sx={{
+                      '& .MuiInputBase-input.Mui-disabled': {
+                        WebkitTextFillColor: 'inherit',
+                        color: 'text.primary',
+                      },
+                      '& .MuiInputLabel-root.Mui-disabled': {
+                        color: 'text.secondary',
+                      },
+                    }}
                     fullWidth
                   >
                     {[
@@ -413,7 +482,7 @@ function SubmitInner() {
                         stroke_avg: Number.parseInt(e.target.value || '0'),
                       })
                     }
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                   <TextField
@@ -428,7 +497,7 @@ function SubmitInner() {
                         swolf_avg: Number.parseInt(e.target.value || '0'),
                       })
                     }
-                    disabled={readonly}
+                    InputProps={{ readOnly: readonly }}
                     fullWidth
                   />
                 </Stack>
@@ -485,186 +554,17 @@ function SubmitInner() {
                 </Typography>
               ) : (
                 <Stack spacing={1}>
-                  {sport.tracks.map((t, idx) => {
-                    const strokeLabel = (v: string) => {
-                      switch (v) {
-                        case 'freestyle':
-                          return TEXTS[lang].addsports.strokeFreestyle;
-                        case 'butterfly':
-                          return TEXTS[lang].addsports.strokeButterfly;
-                        case 'breaststroke':
-                          return TEXTS[lang].addsports.strokeBreaststroke;
-                        case 'backstroke':
-                          return TEXTS[lang].addsports.strokeBackstroke;
-                        case 'medley':
-                          return TEXTS[lang].addsports.strokeMedley;
-                        default:
-                          return TEXTS[lang].addsports.strokeUnknown;
-                      }
-                    };
-                    return (
-                      <Box
-                        key={`${t.distance_meter}-${t.duration_second}-${t.pace_average}-${t.extra.main_stroke}`}
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr auto',
-                          gridTemplateRows: 'auto auto',
-                          columnGap: 2,
-                          rowGap: 1,
-                          alignItems: 'start',
-                        }}
-                      >
-                        <Box
-                          onClick={readonly ? undefined : () => editTrack(idx)}
-                          sx={{
-                            gridColumn: 1,
-                            gridRow: '1 / span 2',
-                            px: 1,
-                            py: 1,
-                            borderRadius: 1,
-                            cursor: readonly ? 'default' : 'pointer',
-                            '&:hover': readonly
-                              ? undefined
-                              : { bgcolor: 'action.hover' },
-                            transition: 'background-color 0.2s ease',
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(3, 1fr)',
-                              columnGap: 2,
-                              rowGap: 1,
-                            }}
-                          >
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                noWrap
-                              >
-                                {TEXTS[lang].addsports.submitDistanceLabel}
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                noWrap
-                                sx={{ fontWeight: 600 }}
-                              >
-                                {t.distance_meter} m
-                              </Typography>
-                            </Box>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                noWrap
-                              >
-                                {TEXTS[lang].addsports.submitDurationLabel}
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                noWrap
-                                sx={{ fontWeight: 600 }}
-                              >
-                                {toHMS(t.duration_second)}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                noWrap
-                              >
-                                {TEXTS[lang].addsports.submitPaceLabel}
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                noWrap
-                                sx={{ fontWeight: 600 }}
-                              >
-                                {t.pace_average}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                noWrap
-                              >
-                                {TEXTS[lang].addsports.submitStrokeLabel}
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                noWrap
-                                sx={{ fontWeight: 600 }}
-                              >
-                                {strokeLabel(t.extra.main_stroke)}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                noWrap
-                              >
-                                {TEXTS[lang].addsports.submitStrokeAvgLabel}
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                noWrap
-                                sx={{ fontWeight: 600 }}
-                              >
-                                {t.extra.stroke_avg}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                noWrap
-                              >
-                                {TEXTS[lang].addsports.submitSwolfAvgLabel}
-                              </Typography>
-                              <Typography
-                                variant="body1"
-                                noWrap
-                                sx={{ fontWeight: 600 }}
-                              >
-                                {t.extra.swolf_avg}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Box>
-                        {readonly ? null : (
-                          <IconButton
-                            aria-label="delete"
-                            onClick={e => {
-                              e.stopPropagation();
-                              removeTrack(idx);
-                            }}
-                            sx={{
-                              gridColumn: 2,
-                              gridRow: 2,
-                              width: 40,
-                              border: '1px solid',
-                              borderColor: 'error.main',
-                              color: 'error.main',
-                              borderRadius: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              '&:hover': {
-                                bgcolor: 'error.light',
-                                color: '#fff',
-                              },
-                            }}
-                          >
-                            <Delete />
-                          </IconButton>
-                        )}
-                      </Box>
-                    );
-                  })}
+                  {sport.tracks.map((t, idx) => (
+                    <TrackItem
+                      key={`${t.distance_meter}-${t.duration_second}-${t.pace_average}-${t.extra.main_stroke}`}
+                      lang={lang}
+                      idx={idx}
+                      t={t}
+                      readonly={readonly}
+                      onEdit={editTrack}
+                      onDeleteClick={setTrackDeleteIndex}
+                    />
+                  ))}
                 </Stack>
               )}
             </Paper>
@@ -834,28 +734,133 @@ function SubmitInner() {
               </Button>
             </DialogActions>
           </Dialog>
+          <Dialog
+            open={trackDeleteIndex !== null}
+            onClose={() => setTrackDeleteIndex(null)}
+            maxWidth="xs"
+            fullWidth
+          >
+            <DialogTitle>
+              {lang === 'zh' ? '确认删除分段' : 'Confirm Delete Segment'}
+            </DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary">
+                {lang === 'zh'
+                  ? '删除后不可恢复，是否继续？'
+                  : 'This action cannot be undone. Continue?'}
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="outlined" onClick={() => setTrackDeleteIndex(null)}>
+                {lang === 'zh' ? '取消' : 'Cancel'}
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={async () => {
+                  if (trackDeleteIndex !== null) {
+                    const nextTracks = sport.tracks.filter((_, i) => i !== trackDeleteIndex);
+                    const nextSport = { ...sport, tracks: nextTracks } as Sport;
+                    try {
+                      if (nextSport.id && nextSport.id > 0) {
+                        const ok = await updateSport(nextSport);
+                        if (ok) {
+                          setSport(nextSport);
+                          showSuccess('删除成功');
+                        } else {
+                          showError('删除失败');
+                        }
+                      } else {
+                        setSport(nextSport);
+                        showSuccess('删除成功');
+                      }
+                    } catch (e: unknown) {
+                      const msg = e instanceof Error ? e.message : String(e);
+                      showError(msg || '删除失败');
+                    }
+                  }
+                  setTrackDeleteIndex(null);
+                }}
+              >
+                {lang === 'zh' ? '删除' : 'Delete'}
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Stack>
       </Container>
 
-      {readonly ? null : (
-        <Box
-          sx={{
-            position: 'fixed',
-            left: 0,
-            right: 0,
-            bottom: 'calc(env(safe-area-inset-bottom) + 20px)',
-            display: 'flex',
-            justifyContent: 'center',
-            px: 2,
-          }}
-        >
+      <Box
+        sx={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 'calc(env(safe-area-inset-bottom) + 20px)',
+          display: 'flex',
+          justifyContent: 'center',
+          px: 2,
+          zIndex: 1300,
+        }}
+      >
+        {readonly ? (
           <Box sx={{ display: 'flex', gap: 2, width: '100%', maxWidth: 380 }}>
-            <Button variant="contained" onClick={handleSubmit} fullWidth>
-              {TEXTS[lang].addsports.submitButton}
+            <Button variant="outlined" onClick={handleEdit} fullWidth>
+              {TEXTS[lang].addsports.detailEdit}
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => setDeleteDialogOpen(true)}
+              fullWidth
+            >
+              {TEXTS[lang].addsports.detailDelete}
             </Button>
           </Box>
-        </Box>
-      )}
+        ) : (
+          <Box sx={{ display: 'flex', gap: 2, width: '100%', maxWidth: 380 }}>
+            <Button variant="outlined" onClick={handleCancel} fullWidth>
+              {TEXTS[lang].register.cancel}
+            </Button>
+            <Button variant="contained" onClick={handleSubmit} fullWidth>
+              {TEXTS[lang].addsports.detailConfirm}
+            </Button>
+          </Box>
+        )}
+      </Box>
+
+      <Box
+        sx={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 'calc(env(safe-area-inset-bottom) + 72px)',
+          bgcolor: 'background.paper',
+          boxShadow: '0 -8px 20px rgba(0,0,0,0.12)',
+          backdropFilter: 'saturate(160%) blur(8px)',
+          pointerEvents: 'none',
+          zIndex: 1299,
+        }}
+      />
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{TEXTS[lang].addsports.deleteConfirmTitle}</DialogTitle>
+        <DialogContent>
+          <Typography>{TEXTS[lang].addsports.deleteConfirmMessage}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={() => setDeleteDialogOpen(false)}>
+            {TEXTS[lang].register.cancel}
+          </Button>
+          <Button variant="contained" color="error" onClick={handleDeleteConfirm}>
+            {TEXTS[lang].addsports.detailDelete}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

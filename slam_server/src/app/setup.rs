@@ -1,6 +1,5 @@
 use axum::{
-    routing::{get, post},
-    Router,
+    Router, extract::DefaultBodyLimit, routing::{get, post}
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -111,7 +110,7 @@ fn create_production_router(config: AppConfig) -> Router {
     Router::new()
         .route("/", get(root))
         .route(routes::API_STATUS, get(get_status))
-        .route(routes::API_IMAGE_PARSE, post(crate::handlers::ai_handler::sports_image_recognition_handler))
+        .route(routes::API_IMAGE_PARSE, post(crate::handlers::ai_handler::sports_image_recognition_handler)).layer(DefaultBodyLimit::max(50 * 1024 * 1024))
         .route(routes::API_USER_REGISTER, post(crate::handlers::user_handler::user_register_handler))
         .route(routes::API_USER_LOGIN, post(crate::handlers::user_handler::user_login_handler))
         .route(routes::API_USER_INFO, get(crate::handlers::user_handler::user_info_handler))

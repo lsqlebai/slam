@@ -45,13 +45,25 @@ export async function recognizeImages(
 ): Promise<AIResponse<Sport>> {
   const res = await http.post('/ai/image-parse', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120_000,
+    timeout: 300_000,
   });
   return res.data as AIResponse<Sport>;
 }
 
 export async function insertSport(sport: Sport): Promise<boolean> {
   const res = await http.post('/sport/insert', sport);
+  const data = res.data as { success?: boolean };
+  return !!data?.success;
+}
+
+export async function updateSport(sport: Sport): Promise<boolean> {
+  const res = await http.post('/sport/update', sport);
+  const data = res.data as { success?: boolean };
+  return !!data?.success;
+}
+
+export async function deleteSport(id: number): Promise<boolean> {
+  const res = await http.post('/sport/delete', { id });
   const data = res.data as { success?: boolean };
   return !!data?.success;
 }

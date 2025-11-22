@@ -18,6 +18,7 @@ import {
   Stack,
   TextField,
   Typography,
+  CircularProgress,
 } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import PageBase from '../../components/PageBase';
@@ -57,26 +58,36 @@ function AddSportsInner() {
     setRecognizing(true);
     try {
       const fd = new FormData();
-      for (const { file } of images) fd.append('image', file);
+      for (const { file } of images) {
+        fd.append('image', file);
+      }
       const resp = await recognizeImages(fd);
       if (!resp.success || !resp.data) {
-        showError('识别失败');
+        const em = String(resp.error?.message || '');
+        const isTimeout = /timeout|超时/i.test(em) || resp.error?.code === 'TIMEOUT';
+        showError(isTimeout ? TEXTS[lang].addsports.aiTimeoutBusy : em || TEXTS[lang].addsports.aiFail);
         return;
       }
-      navigate('/sport/detail', { state: { sport: resp.data } });
+      const calories = resp.data.calories || 0;
+      const segments = Array.isArray(resp.data.tracks)
+        ? resp.data.tracks.length
+        : 0;
+      const aiToast =
+        lang === 'zh'
+          ? `恭喜你AI识别成功，运动总消耗 ${calories} Kcal，有${segments}段分段数据哦`
+          : `AI recognition succeeded. Total calories ${calories} Kcal, with ${segments} segments.`;
+      navigate('/sport/detail', { state: { sport: resp.data, aiToast } });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      showError(msg || '识别失败');
+      const raw = e instanceof Error ? e.message : String(e);
+      const isTimeout = /timeout|超时|ECONNABORTED/i.test(String(raw));
+      showError(isTimeout ? TEXTS[lang].addsports.aiTimeoutBusy : raw || TEXTS[lang].addsports.aiFail);
     } finally {
       setRecognizing(false);
     }
   };
 
   return (
-    <Box
-      className="login-wrapper"
-      sx={{ pb: 'calc(env(safe-area-inset-bottom) + 96px)' }}
-    >
+    <Box sx={{ minHeight: '100dvh', pb: 'calc(env(safe-area-inset-bottom) + 96px)' }}>
       <Helmet>
         <title>{TEXTS[lang].addsports.headTitle}</title>
       </Helmet>
@@ -231,6 +242,14 @@ function AddSportsInner() {
           </Button>
         </Box>
       </Box>
+      <Dialog open={recognizing} maxWidth="xs" fullWidth>
+        <DialogContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
+            <CircularProgress size={20} />
+            <Typography variant="body2">{TEXTS[lang].addsports.aiLoading}</Typography>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

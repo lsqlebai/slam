@@ -28,9 +28,20 @@ pub async fn sports_image_recognition_handler(
     let mut all_base64: Vec<String> = Vec::new();
     while let Ok(Some(field)) = multipart.next_field().await {
         if field.name() == Some("image") {
-            if let Ok(data) = field.bytes().await {
-                if let Ok(resp) = app.image_service.process_image(data.into()) {
-                    all_base64.extend(resp.base64_data);
+            match field.bytes().await {
+                Ok(data) => {
+                    println!("field data len: {}", data.len());
+                    match app.image_service.process_image(data.into()) {
+                        Ok(resp) => {
+                            all_base64.extend(resp.base64_data);
+                        }
+                        Err(e) => {
+                            return HandlerResponse::Error(format!("process_image failed: {}", e));
+                        }
+                    }
+                }
+                Err(e) => {
+                    return HandlerResponse::Error(format!("read multipart bytes failed: {}", e));
                 }
             }
         }
