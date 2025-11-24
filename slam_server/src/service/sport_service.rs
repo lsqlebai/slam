@@ -145,6 +145,7 @@ impl SportService {
         let total_count: i32 = sports.len() as i32;
         let total_calories: i32 = sports.iter().map(|s| s.calories).sum();
         let total_duration_second: i32 = sports.iter().map(|s| s.duration_second).sum();
+        let total_distance_meter: i32 = sports.iter().map(|s| s.distance_meter).sum();
         let buckets = match spec.kind {
             StatKind::Year => group_by_month(sports.clone()),
             StatKind::Month => group_by_month_day(sports.clone()),
@@ -172,6 +173,7 @@ impl SportService {
             total_count,
             total_calories,
             total_duration_second,
+            total_distance_meter,
             sports: sports_field,
             earliest_year,
         };
@@ -230,6 +232,7 @@ pub struct StatSummary {
     pub total_count: i32,
     pub total_calories: i32,
     pub total_duration_second: i32,
+    pub total_distance_meter: i32,
     pub sports: Vec<Sport>,
     pub earliest_year: Option<i32>,
 }
@@ -272,6 +275,7 @@ pub struct TypeBucket {
     pub duration: i32,
     pub calories: i32,
     pub count: i32,
+    pub distance_meter: i32,
 }
 
 fn group_by_type(items: Vec<Sport>) -> Vec<TypeBucket> {
@@ -284,10 +288,12 @@ fn group_by_type(items: Vec<Sport>) -> Vec<TypeBucket> {
             duration: 0,
             calories: 0,
             count: 0,
+            distance_meter: 0,
         });
         entry.count += 1;
         entry.duration += sport.duration_second;
         entry.calories += sport.calories;
+        entry.distance_meter += sport.distance_meter;
     }
     let mut v: Vec<TypeBucket> = acc.into_values().collect();
     v.sort_by_key(|b| b.r#type.as_str().to_string());

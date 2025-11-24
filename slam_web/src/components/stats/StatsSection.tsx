@@ -17,7 +17,7 @@ export default function StatsSection({
   details,
 }: {
   lang: Lang;
-  totals: { duration: number; calories: number; count: number };
+  totals: { duration: number; calories: number; count: number; distanceMeter: number };
   title: string;
   data: { label: string; value: number }[];
   sports: Sport[];
@@ -82,6 +82,7 @@ export default function StatsSection({
           durationSeconds={totals.duration}
           calories={totals.calories}
           count={totals.count}
+          distanceMeter={totals.distanceMeter}
         />
       </Box>
       <Stack

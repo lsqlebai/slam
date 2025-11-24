@@ -127,6 +127,7 @@ export default function Stats({ lang }: { lang: Lang }) {
       duration: summary?.total_duration_second || 0,
       calories: summary?.total_calories || 0,
       count: summary?.total_count || 0,
+      distanceMeter: summary?.total_distance_meter || 0,
     };
   }, [summary]);
 
@@ -414,12 +415,13 @@ export default function Stats({ lang }: { lang: Lang }) {
       {tabIndex === 3 && (
         <Box sx={{ mt: 2 }}>
           <Box sx={{ mb: 2 }}>
-            <SummaryStats
-              lang={lang}
-              durationSeconds={summary?.total_duration_second || 0}
-              calories={summary?.total_calories || 0}
-              count={summary?.total_count || 0}
-            />
+          <SummaryStats
+            lang={lang}
+            durationSeconds={summary?.total_duration_second || 0}
+            calories={summary?.total_calories || 0}
+            count={summary?.total_count || 0}
+            distanceMeter={summary?.total_distance_meter || 0}
+          />
           </Box>
           <TypeBucketsChart lang={lang} buckets={summary?.type_buckets || []} />
         </Box>

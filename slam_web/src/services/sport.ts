@@ -94,6 +94,7 @@ export type TypeBucket = {
   duration: number;
   calories: number;
   count: number;
+  distance_meter: number;
 };
 export type StatSummary = {
   buckets: StatBucket[];
@@ -101,6 +102,7 @@ export type StatSummary = {
   total_count: number;
   total_calories: number;
   total_duration_second: number;
+  total_distance_meter: number;
   sports: Sport[];
   earliest_year?: number;
 };

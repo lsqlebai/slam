@@ -28,7 +28,7 @@ export const TEXTS = {
       },
       labels: {
         time: '运动时长',
-        distance: '距离',
+        distance: '运动距离',
         calories: '热量消耗',
         count: '运动次数',
       },
@@ -128,7 +128,7 @@ export const TEXTS = {
       },
       labels: {
         time: 'Time',
-        distance: 'Distance',
+        distance: 'Sports Distance',
         calories: 'Calories',
         count: 'Count',
       },

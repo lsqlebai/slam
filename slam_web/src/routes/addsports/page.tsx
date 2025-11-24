@@ -10,6 +10,7 @@ import {
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
   Dialog,
   DialogContent,
@@ -18,7 +19,6 @@ import {
   Stack,
   TextField,
   Typography,
-  CircularProgress,
 } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import PageBase from '../../components/PageBase';
@@ -64,8 +64,13 @@ function AddSportsInner() {
       const resp = await recognizeImages(fd);
       if (!resp.success || !resp.data) {
         const em = String(resp.error?.message || '');
-        const isTimeout = /timeout|超时/i.test(em) || resp.error?.code === 'TIMEOUT';
-        showError(isTimeout ? TEXTS[lang].addsports.aiTimeoutBusy : em || TEXTS[lang].addsports.aiFail);
+        const isTimeout =
+          /timeout|超时/i.test(em) || resp.error?.code === 'TIMEOUT';
+        showError(
+          isTimeout
+            ? TEXTS[lang].addsports.aiTimeoutBusy
+            : em || TEXTS[lang].addsports.aiFail,
+        );
         return;
       }
       const calories = resp.data.calories || 0;
@@ -80,7 +85,11 @@ function AddSportsInner() {
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : String(e);
       const isTimeout = /timeout|超时|ECONNABORTED/i.test(String(raw));
-      showError(isTimeout ? TEXTS[lang].addsports.aiTimeoutBusy : raw || TEXTS[lang].addsports.aiFail);
+      showError(
+        isTimeout
+          ? TEXTS[lang].addsports.aiTimeoutBusy
+          : raw || TEXTS[lang].addsports.aiFail,
+      );
     } finally {
       setRecognizing(false);
     }
@@ -158,9 +167,29 @@ function AddSportsInner() {
                     borderColor: 'divider',
                     display: 'flex',
                     justifyContent: 'center',
+                    position: 'relative',
                   }}
                   onClick={() => setPreview(img.url)}
                 >
+                  <IconButton
+                    aria-label="remove-image"
+                    onClick={e => {
+                      e.stopPropagation();
+                      URL.revokeObjectURL(img.url);
+                      setImages(prev => prev.filter((_, i) => i !== idx));
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      backgroundColor: 'rgba(0,0,0,0.35)',
+                      color: '#fff',
+                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.5)' },
+                      zIndex: 1,
+                    }}
+                  >
+                    <Close fontSize="small" />
+                  </IconButton>
                   <Box
                     component="img"
                     src={img.url}

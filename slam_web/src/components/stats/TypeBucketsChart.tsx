@@ -23,6 +23,7 @@ export default function TypeBucketsChart({
     calories: b.calories,
     duration: b.duration,
     count: b.count,
+    distance: b.distance_meter,
   }));
   const CustomTooltip = (props: ChartsTooltipProps) => {
     const item = useItemTooltip<'bar'>();
@@ -31,6 +32,7 @@ export default function TypeBucketsChart({
     const caloriesTitle = TEXTS[lang].home.labels.calories;
     const timeTitle = TEXTS[lang].home.labels.time;
     const countTitle = TEXTS[lang].home.labels.count;
+    const distanceTitle = TEXTS[lang].home.labels.distance;
     return (
       <ChartsTooltipContainer {...props} trigger="item" anchor="pointer">
         {item && it ? (
@@ -73,6 +75,15 @@ export default function TypeBucketsChart({
                   sx={{ fontWeight: 800, color: 'text.primary' }}
                 >
                   {it.count}
+                </Box>
+              </Typography>
+              <Typography variant="caption">
+                {distanceTitle}{' '}
+                <Box
+                  component="span"
+                  sx={{ fontWeight: 800, color: 'text.primary' }}
+                >
+                  {formatDistance(it.distance)}
                 </Box>
               </Typography>
             </Stack>
@@ -150,4 +161,7 @@ function formatDurationHMS(s: number): string {
   const sec = s % 60;
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+function formatDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${m} m`;
 }
