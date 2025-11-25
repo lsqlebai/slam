@@ -1,2 +1,3 @@
 .DS_Store
 slam_server/sport.db
+deploy/db/sport.db
