@@ -2,6 +2,8 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
+你因为更换了运动手表、手环或骑行码表，或者更换了运动平台，结果历史数据散落难以整合？SLAM 为此而生——轻松打通并统一你的运动数据，让记录真正可归档、可视化、可用。
+
 > 轻量、易部署、高性能。通过 AI 能力打通各厂商/平台数据壁垒，让个人运动数据真正归档、可视、可用。
 
 ## 项目概览
@@ -10,6 +12,7 @@
 - 架构：后端 `Rust + Axum + SQLite`，前端 `Modern.js + React + MUI`，通过 `Nginx` 统一对外服务。
 - AI 能力：接入字节跳动火山引擎 Doubao（Ark）多模态接口，支持图片文字识别，将运动数据结构化入库。
 - 部署：提供本地开发与 Docker 一键部署，默认持久化到本地卷。
+- 运动类型支持：目前只支持 游泳；跑步（不完整，只有最基础数据）；骑行（不完整，只有最基础数据）。
 
 ## 功能特性
 
@@ -20,6 +23,15 @@
 - AI 图片识别：将运动截图/照片识别为结构化运动条目（`slam_server/src/service/ai_service.rs:69`）。
 - 前端体验：Modern.js 应用，MUI 组件，内置代理到后端，易于本地开发与打包分发（`slam_web/modern.config.ts:9`）。
 - 文档与自描述：后端自动生成 OpenAPI 并提供 Swagger UI，访问 `/docs`（`slam_server/src/app/setup.rs:80`）。
+
+## Roadmap
+
+- 增加更多的运动类型
+- 前端响应式布局完善与适配更多终端尺寸
+- 提供 Android / iOS 壳程序（WebView + 原生桥接），支持离线缓存与文件导入
+- 更多 AI 能力：支持多图片合并解析、对话式校正与补录
+- 导入导出：支持全数据导出（CSV/JSON），多源合并与冲突解决
+- 多语言与无障碍：完善 i18n 与可访问性支持
 
 ## 目录结构
 
@@ -159,16 +171,7 @@ curl -s -X POST http://127.0.0.1:3000/api/sport/import \
 - 安全性：JWT 写入 `HttpOnly` Cookie，过期与校验在服务端完成（`slam_server/src/handlers/jwt.rs:23`）。
 - 可观测性：自动生成 API 文档，便于前端与第三方集成（`slam_server/src/app/setup.rs:36`）。
 
-## Roadmap
-
-- 前端响应式布局完善与适配更多终端尺寸。
-- 提供 Android / iOS 壳程序（WebView + 原生桥接），支持离线缓存与文件导入。
-- 厂商数据适配器扩展：`Huawei`、`Garmin`、`Apple Health`、`Strava` 等。
-- 更多 AI 能力：支持多图片合并解析、对话式校正与补录。
-- 导入导出：支持全数据导出（CSV/JSON），多源合并与冲突解决。
-- 多语言与无障碍：完善 i18n 与可访问性支持。
-- 监控与运维：容器健康检查、日志聚合与指标采集。
-
+ 
 ## 许可证
 
 - 项目采用 MIT 许可证，详见 `LICENSE`。

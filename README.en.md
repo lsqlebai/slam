@@ -2,6 +2,8 @@
 
 [English](README.en.md) | [简体中文](README.md)
 
+Changed your sports watch, fitness band, or cycling computer — or switched platforms — and now your history is scattered and hard to consolidate? SLAM is built for this — effortlessly unify and connect your workout data so your records are truly archivable, visualized, and usable.
+
 > Lightweight, easy to deploy, and high-performance. Break platform/vendor data silos with AI so your personal workout data is archived, visible, and usable.
 
 ## Overview
@@ -10,6 +12,7 @@
 - Architecture: Backend `Rust + Axum + SQLite`, frontend `Modern.js + React + MUI`, unified serving via `Nginx`.
 - AI Capability: Integrates ByteDance Volcano Engine Doubao (Ark) multimodal APIs for image/OCR to structure workout data into the database.
 - Deployment: Supports local development and one-click Docker deployment, with default persistence to local volume.
+- Sport types support: currently only Swimming; Running (incomplete, basic data only); Cycling (incomplete, basic data only).
 
 ## Features
 
@@ -161,13 +164,12 @@ curl -s -X POST http://127.0.0.1:3000/api/sport/import \
 
 ## Roadmap
 
+- More sport types.
 - Responsive layout improvements and better device coverage.
 - Android/iOS shells (WebView + native bridge), offline cache and file import.
-- More vendor adapters: Huawei, Garmin, Apple Health, Strava, etc.
 - More AI capabilities: multi-image merge parsing, dialog-style correction and completion.
 - Import/Export: full data export (CSV/JSON), multi-source merge and conflicts.
 - i18n & Accessibility enhancements.
-- Ops: container health checks, log aggregation, metrics.
 
 ## License
 
@@ -178,4 +180,3 @@ curl -s -X POST http://127.0.0.1:3000/api/sport/import \
 - Backend Infra: Axum, Tokio, Utoipa, Rusqlite, and more great OSS.
 - Frontend Framework: Modern.js, MUI, React community.
 - Multimodal AI: Doubao (Ark).
-
