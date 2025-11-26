@@ -2,7 +2,7 @@ import {
   AccessTime,
   FormatListNumbered,
   LocalFireDepartment,
-  Map,
+  Map as MapIcon,
 } from '@mui/icons-material';
 import { Box, Paper, Typography } from '@mui/material';
 import type { Lang } from '../../i18n';
@@ -28,7 +28,8 @@ export default function SummaryStats({
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${pad(h)}:${pad(m)}:${pad(sec)}`;
   };
-  const formatDistance = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${m} m`);
+  const formatDistance = (m: number) =>
+    m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${m} m`;
 
   return (
     <Paper
@@ -48,7 +49,10 @@ export default function SummaryStats({
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <AccessTime fontSize="small" sx={{ color: 'text.primary', mr: 0.5 }} />
+          <AccessTime
+            fontSize="small"
+            sx={{ color: 'text.primary', mr: 0.5 }}
+          />
           <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
             {TEXTS[lang].home.labels.time}:
           </Typography>
@@ -57,7 +61,10 @@ export default function SummaryStats({
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <FormatListNumbered fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
+          <FormatListNumbered
+            fontSize="small"
+            sx={{ color: 'text.secondary', mr: 0.5 }}
+          />
           <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
             {TEXTS[lang].home.labels.count}:
           </Typography>
@@ -66,8 +73,13 @@ export default function SummaryStats({
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap' }}>
-          <Map fontSize="small" sx={{ color: 'text.primary', mr: 0.5 }} />
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }} noWrap>
+          <MapIcon fontSize="small" sx={{ color: 'text.primary', mr: 0.5 }} />
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mr: 0.5 }}
+            noWrap
+          >
             {TEXTS[lang].home.labels.distance}:
           </Typography>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
@@ -75,7 +87,10 @@ export default function SummaryStats({
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <LocalFireDepartment fontSize="small" sx={{ color: 'error.main', mr: 0.5 }} />
+          <LocalFireDepartment
+            fontSize="small"
+            sx={{ color: 'error.main', mr: 0.5 }}
+          />
           <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
             {TEXTS[lang].home.labels.calories}:
           </Typography>

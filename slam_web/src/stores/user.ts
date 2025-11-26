@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { info, type UserInfo } from '../services/user';
+import { type UserInfo, info } from '../services/user';
 
 type UserState = {
   user: UserInfo | null;

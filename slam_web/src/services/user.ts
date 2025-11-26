@@ -31,7 +31,9 @@ export async function logout(): Promise<boolean> {
 
 // removed getAvatar: avatar is provided by /user/info
 
-export async function uploadAvatar(fileOrBase64: File | string): Promise<string> {
+export async function uploadAvatar(
+  fileOrBase64: File | string,
+): Promise<string> {
   const fd = new FormData();
   if (typeof fileOrBase64 === 'string') {
     fd.append('avatar', fileOrBase64);

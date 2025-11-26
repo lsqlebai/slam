@@ -25,17 +25,17 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import TrackItem from '../../../components/sport/TrackItem';
 import { useEffect, useState } from 'react';
 import PageBase, { useToast } from '../../../components/PageBase';
+import TrackItem from '../../../components/sport/TrackItem';
 import { TEXTS, getSavedLang } from '../../../i18n';
 import {
   type Sport,
   type Swimming,
   type Track,
+  deleteSport,
   insertSport,
   updateSport,
-  deleteSport,
 } from '../../../services/sport';
 
 function SubmitInner() {
@@ -49,7 +49,9 @@ function SubmitInner() {
   const readonly: boolean = Boolean(
     (location.state as LocationState)?.readonly,
   );
-  const fromDetail = 'readonly' in ((location.state as unknown as Record<string, unknown>) || {});
+  const fromDetail =
+    'readonly' in
+    ((location.state as unknown as Record<string, unknown>) || {});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sport, setSport] = useState<Sport>(
     () =>
@@ -93,8 +95,7 @@ function SubmitInner() {
       showSuccess(ai);
       navigate('.', { state: { sport }, replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
+  }, [location.state, showSuccess, navigate, sport]);
 
   const update = (patch: Partial<Sport>) =>
     setSport(prev => ({ ...prev, ...patch }));
@@ -154,7 +155,8 @@ function SubmitInner() {
 
   const handleSubmit = async () => {
     try {
-      const ok = sport.id > 0 ? await updateSport(sport) : await insertSport(sport);
+      const ok =
+        sport.id > 0 ? await updateSport(sport) : await insertSport(sport);
       if (ok) {
         showSuccess('提交成功');
         navigate('/');
@@ -309,8 +311,14 @@ function SubmitInner() {
                     variant="standard"
                     label={TEXTS[lang].addsports.submitStartTimeLabel}
                     type={readonly ? 'text' : 'datetime-local'}
-                    value={readonly ? toDisplayDateTime(sport.start_time) : toInputDateTime(sport.start_time)}
-                    slotProps={readonly ? undefined : { htmlInput: { step: 1 } }}
+                    value={
+                      readonly
+                        ? toDisplayDateTime(sport.start_time)
+                        : toInputDateTime(sport.start_time)
+                    }
+                    slotProps={
+                      readonly ? undefined : { htmlInput: { step: 1 } }
+                    }
                     onChange={e =>
                       update({ start_time: fromInputDateTime(e.target.value) })
                     }
@@ -751,7 +759,10 @@ function SubmitInner() {
               </Typography>
             </DialogContent>
             <DialogActions>
-              <Button variant="outlined" onClick={() => setTrackDeleteIndex(null)}>
+              <Button
+                variant="outlined"
+                onClick={() => setTrackDeleteIndex(null)}
+              >
                 {lang === 'zh' ? '取消' : 'Cancel'}
               </Button>
               <Button
@@ -759,7 +770,9 @@ function SubmitInner() {
                 color="error"
                 onClick={async () => {
                   if (trackDeleteIndex !== null) {
-                    const nextTracks = sport.tracks.filter((_, i) => i !== trackDeleteIndex);
+                    const nextTracks = sport.tracks.filter(
+                      (_, i) => i !== trackDeleteIndex,
+                    );
                     const nextSport = { ...sport, tracks: nextTracks } as Sport;
                     try {
                       if (nextSport.id && nextSport.id > 0) {
@@ -856,7 +869,11 @@ function SubmitInner() {
           <Button variant="outlined" onClick={() => setDeleteDialogOpen(false)}>
             {TEXTS[lang].register.cancel}
           </Button>
-          <Button variant="contained" color="error" onClick={handleDeleteConfirm}>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteConfirm}
+          >
             {TEXTS[lang].addsports.detailDelete}
           </Button>
         </DialogActions>

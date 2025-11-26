@@ -1,6 +1,15 @@
-import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Slider, IconButton, Button } from '@mui/material';
-import { useRef, useState } from 'react';
 import { ZoomIn, ZoomOut } from '@mui/icons-material';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Slider,
+} from '@mui/material';
+import { useRef, useState } from 'react';
 
 export default function AvatarEditor({
   open,
@@ -24,14 +33,25 @@ export default function AvatarEditor({
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   return (
-    <Dialog open={open} onClose={onCancel} fullWidth maxWidth="xs" >
-      <DialogTitle sx={{ textAlign: 'center'}}>编辑头像</DialogTitle>
+    <Dialog open={open} onClose={onCancel} fullWidth maxWidth="xs">
+      <DialogTitle sx={{ textAlign: 'center' }}>编辑头像</DialogTitle>
       <DialogContent>
         <Box
-          sx={{ position: 'relative', width: editorSize, height: editorSize, bgcolor: 'grey.300', overflow: 'hidden', mx: 'auto', touchAction: 'none' }}
+          sx={{
+            position: 'relative',
+            width: editorSize,
+            height: editorSize,
+            bgcolor: 'grey.300',
+            overflow: 'hidden',
+            mx: 'auto',
+            touchAction: 'none',
+          }}
           onMouseDown={e => {
             setDragging(true);
-            dragStartRef.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+            dragStartRef.current = {
+              x: e.clientX - offset.x,
+              y: e.clientY - offset.y,
+            };
           }}
           onMouseMove={e => {
             if (!dragging || !dragStartRef.current) return;
@@ -51,7 +71,10 @@ export default function AvatarEditor({
             if (e.touches.length === 1) {
               const t = e.touches[0];
               setDragging(true);
-              dragStartRef.current = { x: t.clientX - offset.x, y: t.clientY - offset.y };
+              dragStartRef.current = {
+                x: t.clientX - offset.x,
+                y: t.clientY - offset.y,
+              };
             }
           }}
           onTouchMove={e => {
@@ -74,20 +97,55 @@ export default function AvatarEditor({
               component="img"
               ref={imgRef}
               src={imageUrl}
-              sx={{ position: 'absolute', transformOrigin: 'top left', left: offset.x, top: offset.y, transform: `scale(${scale})`, userSelect: 'none' }}
+              sx={{
+                position: 'absolute',
+                transformOrigin: 'top left',
+                left: offset.x,
+                top: offset.y,
+                transform: `scale(${scale})`,
+                userSelect: 'none',
+              }}
               draggable={false}
             />
           )}
-          <Box sx={{ position: 'absolute', left: '50%', top: '50%', width: cropSize, height: cropSize, borderRadius: '50%', border: '2px dashed', borderColor: 'divider', transform: 'translate(-50%, -50%)', boxShadow: '0 0 0 9999px rgba(0,0,0,0.35)', backgroundColor: 'transparent', pointerEvents: 'none' }} />
+          <Box
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              width: cropSize,
+              height: cropSize,
+              borderRadius: '50%',
+              border: '2px dashed',
+              borderColor: 'divider',
+              transform: 'translate(-50%, -50%)',
+              boxShadow: '0 0 0 9999px rgba(0,0,0,0.35)',
+              backgroundColor: 'transparent',
+              pointerEvents: 'none',
+            }}
+          />
         </Box>
       </DialogContent>
       <DialogActions sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, px: 1 }}>
-          <IconButton onClick={() => setScale(s => Math.max(0.5, +(s - 0.1).toFixed(2))) }>
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, px: 1 }}
+        >
+          <IconButton
+            onClick={() => setScale(s => Math.max(0.5, +(s - 0.1).toFixed(2)))}
+          >
             <ZoomOut />
           </IconButton>
-          <Slider min={0.5} max={3} step={0.01} value={scale} onChange={(_, v) => setScale(v as number)} sx={{ flex: 1 }} />
-          <IconButton onClick={() => setScale(s => Math.min(3, +(s + 0.1).toFixed(2))) }>
+          <Slider
+            min={0.5}
+            max={3}
+            step={0.01}
+            value={scale}
+            onChange={(_, v) => setScale(v as number)}
+            sx={{ flex: 1 }}
+          />
+          <IconButton
+            onClick={() => setScale(s => Math.min(3, +(s + 0.1).toFixed(2)))}
+          >
             <ZoomIn />
           </IconButton>
         </Box>
@@ -109,7 +167,17 @@ export default function AvatarEditor({
             const sy = (py0 - offset.y) / scale;
             const sw = cropSize / scale;
             const sh = cropSize / scale;
-            ctx.drawImage(imgRef.current, sx, sy, sw, sh, 0, 0, cropSize, cropSize);
+            ctx.drawImage(
+              imgRef.current,
+              sx,
+              sy,
+              sw,
+              sh,
+              0,
+              0,
+              cropSize,
+              cropSize,
+            );
             const b64 = canvas.toDataURL('image/jpeg', 0.9);
             await onConfirm(b64);
           }}

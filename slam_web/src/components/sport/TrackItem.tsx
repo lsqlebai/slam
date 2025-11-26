@@ -68,7 +68,14 @@ export default function TrackItem({
             rowGap: 0.5,
           }}
         >
-          <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <Box
+            sx={{
+              minWidth: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+            }}
+          >
             <Typography
               variant="subtitle1"
               noWrap
@@ -90,7 +97,9 @@ export default function TrackItem({
               {TEXTS[lang].addsports.submitDurationLabel}
             </Typography>
             <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
-              {t.duration_second >= 0 ? `${String(Math.floor(t.duration_second / 3600)).padStart(2, '0')}:${String(Math.floor((t.duration_second % 3600) / 60)).padStart(2, '0')}:${String(t.duration_second % 60).padStart(2, '0')}` : ''}
+              {t.duration_second >= 0
+                ? `${String(Math.floor(t.duration_second / 3600)).padStart(2, '0')}:${String(Math.floor((t.duration_second % 3600) / 60)).padStart(2, '0')}:${String(t.duration_second % 60).padStart(2, '0')}`
+                : ''}
             </Typography>
           </Box>
           <Box sx={{ minWidth: 0 }}>

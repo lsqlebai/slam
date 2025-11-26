@@ -255,8 +255,7 @@ export default function Stats({ lang }: { lang: Lang }) {
           borderRadius: 1,
           border: '1px solid',
           borderColor: 'transparent',
-          boxShadow:
-            '0 6px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.07)',
+          boxShadow: '0 6px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.07)',
         }}
       >
         <Tabs
@@ -454,13 +453,13 @@ export default function Stats({ lang }: { lang: Lang }) {
       {tabIndex === 3 && (
         <Box sx={{ mt: 2 }}>
           <Box sx={{ mb: 2 }}>
-          <SummaryStats
-            lang={lang}
-            durationSeconds={summary?.total_duration_second || 0}
-            calories={summary?.total_calories || 0}
-            count={summary?.total_count || 0}
-            distanceMeter={summary?.total_distance_meter || 0}
-          />
+            <SummaryStats
+              lang={lang}
+              durationSeconds={summary?.total_duration_second || 0}
+              calories={summary?.total_calories || 0}
+              count={summary?.total_count || 0}
+              distanceMeter={summary?.total_distance_meter || 0}
+            />
           </Box>
           <TypeBucketsChart lang={lang} buckets={summary?.type_buckets || []} />
         </Box>

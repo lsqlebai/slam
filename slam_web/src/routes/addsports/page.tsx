@@ -96,7 +96,12 @@ function AddSportsInner() {
   };
 
   return (
-    <Box sx={{ minHeight: '100dvh', pb: 'calc(env(safe-area-inset-bottom) + 96px)' }}>
+    <Box
+      sx={{
+        minHeight: '100dvh',
+        pb: 'calc(env(safe-area-inset-bottom) + 96px)',
+      }}
+    >
       <Helmet>
         <title>{TEXTS[lang].addsports.headTitle}</title>
       </Helmet>
@@ -275,7 +280,9 @@ function AddSportsInner() {
         <DialogContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
             <CircularProgress size={20} />
-            <Typography variant="body2">{TEXTS[lang].addsports.aiLoading}</Typography>
+            <Typography variant="body2">
+              {TEXTS[lang].addsports.aiLoading}
+            </Typography>
           </Box>
         </DialogContent>
       </Dialog>

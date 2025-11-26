@@ -1,7 +1,14 @@
 import { Helmet } from '@modern-js/runtime/head';
 import { useNavigate } from '@modern-js/runtime/router';
 import { BarChart, DirectionsRun, Settings } from '@mui/icons-material';
-import { BottomNavigation, BottomNavigationAction, Box, Divider, Typography, Avatar } from '@mui/material';
+import {
+  Avatar,
+  BottomNavigation,
+  BottomNavigationAction,
+  Box,
+  Divider,
+  Typography,
+} from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import PageBase from '../components/PageBase';
 import SettingsPage from '../components/home/Settings';
@@ -27,7 +34,7 @@ function HomeInner() {
         navigate('/login');
       }
     })();
-  }, [navigate]);
+  }, [navigate, refresh]);
 
   const hour = new Date().getHours();
   const gKey = (() => {
@@ -109,7 +116,9 @@ function HomeInner() {
           {title}
         </Typography>
         {user?.nickname && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}
+          >
             <Typography
               variant="subtitle1"
               color="text.primary"
@@ -120,7 +129,10 @@ function HomeInner() {
               {sep}
               {user?.nickname}
             </Typography>
-            <Avatar src={user?.avatar || undefined} sx={{ width: 32, height: 32 }} />
+            <Avatar
+              src={user?.avatar || undefined}
+              sx={{ width: 32, height: 32 }}
+            />
           </Box>
         )}
       </Box>

@@ -17,7 +17,12 @@ export default function StatsSection({
   details,
 }: {
   lang: Lang;
-  totals: { duration: number; calories: number; count: number; distanceMeter: number };
+  totals: {
+    duration: number;
+    calories: number;
+    count: number;
+    distanceMeter: number;
+  };
   title: string;
   data: { label: string; value: number }[];
   sports: Sport[];

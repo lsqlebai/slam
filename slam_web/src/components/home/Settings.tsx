@@ -1,14 +1,22 @@
 import { useNavigate } from '@modern-js/runtime/router';
 import { UploadFile } from '@mui/icons-material';
-import { Box, Button, Divider, MenuItem, Select, Typography, Avatar } from '@mui/material';
+import {
+  Avatar,
+  Box,
+  Button,
+  Divider,
+  MenuItem,
+  Select,
+  Typography,
+} from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import AvatarEditor from './AvatarEditor';
 import { LANGUAGE_NAMES, TEXTS, saveLang } from '../../i18n';
 import type { Lang } from '../../i18n';
 import { importSportsCsv } from '../../services/sport';
 import { logout, uploadAvatar } from '../../services/user';
 import { useUserStore } from '../../stores/user';
 import { useToast } from '../PageBase';
+import AvatarEditor from './AvatarEditor';
 
 export default function Settings({
   lang,
@@ -51,14 +59,24 @@ export default function Settings({
               setEditorOpen(true);
             }}
           />
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               头像
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar
                 src={user?.avatar || undefined}
-                sx={{ width: 48, height: 48, cursor: avatarUploading ? 'not-allowed' : 'pointer' }}
+                sx={{
+                  width: 48,
+                  height: 48,
+                  cursor: avatarUploading ? 'not-allowed' : 'pointer',
+                }}
                 onClick={() => {
                   if (!avatarUploading) avatarInputRef.current?.click();
                 }}
@@ -74,7 +92,9 @@ export default function Settings({
           editorSize={300}
           onCancel={() => {
             setEditorOpen(false);
-            if (editorUrl) { URL.revokeObjectURL(editorUrl); }
+            if (editorUrl) {
+              URL.revokeObjectURL(editorUrl);
+            }
           }}
           onConfirm={async b64 => {
             try {
@@ -82,7 +102,9 @@ export default function Settings({
               const saved = await uploadAvatar(b64);
               updateAvatarLocal(saved);
               setEditorOpen(false);
-              if (editorUrl) { URL.revokeObjectURL(editorUrl); }
+              if (editorUrl) {
+                URL.revokeObjectURL(editorUrl);
+              }
               setEditorUrl(null);
               showSuccess('头像已更新');
             } catch (err: unknown) {
