@@ -1,33 +1,28 @@
 import { Helmet } from '@modern-js/runtime/head';
 import { useNavigate } from '@modern-js/runtime/router';
 import { BarChart, DirectionsRun, Settings } from '@mui/icons-material';
-import {
-  BottomNavigation,
-  BottomNavigationAction,
-  Box,
-  Divider,
-  Typography,
-} from '@mui/material';
-import { useEffect, useState } from 'react';
+import { BottomNavigation, BottomNavigationAction, Box, Divider, Typography, Avatar } from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
 import PageBase from '../components/PageBase';
 import SettingsPage from '../components/home/Settings';
 import Sporting from '../components/home/Sporting';
 import Stats from '../components/stats/Stats';
 import { TEXTS, getSavedLang } from '../i18n';
-import { info } from '../services/user';
+import { useUserStore } from '../stores/user';
+import './home.css';
 
 function HomeInner() {
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const [value, setValue] = useState(0);
-  const [nickname, setNickname] = useState('');
+  const { user, refresh } = useUserStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     setLang(getSavedLang());
     (async () => {
       try {
-        const u = await info();
-        setNickname(u.nickname);
+        const ok = await refresh();
+        if (!ok) throw new Error('unauth');
       } catch {
         navigate('/login');
       }
@@ -52,12 +47,28 @@ function HomeInner() {
     return TEXTS[lang].home.settings;
   })();
 
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [scrolling, setScrolling] = useState(false);
+  const scrollTimerRef = useRef<number | null>(null);
+
   const content = (
     <Box
+      ref={contentRef}
+      className={scrolling ? 'scroll-auto scrolling' : 'scroll-auto'}
+      onScroll={() => {
+        if (scrollTimerRef.current) {
+          window.clearTimeout(scrollTimerRef.current);
+        }
+        setScrolling(true);
+        scrollTimerRef.current = window.setTimeout(() => {
+          setScrolling(false);
+        }, 800);
+      }}
       sx={{
         px: 2,
         pb: 'calc(env(safe-area-inset-bottom) + 72px)',
         flex: 1,
+        minHeight: 0,
         overflowY: 'auto',
       }}
     >
@@ -75,6 +86,7 @@ function HomeInner() {
         flexDirection: 'column',
         overflow: 'hidden',
       }}
+      className="home-bg"
     >
       <Helmet>
         <title>{TEXTS[lang].home.headTitle}</title>
@@ -96,17 +108,20 @@ function HomeInner() {
         <Typography variant="h6" noWrap sx={{ minWidth: 0 }}>
           {title}
         </Typography>
-        {nickname && (
-          <Typography
-            variant="subtitle1"
-            color="text.primary"
-            noWrap
-            sx={{ textAlign: 'right', minWidth: 0 }}
-          >
-            {greeting}
-            {sep}
-            {nickname}
-          </Typography>
+        {user?.nickname && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+            <Typography
+              variant="subtitle1"
+              color="text.primary"
+              noWrap
+              sx={{ textAlign: 'right', minWidth: 0 }}
+            >
+              {greeting}
+              {sep}
+              {user?.nickname}
+            </Typography>
+            <Avatar src={user?.avatar || undefined} sx={{ width: 32, height: 32 }} />
+          </Box>
         )}
       </Box>
       <Divider sx={{ mb: 1 }} />

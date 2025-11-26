@@ -1,6 +1,6 @@
 use crate::service::common::ServiceError;
 use crate::dao::idl::UserDao;
-use crate::model::user::User;
+use crate::model::user::{User, UserInfo};
 use std::sync::Arc;
 use aes::Aes256;
 use cbc::Encryptor;
@@ -63,11 +63,19 @@ impl UserService {
         }
     }
 
-    pub async fn get_user(&self, id: i32) -> Result<User, ServiceError> {
+    pub async fn get_user(&self, id: i32) -> Result<UserInfo, ServiceError> {
         match self.dao.get_by_id(id).await {
             Ok(Some(u)) => Ok(u),
             Ok(None) => Err(ServiceError { code: 404, message: "用户不存在".to_string() }),
             Err(e) => Err(ServiceError { code: 500, message: e }),
         }
     }
+
+    pub async fn set_avatar(&self, uid: i32, base64: String) -> Result<(), ServiceError> {
+        match self.dao.set_avatar(uid, base64).await {
+            Ok(()) => Ok(()),
+            Err(e) => Err(ServiceError { code: 500, message: e }),
+        }
+    }
+
 }

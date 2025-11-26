@@ -1,0 +1,29 @@
+@import "./index.css";
+
+.home-bg {
+  background-color: #f5f6fa;
+}
+
+.scroll-auto {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-auto::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.scroll-auto.scrolling {
+  scrollbar-width: thin;
+  -ms-overflow-style: auto;
+}
+.scroll-auto.scrolling::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-auto.scrolling::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+}
+.scroll-auto.scrolling::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -43,6 +43,7 @@ pub fn create_app(config: AppConfig) -> Router {
             crate::handlers::user_handler::user_login_handler,
             crate::handlers::user_handler::user_info_handler,
             crate::handlers::user_handler::user_logout_handler,
+            crate::handlers::user_handler::user_avatar_upload_handler,
             crate::handlers::sport_handler::insert_sport_handler,
             crate::handlers::sport_handler::import_sport_handler,
             crate::handlers::sport_handler::update_sport_handler,
@@ -61,6 +62,7 @@ pub fn create_app(config: AppConfig) -> Router {
                 crate::handlers::user_handler::UserRegisterRequest,
                 crate::handlers::user_handler::UserLoginRequest,
                 crate::handlers::user_handler::UserActionResponse,
+                crate::handlers::user_handler::AvatarUploadResponse,
                 crate::service::sport_service::StatBucket,
                 crate::service::sport_service::TypeBucket,
                 crate::service::sport_service::StatSummary,
@@ -94,12 +96,13 @@ fn create_production_router(config: AppConfig) -> Router {
 
     let sqlite_db = StdArc::new(SqliteImpl::new_sync(&config.db.path).expect("init sqlite dao"));
     let jwt = Jwt::new(config.security.jwt_ttl_seconds, config.security.key.clone());
-    let cache = StdArc::new(MemoryResultCache::<StatSummary>::new());
+    let cache_total = StdArc::new(MemoryResultCache::<StatSummary, i32>::new());
+    let cache_year = StdArc::new(MemoryResultCache::<StatSummary, String>::new());
     let app = Arc::new(AppState {
         ai_service: AIService::new(),
         image_service: ImageService::new(),
         user_service: UserService::new(sqlite_db.clone(), config.security.clone()),
-        sport_service: SportService::new(sqlite_db.clone(), cache.clone()),
+        sport_service: SportService::new(sqlite_db.clone(), cache_total.clone(), cache_year.clone()),
         jwt,
     });
     // 导入处理函数
@@ -115,6 +118,7 @@ fn create_production_router(config: AppConfig) -> Router {
         .route(routes::API_USER_LOGIN, post(crate::handlers::user_handler::user_login_handler))
         .route(routes::API_USER_INFO, get(crate::handlers::user_handler::user_info_handler))
         .route(routes::API_USER_LOGOUT, post(crate::handlers::user_handler::user_logout_handler))
+        .route(routes::API_USER_AVATAR_UPLOAD, post(crate::handlers::user_handler::user_avatar_upload_handler)).layer(DefaultBodyLimit::max(20 * 1024 * 1024))
         .route(routes::API_SPORT_INSERT, post(crate::handlers::sport_handler::insert_sport_handler))
         .route(routes::API_SPORT_IMPORT, post(crate::handlers::sport_handler::import_sport_handler))
         .route(routes::API_SPORT_UPDATE, post(crate::handlers::sport_handler::update_sport_handler))

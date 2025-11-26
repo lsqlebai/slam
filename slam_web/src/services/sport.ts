@@ -112,9 +112,11 @@ export async function getSportStats(
   year: number,
   month?: number,
   week?: number,
+  signal?: AbortSignal,
 ): Promise<StatSummary> {
   const res = await http.get('/sport/stats', {
     params: { kind, year, month, week },
+    signal,
   });
   return res.data as StatSummary;
 }

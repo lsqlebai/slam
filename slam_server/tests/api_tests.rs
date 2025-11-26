@@ -723,3 +723,68 @@ async fn test_sport_stats_total() {
     assert!(json.get("total_duration_second").is_some());
     assert!(json.get("type_buckets").unwrap().as_array().is_some());
 }
+
+#[tokio::test]
+async fn test_user_avatar_upload_and_get() {
+    let mut app = app::create_app(AppConfig::default());
+
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("test_avatar_{}", unique);
+    let password = "p@ssw0rd";
+
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password,
+        "nickname": "AvatarUser"
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("register set-cookie");
+    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+
+    let base64 = "data:image/jpeg;base64,ZmFrZQ==";
+    let form = multipart::Form::new().text("avatar", base64);
+    let boundary = form.boundary().to_string();
+    let stream = form.into_stream();
+    let body = Body::from_stream(stream);
+
+    let upload_req = Request::builder()
+        .uri(routes::API_USER_AVATAR_UPLOAD)
+        .method("POST")
+        .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+        .header("Cookie", cookie_header.clone())
+        .body(body)
+        .unwrap();
+    let upload_resp = app.call(upload_req).await.unwrap();
+    let (upload_status, upload_bytes) = print_response("头像上传", upload_resp).await;
+    assert_eq!(upload_status, StatusCode::OK);
+    let upload_json: serde_json::Value = serde_json::from_slice(&upload_bytes).unwrap();
+    assert_eq!(upload_json.get("success").unwrap().as_bool().unwrap(), true);
+    assert!(upload_json.get("avatar").unwrap().as_str().unwrap().starts_with("data:image/jpeg;base64,"));
+
+    let get_req = Request::builder()
+        .uri(routes::API_USER_INFO)
+        .method("GET")
+        .header("Cookie", cookie_header.clone())
+        .body(Body::empty())
+        .unwrap();
+    let get_resp = app.call(get_req).await.unwrap();
+    let (get_status, get_bytes) = print_response("头像获取", get_resp).await;
+    assert_eq!(get_status, StatusCode::OK);
+    let get_json: serde_json::Value = serde_json::from_slice(&get_bytes).unwrap();
+    assert_eq!(get_json.get("nickname").unwrap().as_str().unwrap(), "AvatarUser");
+    assert!(get_json.get("avatar").unwrap().as_str().unwrap().starts_with("data:image/jpeg;base64,"));
+}

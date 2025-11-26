@@ -12,22 +12,32 @@ use crate::service::common::ServiceError;
 
 pub struct SportService {
     dao: Arc<dyn SportDao + Send + Sync>,
-    cache: Arc<dyn ResultCache<StatSummary> + Send + Sync>,
+    cache_total: Arc<dyn ResultCache<StatSummary, i32> + Send + Sync>,
+    cache_year: Arc<dyn ResultCache<StatSummary, String> + Send + Sync>,
 }
 
 impl SportService {
-    pub fn new(dao: Arc<dyn SportDao + Send + Sync>, cache: Arc<dyn ResultCache<StatSummary> + Send + Sync>) -> Self {
-        Self { dao, cache }
+    pub fn new(
+        dao: Arc<dyn SportDao + Send + Sync>, 
+        cache_total: Arc<dyn ResultCache<StatSummary, i32> + Send + Sync>,
+        cache_year: Arc<dyn ResultCache<StatSummary, String> + Send + Sync>,
+    ) -> Self {
+        Self { dao, cache_total, cache_year }
     }
 
     #[inject_ctx]
     pub async fn insert(&self, sport: Sport) -> Result<(), ServiceError> {
+        let y = DateTime::from_timestamp(sport.start_time, 0).map(|dt| dt.year());
         self
             .dao
             .insert(ctx.uid, sport)
             .await
             .map_err(|e| ServiceError { code: 500, message: e })?;
-        self.cache.invalidate(ctx.uid).await;
+        self.cache_total.invalidate(ctx.uid).await;
+        if let Some(year) = y { 
+            let key = format!("{}@{}", ctx.uid, year);
+            self.cache_year.invalidate(key).await;
+        }
         Ok(())
     }
 
@@ -43,12 +53,25 @@ impl SportService {
     }
     #[inject_ctx]
     pub async fn update(&self, sport: Sport) -> Result<(), ServiceError> {
+        let old = self.dao.get_by_id(ctx.uid, sport.id).await.map_err(|e| ServiceError { code: 500, message: e })?;
+        let ny = DateTime::from_timestamp(sport.start_time, 0).map(|dt| dt.year());
         self
             .dao
             .update(ctx.uid, sport)
             .await
             .map_err(|e| ServiceError { code: 500, message: e })?;
-        self.cache.invalidate(ctx.uid).await;
+        self.cache_total.invalidate(ctx.uid).await;
+        if let Some(o) = old { 
+            let oy = DateTime::from_timestamp(o.start_time, 0).map(|dt| dt.year());
+            if let Some(oyr) = oy { 
+                let key = format!("{}@{}", ctx.uid, oyr);
+                self.cache_year.invalidate(key).await;
+            }
+        }
+        if let Some(nyr) = ny { 
+            let key = format!("{}@{}", ctx.uid, nyr);
+            self.cache_year.invalidate(key).await;
+        }
         Ok(())
     }
 
@@ -66,30 +89,51 @@ impl SportService {
                 message: "no valid rows".to_string(),
             });
         }
+        let mut years: std::collections::HashSet<i32> = std::collections::HashSet::new();
+        for s in &sports { 
+            if let Some(y) = DateTime::from_timestamp(s.start_time, 0).map(|dt| dt.year()) { years.insert(y); }
+        }
         let inserted = self
             .dao
             .insert_many(ctx.uid, sports)
             .await
             .map_err(|e| ServiceError { code: 500, message: e })?;
-        self.cache.invalidate(ctx.uid).await;
+        self.cache_total.invalidate(ctx.uid).await;
+        for y in years { 
+            let key = format!("{}@{}", ctx.uid, y);
+            self.cache_year.invalidate(key).await;
+        }
         Ok(inserted)
     }
 
     #[inject_ctx]
     pub async fn delete(&self, id: i32) -> Result<(), ServiceError> {
+        let old = self.dao.get_by_id(ctx.uid, id).await.map_err(|e| ServiceError { code: 500, message: e })?;
         self
             .dao
             .remove(ctx.uid, id)
             .await
             .map_err(|e| ServiceError { code: 500, message: e })?;
-        self.cache.invalidate(ctx.uid).await;
+        self.cache_total.invalidate(ctx.uid).await;
+        if let Some(o) = old { 
+            if let Some(y) = DateTime::from_timestamp(o.start_time, 0).map(|dt| dt.year()) { 
+                let key = format!("{}@{}", ctx.uid, y);
+                self.cache_year.invalidate(key).await;
+            }
+        }
         Ok(())
     }
 
     #[inject_ctx]
     pub async fn stats(&self, spec: StatsParam) -> Result<StatSummary, ServiceError> {
         if let StatKind::Total = spec.kind {
-            if let Some(cached) = self.cache.get(ctx.uid).await {
+            if let Some(cached) = self.cache_total.get(ctx.uid).await {
+                return Ok(cached);
+            }
+        }
+        if let StatKind::Year = spec.kind {
+            let key = format!("{}@{}", ctx.uid, spec.year);
+            if let Some(cached) = self.cache_year.get(key.clone()).await {
                 return Ok(cached);
             }
         }
@@ -178,7 +222,11 @@ impl SportService {
             earliest_year,
         };
         if let StatKind::Total = spec.kind {
-            self.cache.set(ctx.uid, summary.clone()).await;
+            self.cache_total.set(ctx.uid, summary.clone()).await;
+        }
+        if let StatKind::Year = spec.kind {
+            let key = format!("{}@{}", ctx.uid, spec.year);
+            self.cache_year.set(key.clone(), summary.clone()).await;
         }
         Ok(summary)
     }

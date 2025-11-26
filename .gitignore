@@ -2,3 +2,4 @@
 slam_server/sport.db
 deploy/db/sport.db
 deploy/dockerhub/.env
+slam_web/pnpm-lock.yaml

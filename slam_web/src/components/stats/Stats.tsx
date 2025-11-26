@@ -1,5 +1,5 @@
 import { Box, Tab, Tabs, Typography } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Lang } from '../../i18n';
 import { type StatSummary, getSportStats } from '../../services/sport';
@@ -36,41 +36,56 @@ export default function Stats({ lang }: { lang: Lang }) {
     return { year: w.year, week: w.week };
   });
 
-  const loadYearStats = useCallback(async (y: number) => {
-    const s = await getSportStats('year', y);
-    setSummary(s);
-  }, []);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const loadMonthStats = useCallback(async (y: number, m: number) => {
-    const s = await getSportStats('month', y, m);
-    setSummary(s);
-  }, []);
-
-  const loadWeekStats = useCallback(async (y: number, w: number) => {
-    const s = await getSportStats('week', y, undefined, w);
-    setSummary(s);
-  }, []);
-
-  const loadTotalStats = useCallback(async (y: number) => {
-    const s = await getSportStats('total', y);
-    setSummary(s);
-  }, []);
-
-  useEffect(() => {
-    if (tabIndex === 2) loadYearStats(selectedYear);
-  }, [loadYearStats, selectedYear, tabIndex]);
-
-  useEffect(() => {
-    if (tabIndex === 1) loadMonthStats(selectedYear, selectedMonth);
-  }, [loadMonthStats, selectedYear, selectedMonth, tabIndex]);
+  const loadStats = useCallback(
+    async (
+      kind: 'year' | 'month' | 'week' | 'total',
+      opts: { year: number; month?: number; week?: number },
+    ) => {
+      abortRef.current?.abort();
+      const c = new AbortController();
+      abortRef.current = c;
+      try {
+        const s = await getSportStats(
+          kind,
+          opts.year,
+          opts.month,
+          opts.week,
+          c.signal,
+        );
+        setSummary(s);
+      } catch (e) {}
+    },
+    [],
+  );
 
   useEffect(() => {
-    if (tabIndex === 0) loadWeekStats(selectedWeek.year, selectedWeek.week);
-  }, [loadWeekStats, selectedWeek, tabIndex]);
+    if (tabIndex === 2) loadStats('year', { year: selectedYear });
+  }, [loadStats, selectedYear, tabIndex]);
 
   useEffect(() => {
-    if (tabIndex === 3) loadTotalStats(selectedYear);
-  }, [loadTotalStats, selectedYear, tabIndex]);
+    if (tabIndex === 1)
+      loadStats('month', { year: selectedYear, month: selectedMonth });
+  }, [loadStats, selectedYear, selectedMonth, tabIndex]);
+
+  useEffect(() => {
+    if (tabIndex === 0)
+      loadStats('week', {
+        year: selectedWeek.year,
+        week: selectedWeek.week,
+      });
+  }, [loadStats, selectedWeek, tabIndex]);
+
+  useEffect(() => {
+    if (tabIndex === 3) loadStats('total', { year: selectedYear });
+  }, [loadStats, selectedYear, tabIndex]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const years = useMemo(() => {
     const now = new Date().getFullYear();
@@ -231,16 +246,40 @@ export default function Stats({ lang }: { lang: Lang }) {
 
   return (
     <Box sx={{ px: 2, pt: 1, pb: 2 }}>
-      <Box sx={{ overflow: 'hidden', touchAction: 'pan-y' }}>
+      <Box
+        sx={{
+          overflow: 'hidden',
+          touchAction: 'pan-y',
+          background: 'linear-gradient(180deg, #1976d2 0%, #0b5fb8 100%)',
+          color: 'common.white',
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'transparent',
+          boxShadow:
+            '0 6px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.07)',
+        }}
+      >
         <Tabs
           value={tabIndex}
           onChange={(_, v) => setTabIndex(v)}
           variant="fullWidth"
           sx={{
             minHeight: 44,
+            color: 'common.white',
             '& .MuiTab-root': {
               minHeight: 44,
               minWidth: 0,
+              color: 'rgba(255,255,255,0.75)',
+              fontWeight: 700,
+            },
+            '& .MuiTab-root.Mui-selected': {
+              color: 'rgba(255,255,255,0.98)',
+              textShadow: '0 1px 1px rgba(0,0,0,0.25)',
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              height: 3,
+              borderRadius: 1,
             },
           }}
         >

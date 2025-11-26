@@ -48,7 +48,7 @@ export default function SummaryStats({
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <AccessTime fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
+          <AccessTime fontSize="small" sx={{ color: 'text.primary', mr: 0.5 }} />
           <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
             {TEXTS[lang].home.labels.time}:
           </Typography>
@@ -66,7 +66,7 @@ export default function SummaryStats({
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap' }}>
-          <Map fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
+          <Map fontSize="small" sx={{ color: 'text.primary', mr: 0.5 }} />
           <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }} noWrap>
             {TEXTS[lang].home.labels.distance}:
           </Typography>
@@ -75,7 +75,7 @@ export default function SummaryStats({
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <LocalFireDepartment fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
+          <LocalFireDepartment fontSize="small" sx={{ color: 'error.main', mr: 0.5 }} />
           <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
             {TEXTS[lang].home.labels.calories}:
           </Typography>

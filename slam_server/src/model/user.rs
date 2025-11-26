@@ -8,3 +8,9 @@ pub struct User {
     pub password: String,
     pub nickname: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
+pub struct UserInfo {
+    pub nickname: String,
+    pub avatar: String,
+}

@@ -40,6 +40,17 @@ export default function SportList({
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${pad(h)}:${pad(m)}:${pad(sec)}`;
   };
+  const formatDateTimeFull = (t: number) => {
+    const d = new Date(t * 1000);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const y = d.getFullYear();
+    const mo = pad(d.getMonth() + 1);
+    const da = pad(d.getDate());
+    const h = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    const s = pad(d.getSeconds());
+    return `${y}-${mo}-${da} ${h}:${mi}:${s}`;
+  };
 
   const IconFor = (t: string) => {
     const key = t.toLowerCase();
@@ -88,20 +99,36 @@ export default function SportList({
         >
           <CardContent
             sx={{
-              pt: 1,
-              pb: 1,
+              pt: 1.5,
+              pb: 1.5,
               '&.MuiCardContent-root:last-child': { paddingBottom: 1.5 },
             }}
           >
-            <Stack spacing={0.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                {IconFor(s.type)}
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {TypeLabelFor(s.type)}
-                </Typography>
-                <Box sx={{ flex: 1 }} />
+            <Stack spacing={0.75}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  columnGap: 2,
+                  alignItems: 'center',
+                }}
+              >
                 <Box
                   sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}
+                >
+                  {IconFor(s.type)}
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {TypeLabelFor(s.type)}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    minWidth: 0,
+                    gridColumn: '2 / 4',
+                    justifyContent: 'flex-end',
+                  }}
                 >
                   <AccessTime
                     fontSize="small"
@@ -110,13 +137,12 @@ export default function SportList({
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    noWrap
-                    sx={{ minWidth: 0 }}
+                    sx={{ minWidth: 0, textAlign: 'right' }}
                   >
-                    {formatDateOnly(s.start_time)}
+                    {formatDateTimeFull(s.start_time)}
                   </Typography>
                 </Box>
-              </Stack>
+              </Box>
               <Box
                 sx={{
                   display: 'grid',
@@ -157,7 +183,7 @@ export default function SportList({
                 >
                   <AltRoute
                     fontSize="small"
-                    sx={{ color: 'text.secondary', mr: 0.5 }}
+                    sx={{ color: 'text.secondary', mr: 0.5, ml: 3 }}
                   />
                   <Box
                     sx={{
@@ -165,8 +191,6 @@ export default function SportList({
                       alignItems: 'baseline',
                       minWidth: 0,
                       gap: 0.25,
-                      ml: 'auto',
-                      justifyContent: 'flex-end',
                       maxWidth: '100%',
                     }}
                   >
@@ -181,7 +205,7 @@ export default function SportList({
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         lineHeight: 1.1,
-                        textAlign: 'right',
+                        textAlign: 'left',
                       }}
                     >
                       {s.distance_meter}
@@ -204,7 +228,7 @@ export default function SportList({
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'flex-start',
+                    justifyContent: 'flex-end',
                     minWidth: 0,
                   }}
                 >
@@ -218,7 +242,6 @@ export default function SportList({
                       alignItems: 'baseline',
                       minWidth: 0,
                       gap: 0.25,
-                      ml: 'auto',
                       justifyContent: 'flex-end',
                       maxWidth: '100%',
                     }}

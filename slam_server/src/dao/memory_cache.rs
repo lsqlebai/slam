@@ -2,24 +2,25 @@ use std::collections::HashMap;
 use tokio::sync::RwLock;
 use async_trait::async_trait;
 use super::cache::ResultCache;
+use std::hash::Hash;
 
-pub struct MemoryResultCache<T: Clone + Send + Sync + 'static> {
-    inner: RwLock<HashMap<i32, T>>, 
+pub struct MemoryResultCache<T: Clone + Send + Sync + 'static, K: Eq + Hash + Clone + Send + Sync + 'static> {
+    inner: RwLock<HashMap<K, T>>, 
 }
 
-impl<T: Clone + Send + Sync + 'static> MemoryResultCache<T> {
+impl<T: Clone + Send + Sync + 'static, K: Eq + Hash + Clone + Send + Sync + 'static> MemoryResultCache<T, K> {
     pub fn new() -> Self { Self { inner: RwLock::new(HashMap::new()) } }
 }
 
 #[async_trait]
-impl<T: Clone + Send + Sync + 'static> ResultCache<T> for MemoryResultCache<T> {
-    async fn get(&self, uid: i32) -> Option<T> {
-        self.inner.read().await.get(&uid).cloned()
+impl<T: Clone + Send + Sync + 'static, K: Eq + Hash + Clone + Send + Sync + 'static> ResultCache<T, K> for MemoryResultCache<T, K> {
+    async fn get(&self, key: K) -> Option<T> {
+        self.inner.read().await.get(&key).cloned()
     }
-    async fn set(&self, uid: i32, value: T) {
-        self.inner.write().await.insert(uid, value);
+    async fn set(&self, key: K, value: T) {
+        self.inner.write().await.insert(key, value);
     }
-    async fn invalidate(&self, uid: i32) {
-        self.inner.write().await.remove(&uid);
+    async fn invalidate(&self, key: K) {
+        self.inner.write().await.remove(&key);
     }
 }

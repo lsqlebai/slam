@@ -1,0 +1,28 @@
+services:
+  server:
+    image: lsqlebai/slam_server:0.1
+    container_name: slam_server
+    volumes:
+      - slam_sport_db:/data
+      - ../config/app.container.yml:/app/config/app.yml:ro
+    environment:
+      - AI_API_KEY=${AI_API_KEY}
+    ports:
+      - "3000:3000"
+  web:
+    image: lsqlebai/slam_web:0.1
+    container_name: slam_web
+    depends_on:
+      - server
+    volumes:
+      - ../config/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+
+volumes:
+  slam_sport_db:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../db

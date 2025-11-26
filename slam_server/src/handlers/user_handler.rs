@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use crate::app::{AppState, routes};
 use crate::handlers::jwt::Context;
 use super::response::HandlerResponse;
+use axum_extra::extract::Multipart;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct UserRegisterRequest {
@@ -71,7 +72,7 @@ pub async fn user_register_handler(
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct UserInfoResponse { pub nickname: String }
+pub struct UserInfoResponse { pub nickname: String, pub avatar: String }
 
 #[utoipa::path(
     get,
@@ -86,7 +87,7 @@ pub async fn user_info_handler(
     ctx: Context,
 ) -> axum::response::Response {
     match app.user_service.get_user(ctx.uid).await {
-        Ok(u) => HandlerResponse::<UserInfoResponse>::Success(UserInfoResponse { nickname: u.nickname }).into_response(),
+        Ok(u) => HandlerResponse::<UserInfoResponse>::Success(UserInfoResponse { nickname: u.nickname, avatar: u.avatar }).into_response(),
         Err(e) => HandlerResponse::<UserInfoResponse>::Error(e.message).into_response(),
     }
 }
@@ -113,4 +114,55 @@ pub async fn user_login_handler(
 pub struct UserLoginRequest {
     pub name: String,
     pub password: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AvatarUploadResponse { pub success: bool, pub avatar: String }
+
+
+#[utoipa::path(
+    post,
+    path = routes::API_USER_AVATAR_UPLOAD,
+    responses(
+        (status = 200, description = "Upload avatar", body = AvatarUploadResponse),
+        (status = 401, description = "Unauthorized", body = String),
+        (status = 500, description = "Internal error", body = String)
+    )
+)]
+#[axum::debug_handler]
+pub async fn user_avatar_upload_handler(
+    State(app): State<Arc<AppState>>,
+    ctx: Context,
+    mut mp: Multipart,
+) -> axum::response::Response {
+    let mut data: Option<Vec<u8>> = None;
+    let mut b64_text: Option<String> = None;
+    while let Some(field) = mp.next_field().await.unwrap_or(None) {
+        let name = field.name().unwrap_or("");
+        if name == "file" {
+            data = Some(field.bytes().await.unwrap_or_default().to_vec());
+        } else if name == "avatar" || name == "base64" {
+            b64_text = Some(field.text().await.unwrap_or_default());
+        }
+    }
+    if let Some(bytes) = data {
+        match app.image_service.process_image(bytes) {
+            Ok(resp) => {
+                let b64 = resp.base64_data.into_iter().next().unwrap_or_default();
+                match app.user_service.set_avatar(ctx.uid, b64.clone()).await {
+                    Ok(()) => HandlerResponse::<AvatarUploadResponse>::Success(AvatarUploadResponse { success: true, avatar: b64 }).into_response(),
+                    Err(e) => HandlerResponse::<AvatarUploadResponse>::Error(e.message).into_response(),
+                }
+            }
+            Err(e) => HandlerResponse::<AvatarUploadResponse>::Error(e.message).into_response(),
+        }
+    } else if let Some(txt) = b64_text {
+        let b64 = txt;
+        match app.user_service.set_avatar(ctx.uid, b64.clone()).await {
+            Ok(()) => HandlerResponse::<AvatarUploadResponse>::Success(AvatarUploadResponse { success: true, avatar: b64 }).into_response(),
+            Err(e) => HandlerResponse::<AvatarUploadResponse>::Error(e.message).into_response(),
+        }
+    } else {
+        HandlerResponse::<AvatarUploadResponse>::Error("缺少文件或base64参数".to_string()).into_response()
+    }
 }

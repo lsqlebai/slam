@@ -3,7 +3,7 @@ use rusqlite::{params, Connection, OpenFlags};
 use serde_json;
 
 use crate::model::sport::{Sport, Swimming, Track, SportType};
-use crate::model::user::User;
+use crate::model::user::{User, UserInfo};
 use super::idl::{SportDao, UserDao};
 
 pub struct SqliteImpl {
@@ -59,6 +59,15 @@ impl SqliteImpl {
             avatar TEXT NOT NULL DEFAULT ''
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_users_name ON users(name);
+        CREATE TABLE IF NOT EXISTS avatars (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uid INTEGER NOT NULL UNIQUE,
+            data TEXT NOT NULL,
+            mime TEXT NOT NULL DEFAULT 'image/jpeg',
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_avatars_uid ON avatars(uid);
         "#;
         let conn = self.open_conn()?;
         conn.execute_batch(create_sql)
@@ -96,6 +105,15 @@ impl SqliteImpl {
             avatar TEXT NOT NULL DEFAULT ''
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_users_name ON users(name);
+        CREATE TABLE IF NOT EXISTS avatars (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uid INTEGER NOT NULL UNIQUE,
+            data TEXT NOT NULL,
+            mime TEXT NOT NULL DEFAULT 'image/jpeg',
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_avatars_uid ON avatars(uid);
         "#;
         let conn = self.open_conn()?;
         conn.execute_batch(create_sql)
@@ -339,6 +357,59 @@ impl SportDao for SqliteImpl {
         Ok(())
     }
 
+    async fn get_by_id(&self, uid: i32, id: i32) -> Result<Option<Sport>, String> {
+        if id <= 0 { return Ok(None); }
+        let conn = self.open_conn()?;
+        let mut stmt = conn
+            .prepare(
+                r#"
+                SELECT id, type, start_time, calories, distance_meter, duration_second,
+                       heart_rate_avg, heart_rate_max, pace_average, extra, tracks
+                FROM sports
+                WHERE id = ? AND uid = ?
+                LIMIT 1
+                "#,
+            )
+            .map_err(|e| format!("查询失败: {}", e))?;
+
+        let mut rows = stmt
+            .query(params![id, uid])
+            .map_err(|e| format!("查询失败: {}", e))?;
+
+        if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            let id: i32 = row.get::<_, i64>(0).unwrap_or(0) as i32;
+            let type_str: String = row.get(1).unwrap_or_default();
+            let start_time: i64 = row.get(2).unwrap_or(0);
+            let calories: i32 = row.get::<_, i64>(3).unwrap_or(0) as i32;
+            let distance_meter: i32 = row.get::<_, i64>(4).unwrap_or(0) as i32;
+            let duration_second: i32 = row.get::<_, i64>(5).unwrap_or(0) as i32;
+            let heart_rate_avg: i32 = row.get::<_, i64>(6).unwrap_or(0) as i32;
+            let heart_rate_max: i32 = row.get::<_, i64>(7).unwrap_or(0) as i32;
+            let pace_average: String = row.get(8).unwrap_or_default();
+            let extra_json: String = row.get(9).unwrap_or_else(|_| "{}".to_string());
+            let tracks_json: String = row.get(10).unwrap_or_else(|_| "[]".to_string());
+
+            let extra: Swimming = serde_json::from_str(&extra_json).unwrap_or_default();
+            let tracks: Vec<Track> = serde_json::from_str(&tracks_json).unwrap_or_default();
+
+            Ok(Some(Sport {
+                id,
+                r#type: SportType::from_str(&type_str),
+                start_time,
+                calories,
+                distance_meter,
+                duration_second,
+                heart_rate_avg,
+                heart_rate_max,
+                pace_average,
+                extra,
+                tracks,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
     async fn get_first(&self, uid: i32) -> Result<Option<Sport>, String> {
         let conn = self.open_conn()?;
         let mut stmt = conn
@@ -409,12 +480,15 @@ impl UserDao for SqliteImpl {
         Ok(conn.last_insert_rowid() as i32)
     }
 
-    async fn get_by_id(&self, id: i32) -> Result<Option<User>, String> {
+    async fn get_by_id(&self, id: i32) -> Result<Option<UserInfo>, String> {
         let conn = self.open_conn()?;
         let mut stmt = conn
             .prepare(
                 r#"
-                SELECT id, name, password, nickname FROM users WHERE id = ?
+                SELECT u.nickname, COALESCE(a.data, u.avatar, '') AS avatar
+                FROM users u
+                LEFT JOIN avatars a ON a.uid = u.id
+                WHERE u.id = ?
                 "#,
             )
             .map_err(|e| format!("查询用户失败: {}", e))?;
@@ -424,11 +498,9 @@ impl UserDao for SqliteImpl {
             .map_err(|e| format!("查询用户失败: {}", e))?;
 
         if let Some(row) = rows.next().map_err(|e| e.to_string())? {
-            let id: i32 = row.get::<_, i64>(0).unwrap_or(0) as i32;
-            let name: String = row.get(1).unwrap_or_default();
-            let password: String = row.get(2).unwrap_or_default();
-            let nickname: String = row.get(3).unwrap_or_default();
-            Ok(Some(User { id, name, password, nickname }))
+            let nickname: String = row.get(0).unwrap_or_default();
+            let avatar: String = row.get(1).unwrap_or_default();
+            Ok(Some(UserInfo { nickname, avatar }))
         } else {
             Ok(None)
         }
@@ -458,6 +530,21 @@ impl UserDao for SqliteImpl {
             Ok(None)
         }
     }
+
+    async fn set_avatar(&self, uid: i32, base64: String) -> Result<(), String> {
+        let conn = self.open_conn()?;
+        conn.execute(
+            r#"
+            INSERT INTO avatars (uid, data, mime, created_at, updated_at)
+            VALUES (?, ?, 'image/jpeg', strftime('%s','now'), strftime('%s','now'))
+            ON CONFLICT(uid) DO UPDATE SET data = excluded.data, mime = excluded.mime, updated_at = strftime('%s','now')
+            "#,
+            params![uid, base64],
+        )
+        .map_err(|e| format!("更新头像失败: {}", e))?;
+        Ok(())
+    }
+
 }
 
 // 删除 SqliteUserDao，直接使用 SqliteImpl 作为 UserDao 实现

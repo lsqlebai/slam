@@ -4,6 +4,7 @@ pub const API_USER_REGISTER: &str = "/api/user/register";
 pub const API_USER_LOGIN: &str = "/api/user/login";
 pub const API_USER_INFO: &str = "/api/user/info";
 pub const API_USER_LOGOUT: &str = "/api/user/logout";
+pub const API_USER_AVATAR_UPLOAD: &str = "/api/user/avatar/upload";
 pub const API_SPORT_INSERT: &str = "/api/sport/insert";
 pub const API_SPORT_LIST: &str = "/api/sport/list";
 pub const API_SPORT_STATS: &str = "/api/sport/stats";
