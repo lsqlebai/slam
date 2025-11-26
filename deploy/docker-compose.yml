@@ -1,10 +1,10 @@
 services:
   server:
     build:
-      context: ..
-      dockerfile: deploy/server/Dockerfile
+      context: .
+      dockerfile: ./server/Dockerfile
       args:
-        GIT_REF: ${GIT_REF:-main}
+        GIT_REF: v0.2.0
         GIT_REPO_URL: "https://github.com/lsqlebai/slam.git"
     container_name: slam_server
     volumes:
@@ -16,10 +16,11 @@ services:
       - "3000:3000"
   web:
     build:
-      context: ..
-      dockerfile: deploy/web/Dockerfile
+      context: .
+      dockerfile: ./web/Dockerfile
       args:
         GITHUB_REPO: "lsqlebai/slam"
+        WEB_VERSION: v0.2.0
     container_name: slam_web
     depends_on:
       - server
