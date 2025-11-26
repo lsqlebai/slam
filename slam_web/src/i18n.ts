@@ -209,18 +209,4 @@ export const TEXTS = {
   },
 } as const;
 
-export function getSavedLang(): Lang {
-  try {
-    const saved = localStorage.getItem('lang');
-    if (saved === 'zh' || saved === 'en') {
-      return saved;
-    }
-  } catch {}
-  return 'zh';
-}
-
-export function saveLang(lang: Lang): void {
-  try {
-    localStorage.setItem('lang', lang);
-  } catch {}
-}
+//

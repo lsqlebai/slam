@@ -3,24 +3,26 @@ import { Link as RouterLink, useNavigate } from '@modern-js/runtime/router';
 import { Settings } from '@mui/icons-material';
 import {
   Box,
-  Button,
   Container,
+  Divider,
   IconButton,
   Menu,
   MenuItem,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useLangStore } from '../../stores/lang';
 import './login.css';
 import PageBase, { useToast } from '../../components/PageBase';
+import ResponsiveButton from '../../components/common/ResponsiveButton';
+import ResponsiveInput from '../../components/common/ResponsiveInput';
 
 function LoginInner() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  const { lang, setLang } = useLangStore();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const { showError, showSuccess } = useToast();
   const navigate = useNavigate();
@@ -44,10 +46,6 @@ function LoginInner() {
     }
   };
 
-  useEffect(() => {
-    setLang(getSavedLang());
-  }, []);
-
   return (
     <Box className="login-wrapper login-bg">
       <Helmet>
@@ -55,21 +53,38 @@ function LoginInner() {
       </Helmet>
       <Container
         maxWidth="sm"
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: { xs: 2, sm: 3 },
+        }}
       >
-        <Paper elevation={3} sx={{ p: 3, width: '100%', maxWidth: 420 }}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: { xs: '12px', md: '16px' },
+            width: '100%',
+            maxWidth: { xs: 360, sm: 420, md: 480 },
+          }}
+        >
           <Stack spacing={2}>
-            <Typography variant="h5" align="center">
+            <Typography
+              variant="h5"
+              align="center"
+              sx={{ fontSize: { xs: '1.25rem', md: '1.375rem' } }}
+            >
               {TEXTS[lang].login.title}
             </Typography>
-            <TextField
+            <ResponsiveInput
               label={TEXTS[lang].login.username}
               value={username}
               onChange={e => setUsername(e.target.value)}
               fullWidth
               autoComplete="username"
             />
-            <TextField
+            <ResponsiveInput
               label={TEXTS[lang].login.password}
               type="password"
               value={password}
@@ -77,18 +92,28 @@ function LoginInner() {
               fullWidth
               autoComplete="current-password"
             />
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button variant="contained" onClick={handleLogin} fullWidth>
+            <Box
+              sx={{
+                display: 'flex',
+                gap: { xs: 1.5, md: 2 },
+                flexDirection: { xs: 'column', sm: 'row' },
+              }}
+            >
+              <ResponsiveButton
+                variant="contained"
+                onClick={handleLogin}
+                fullWidth
+              >
                 {TEXTS[lang].login.login}
-              </Button>
-              <Button
+              </ResponsiveButton>
+              <ResponsiveButton
                 component={RouterLink}
                 to="/register"
                 variant="outlined"
                 fullWidth
               >
                 {TEXTS[lang].login.register}
-              </Button>
+              </ResponsiveButton>
             </Box>
           </Stack>
         </Paper>
@@ -113,18 +138,19 @@ function LoginInner() {
             transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           >
             <MenuItem
+              className="menu-item-compact"
               onClick={() => {
                 setLang('zh');
-                saveLang('zh');
                 setMenuAnchor(null);
               }}
             >
               {LANGUAGE_NAMES.zh}
             </MenuItem>
+            <Divider />
             <MenuItem
+              className="menu-item-compact"
               onClick={() => {
                 setLang('en');
-                saveLang('en');
                 setMenuAnchor(null);
               }}
             >
@@ -136,7 +162,7 @@ function LoginInner() {
     </Box>
   );
 }
-import { LANGUAGE_NAMES, TEXTS, getSavedLang, saveLang } from '../../i18n';
+import { LANGUAGE_NAMES, TEXTS } from '../../i18n';
 import { login as loginRequest } from '../../services/user';
 
 export default function LoginPage() {

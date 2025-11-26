@@ -10,18 +10,16 @@ import {
   Typography,
 } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { LANGUAGE_NAMES, TEXTS, saveLang } from '../../i18n';
+import { LANGUAGE_NAMES, TEXTS } from '../../i18n';
 import type { Lang } from '../../i18n';
 import { importSportsCsv } from '../../services/sport';
 import { logout, uploadAvatar } from '../../services/user';
+import { useLangStore } from '../../stores/lang';
 import { useUserStore } from '../../stores/user';
 import { useToast } from '../PageBase';
 import AvatarEditor from './AvatarEditor';
 
-export default function Settings({
-  lang,
-  onLangChange,
-}: { lang: Lang; onLangChange?: (l: Lang) => void }) {
+export default function Settings({ lang }: { lang: Lang }) {
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -31,6 +29,7 @@ export default function Settings({
   const { user, refresh, updateAvatarLocal } = useUserStore();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorUrl, setEditorUrl] = useState<string | null>(null);
+  const { setLang } = useLangStore();
   useEffect(() => {
     refresh().catch(() => {});
   }, [refresh]);
@@ -181,8 +180,7 @@ export default function Settings({
             value={lang}
             onChange={e => {
               const next = (e.target.value as Lang) || 'zh';
-              saveLang(next);
-              onLangChange?.(next);
+              setLang(next);
             }}
             size="small"
             sx={{

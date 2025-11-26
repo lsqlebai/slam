@@ -14,18 +14,18 @@ import PageBase from '../components/PageBase';
 import SettingsPage from '../components/home/Settings';
 import Sporting from '../components/home/Sporting';
 import Stats from '../components/stats/Stats';
-import { TEXTS, getSavedLang } from '../i18n';
+import { TEXTS } from '../i18n';
+import { useLangStore } from '../stores/lang';
 import { useUserStore } from '../stores/user';
 import './home.css';
 
 function HomeInner() {
-  const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  const { lang } = useLangStore();
   const [value, setValue] = useState(0);
   const { user, refresh } = useUserStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    setLang(getSavedLang());
     (async () => {
       try {
         const ok = await refresh();
@@ -81,7 +81,7 @@ function HomeInner() {
     >
       {value === 0 && <Sporting lang={lang} />}
       {value === 1 && <Stats lang={lang} />}
-      {value === 2 && <SettingsPage lang={lang} onLangChange={setLang} />}
+      {value === 2 && <SettingsPage lang={lang} />}
     </Box>
   );
 

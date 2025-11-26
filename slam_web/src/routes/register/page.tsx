@@ -3,7 +3,6 @@ import { Link as RouterLink, useNavigate } from '@modern-js/runtime/router';
 import { Settings, Visibility, VisibilityOff } from '@mui/icons-material';
 import {
   Box,
-  Button,
   Container,
   FormControl,
   IconButton,
@@ -14,12 +13,14 @@ import {
   Paper,
   Select,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useLangStore } from '../../stores/lang';
 import './register.css';
 import PageBase, { useToast } from '../../components/PageBase';
+import ResponsiveButton from '../../components/common/ResponsiveButton';
+import ResponsiveInput from '../../components/common/ResponsiveInput';
 
 function RegisterInner() {
   const [username, setUsername] = useState('');
@@ -29,13 +30,9 @@ function RegisterInner() {
   const { showError, showSuccess } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  const { lang, setLang } = useLangStore();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    setLang(getSavedLang());
-  }, []);
 
   const handleSubmit = async () => {
     if (!username || !nickname || !password || !confirm) {
@@ -71,28 +68,47 @@ function RegisterInner() {
       </Helmet>
       <Container
         maxWidth="sm"
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: { xs: 2, sm: 3 },
+        }}
       >
-        <Paper elevation={3} sx={{ p: 3, width: '100%', maxWidth: 420 }}>
-          <Stack spacing={2}>
-            <Typography variant="h5" align="center">
+        <Paper
+          elevation={3}
+          sx={{
+            pt: { xs: 2, md: 3 },
+            px: { xs: 3, md: 4 },
+            pb: { xs: 3, md: 4 },
+            borderRadius: { xs: '12px', md: '16px' },
+            width: '100%',
+            maxWidth: { xs: 360, sm: 420, md: 480 },
+          }}
+        >
+          <Stack spacing={{ xs: 1.5, md: 2 }}>
+            <Typography
+              variant="h5"
+              align="center"
+              sx={{ fontSize: { xs: '1.25rem', md: '1.375rem' } }}
+            >
               {TEXTS[lang].register.title}
             </Typography>
-            <TextField
+            <ResponsiveInput
               label={TEXTS[lang].register.username}
               value={username}
               onChange={e => setUsername(e.target.value)}
               fullWidth
               autoComplete="username"
             />
-            <TextField
+            <ResponsiveInput
               label={TEXTS[lang].register.nickname}
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               fullWidth
               autoComplete="nickname"
             />
-            <TextField
+            <ResponsiveInput
               label={TEXTS[lang].register.password}
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -114,7 +130,7 @@ function RegisterInner() {
                 ),
               }}
             />
-            <TextField
+            <ResponsiveInput
               label={TEXTS[lang].register.confirm}
               type={showConfirm ? 'text' : 'password'}
               value={confirm}
@@ -136,18 +152,28 @@ function RegisterInner() {
                 ),
               }}
             />
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button variant="contained" onClick={handleSubmit} fullWidth>
+            <Box
+              sx={{
+                display: 'flex',
+                gap: { xs: 1.5, md: 2 },
+                flexDirection: { xs: 'column', sm: 'row' },
+              }}
+            >
+              <ResponsiveButton
+                variant="contained"
+                onClick={handleSubmit}
+                fullWidth
+              >
                 {TEXTS[lang].register.submit}
-              </Button>
-              <Button
+              </ResponsiveButton>
+              <ResponsiveButton
                 component={RouterLink}
                 to="/login"
                 variant="outlined"
                 fullWidth
               >
                 {TEXTS[lang].register.cancel}
-              </Button>
+              </ResponsiveButton>
             </Box>
           </Stack>
         </Paper>
@@ -172,18 +198,18 @@ function RegisterInner() {
             transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           >
             <MenuItem
+              className="menu-item-compact"
               onClick={() => {
                 setLang('zh');
-                saveLang('zh');
                 setMenuAnchor(null);
               }}
             >
               {LANGUAGE_NAMES.zh}
             </MenuItem>
             <MenuItem
+              className="menu-item-compact"
               onClick={() => {
                 setLang('en');
-                saveLang('en');
                 setMenuAnchor(null);
               }}
             >
@@ -196,7 +222,7 @@ function RegisterInner() {
   );
 }
 
-import { LANGUAGE_NAMES, TEXTS, getSavedLang, saveLang } from '../../i18n';
+import { LANGUAGE_NAMES, TEXTS } from '../../i18n';
 import { register as registerRequest } from '../../services/user';
 
 export default function RegisterPage() {

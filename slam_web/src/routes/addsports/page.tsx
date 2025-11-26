@@ -20,23 +20,21 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import PageBase from '../../components/PageBase';
 import { useToast } from '../../components/PageBase';
-import { TEXTS, getSavedLang } from '../../i18n';
+import { TEXTS } from '../../i18n';
 import { recognizeImages } from '../../services/sport';
+import { useLangStore } from '../../stores/lang';
 
 function AddSportsInner() {
-  const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  const { lang } = useLangStore();
   const [images, setImages] = useState<{ file: File; url: string }[]>([]);
   const [recognizing, setRecognizing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const { showError, showSuccess } = useToast();
-  useEffect(() => {
-    setLang(getSavedLang());
-  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fs = e.target.files;

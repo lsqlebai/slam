@@ -28,7 +28,7 @@ import {
 import { useEffect, useState } from 'react';
 import PageBase, { useToast } from '../../../components/PageBase';
 import TrackItem from '../../../components/sport/TrackItem';
-import { TEXTS, getSavedLang } from '../../../i18n';
+import { TEXTS } from '../../../i18n';
 import {
   type Sport,
   type Swimming,
@@ -39,7 +39,7 @@ import {
 } from '../../../services/sport';
 
 function SubmitInner() {
-  const [lang, setLang] = useState<'zh' | 'en'>('zh');
+  const { lang } = useLangStore();
   const navigate = useNavigate();
   const { showError, showSuccess } = useToast();
   const location = useLocation();
@@ -84,9 +84,7 @@ function SubmitInner() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [trackDeleteIndex, setTrackDeleteIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    setLang(getSavedLang());
-  }, []);
+  useEffect(() => {}, []);
 
   useEffect(() => {
     const st = (location.state as Record<string, unknown>) || {};
@@ -889,3 +887,4 @@ export default function SubmitPage() {
     </PageBase>
   );
 }
+import { useLangStore } from '../../../stores/lang';

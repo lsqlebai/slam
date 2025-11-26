@@ -11,3 +11,18 @@
   background-repeat: no-repeat;
   animation: bgMove 20s linear infinite alternate;
 }
+
+.MuiMenuItem-root.menu-item-compact {
+  min-height: 2.25rem;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+  font-size: clamp(0.95rem, 0.92rem + 0.2vw, 1rem);
+}
+
+@media (min-width: 56.25em) {
+  .MuiMenuItem-root.menu-item-compact {
+    min-height: 2.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
