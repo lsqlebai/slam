@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLangStore } from '../../stores/lang';
 import './login.css';
 import PageBase, { useToast } from '../../components/PageBase';
@@ -26,6 +26,7 @@ function LoginInner() {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const { showError, showSuccess } = useToast();
   const navigate = useNavigate();
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -83,6 +84,16 @@ function LoginInner() {
               onChange={e => setUsername(e.target.value)}
               fullWidth
               autoComplete="username"
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const ne = e.nativeEvent as unknown as {
+                    isComposing?: boolean;
+                  } & { keyCode?: number };
+                  if (ne.isComposing || e.keyCode === 229) return;
+                  e.preventDefault();
+                  passwordInputRef.current?.focus();
+                }
+              }}
             />
             <ResponsiveInput
               label={TEXTS[lang].login.password}
@@ -91,6 +102,16 @@ function LoginInner() {
               onChange={e => setPassword(e.target.value)}
               fullWidth
               autoComplete="current-password"
+              inputRef={passwordInputRef}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const ne = e.nativeEvent as unknown as {
+                    isComposing?: boolean;
+                  } & { keyCode?: number };
+                  if (ne.isComposing || e.keyCode === 229) return;
+                  handleLogin();
+                }
+              }}
             />
             <Box
               sx={{

@@ -165,13 +165,29 @@ export default function Sporting({ lang }: { lang: Lang }) {
   return (
     <Box sx={{ px: 0, py: 0 }}>
       <Box sx={{ px: 2, pb: 1, mt: 2 }}>
-        <Stack spacing={1}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'auto 1fr' },
+            columnGap: { xs: 0, md: 2 },
+            alignItems: 'stretch',
+          }}
+        >
           <Box
             sx={{
               p: 1.5,
               borderRadius: 2,
               bgcolor: '#fff',
               boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+              maxWidth: 500,
+              width: { xs: '100%', sm: 500, md: 500 },
+              mx: { xs: 'auto', sm: 'auto', md: 'auto', lg: 0 },
+              alignSelf: {
+                xs: 'center',
+                sm: 'center',
+                md: 'stretch',
+                lg: 'stretch',
+              },
             }}
           >
             <Stack
@@ -245,11 +261,101 @@ export default function Sporting({ lang }: { lang: Lang }) {
               })}
             </Box>
           </Box>
-        </Stack>
+          <Card
+            onClick={() => navigate('/addsports')}
+            sx={{
+              display: { xs: 'none', sm: 'none', md: 'block' },
+              height: '100%',
+              borderRadius: 3,
+              bgcolor: 'rgba(0,0,0,0.02)',
+              boxShadow: '0 3px 12px rgba(0,0,0,0.10)',
+              transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 14px rgba(0,0,0,0.10)',
+                transform: 'translateY(-2px)',
+              },
+              cursor: 'pointer',
+              border: 'none',
+              '&:hover .add-circle': {
+                borderColor: 'primary.main',
+                boxShadow: '0 6px 16px rgba(0,0,0,0.12)',
+              },
+              '&:hover .add-plus-line': {
+                bgcolor: 'primary.main',
+              },
+            }}
+          >
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                '&.MuiCardContent-root:last-child': { paddingBottom: 2 },
+              }}
+            >
+              <Stack spacing={1.25} alignItems="center">
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: { xs: 56, sm: 64, md: 72 },
+                    height: { xs: 56, sm: 64, md: 72 },
+                    border: '2px dashed',
+                    borderColor: 'divider',
+                    borderRadius: '50%',
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
+                  }}
+                  className="add-circle"
+                >
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '60%',
+                      height: '3px',
+                      bgcolor: 'divider',
+                    }}
+                    className="add-plus-line"
+                  />
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '3px',
+                      height: '60%',
+                      bgcolor: 'divider',
+                    }}
+                    className="add-plus-line"
+                  />
+                </Box>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: 400, color: 'text.secondary' }}
+                >
+                  {TEXTS[lang].addsports.title}
+                </Typography>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Box>
       </Box>
       {groups.map(g => (
         <Box key={g.key} sx={{ px: 2, pb: 2 }}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ py: 1 }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{
+              py: 1,
+              width: '100%',
+              maxWidth: 500,
+              mx: { xs: 'auto', md: 0 },
+            }}
+          >
             <BarChart fontSize="small" />
             <Typography variant="subtitle2">{g.month}</Typography>
           </Stack>
@@ -275,9 +381,16 @@ export default function Sporting({ lang }: { lang: Lang }) {
       <Box
         sx={{
           position: 'fixed',
-          right: 16,
-          bottom: 'calc(64px + env(safe-area-inset-bottom) + 16px)',
+          right: { xs: 12, sm: 16, md: 20, lg: 24, xl: 32 },
+          bottom: {
+            xs: 'calc(64px + env(safe-area-inset-bottom) + 12px)',
+            sm: 16,
+            md: 20,
+            lg: 24,
+            xl: 32,
+          },
           zIndex: 1350,
+          display: { xs: 'block', sm: 'block', md: 'none' },
         }}
       >
         <Fab

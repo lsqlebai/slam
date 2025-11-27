@@ -72,8 +72,42 @@ export default function SportList({
     return t;
   };
 
+  const iconSize = {
+    xs: 16,
+    sm: 18,
+    md: 20,
+    lg: 22,
+    xl: 24,
+  } as const;
+  const fontSizeLabel = {
+    xs: 15,
+    sm: 16,
+    md: 18,
+    lg: 20,
+    xl: 22,
+  } as const;
+  const fontSizeBody = {
+    xs: 13,
+    sm: 14,
+    md: 15,
+    lg: 16,
+    xl: 18,
+  } as const;
+
   return (
-    <Stack spacing={1}>
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: '1fr',
+          md: 'repeat(2, minmax(0, 500px))',
+          xl: 'repeat(3, minmax(0, 500px))',
+        },
+        columnGap: { xs: 0, sm: 0, md: 2, lg: 2, xl: 2 },
+        rowGap: { xs: 1, sm: 1.5, md: 2, lg: 2.5, xl: 3 },
+        justifyContent: { xs: 'center', md: 'start' },
+      }}
+    >
       {items.map(s => (
         <Card
           key={`${s.id}-${s.start_time}`}
@@ -88,6 +122,10 @@ export default function SportList({
               transform: 'translateY(-2px)',
             },
             cursor: 'pointer',
+            width: '100%',
+            maxWidth: 500,
+            justifySelf: { xs: 'center', md: 'start' },
+            aspectRatio: '5 / 1',
           }}
           onClick={() =>
             onItemClick
@@ -101,14 +139,17 @@ export default function SportList({
             sx={{
               pt: 1.5,
               pb: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              height: '100%',
               '&.MuiCardContent-root:last-child': { paddingBottom: 1.5 },
             }}
           >
-            <Stack spacing={0.75}>
+            <Stack spacing={0.75} sx={{ width: '100%' }}>
               <Box
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gridTemplateColumns: '1fr 3fr',
                   columnGap: 2,
                   alignItems: 'center',
                 }}
@@ -116,8 +157,28 @@ export default function SportList({
                 <Box
                   sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}
                 >
-                  {IconFor(s.type)}
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {(() => {
+                    const key = s.type.toLowerCase();
+                    if (key.includes('run'))
+                      return (
+                        <DirectionsRun sx={{ fontSize: iconSize, mr: 0.5 }} />
+                      );
+                    if (key.includes('swim'))
+                      return <Pool sx={{ fontSize: iconSize, mr: 0.5 }} />;
+                    if (key.includes('bike') || key.includes('cycle'))
+                      return (
+                        <DirectionsBike sx={{ fontSize: iconSize, mr: 0.5 }} />
+                      );
+                    if (key.includes('walk') || key.includes('hike'))
+                      return (
+                        <DirectionsWalk sx={{ fontSize: iconSize, mr: 0.5 }} />
+                      );
+                    return <HelpOutline sx={{ fontSize: iconSize, mr: 0.5 }} />;
+                  })()}
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600, fontSize: fontSizeLabel }}
+                  >
                     {TypeLabelFor(s.type)}
                   </Typography>
                 </Box>
@@ -126,18 +187,24 @@ export default function SportList({
                     display: 'flex',
                     alignItems: 'center',
                     minWidth: 0,
-                    gridColumn: '2 / 4',
                     justifyContent: 'flex-end',
                   }}
                 >
                   <AccessTime
-                    fontSize="small"
-                    sx={{ color: 'text.secondary', mr: 0.5 }}
+                    sx={{
+                      color: 'text.secondary',
+                      mr: 0.5,
+                      fontSize: iconSize,
+                    }}
                   />
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ minWidth: 0, textAlign: 'right' }}
+                    sx={{
+                      minWidth: 0,
+                      textAlign: 'right',
+                      fontSize: fontSizeBody,
+                    }}
                   >
                     {formatDateTimeFull(s.start_time)}
                   </Typography>
@@ -161,14 +228,21 @@ export default function SportList({
                   }}
                 >
                   <AvTimer
-                    fontSize="small"
-                    sx={{ color: 'text.secondary', mr: 0.5 }}
+                    sx={{
+                      color: 'text.secondary',
+                      mr: 0.5,
+                      fontSize: iconSize,
+                    }}
                   />
                   <Typography
                     variant="body2"
                     color="text.secondary"
                     noWrap
-                    sx={{ minWidth: 0, lineHeight: 1.1 }}
+                    sx={{
+                      minWidth: 0,
+                      lineHeight: 1.1,
+                      fontSize: fontSizeBody,
+                    }}
                   >
                     {formatDurationHMS(s.duration_second)}
                   </Typography>
@@ -177,13 +251,16 @@ export default function SportList({
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'flex-start',
+                    justifyContent: 'center',
                     minWidth: 0,
                   }}
                 >
                   <AltRoute
-                    fontSize="small"
-                    sx={{ color: 'text.secondary', mr: 0.5, ml: 3 }}
+                    sx={{
+                      color: 'text.secondary',
+                      mr: 0.5,
+                      fontSize: iconSize,
+                    }}
                   />
                   <Box
                     sx={{
@@ -206,6 +283,7 @@ export default function SportList({
                         whiteSpace: 'nowrap',
                         lineHeight: 1.1,
                         textAlign: 'left',
+                        fontSize: fontSizeBody,
                       }}
                     >
                       {s.distance_meter}
@@ -218,6 +296,7 @@ export default function SportList({
                         whiteSpace: 'nowrap',
                         lineHeight: 1.1,
                         flexShrink: 0,
+                        fontSize: fontSizeBody,
                       }}
                     >
                       m
@@ -233,8 +312,11 @@ export default function SportList({
                   }}
                 >
                   <LocalFireDepartment
-                    fontSize="small"
-                    sx={{ color: 'text.secondary', mr: 0.5 }}
+                    sx={{
+                      color: 'text.secondary',
+                      mr: 0.5,
+                      fontSize: iconSize,
+                    }}
                   />
                   <Box
                     sx={{
@@ -258,6 +340,7 @@ export default function SportList({
                         whiteSpace: 'nowrap',
                         lineHeight: 1.1,
                         textAlign: 'right',
+                        fontSize: fontSizeBody,
                       }}
                     >
                       {s.calories}
@@ -270,6 +353,7 @@ export default function SportList({
                         whiteSpace: 'nowrap',
                         lineHeight: 1.1,
                         flexShrink: 0,
+                        fontSize: fontSizeBody,
                       }}
                     >
                       kcal
@@ -281,6 +365,6 @@ export default function SportList({
           </CardContent>
         </Card>
       ))}
-    </Stack>
+    </Box>
   );
 }
