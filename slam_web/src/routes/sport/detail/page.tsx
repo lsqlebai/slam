@@ -1,4 +1,3 @@
-import { Helmet } from '@modern-js/runtime/head';
 import { useLocation, useNavigate } from '@modern-js/runtime/router';
 import {
   Add,
@@ -27,6 +26,7 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import PageBase, { useToast } from '../../../components/PageBase';
+import PageHeader from '../../../components/common/PageHeader';
 import TrackItem from '../../../components/sport/TrackItem';
 import { TEXTS } from '../../../i18n';
 import {
@@ -205,41 +205,10 @@ function SubmitInner() {
       className="submit-wrapper"
       sx={{ pb: 'calc(env(safe-area-inset-bottom) + 136px)' }}
     >
-      <Helmet>
-        <title>{TEXTS[lang].addsports.headTitle}</title>
-      </Helmet>
-      <Box
-        sx={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 1300,
-          bgcolor: '#fff',
-          pt: 'calc(env(safe-area-inset-top) + 12px)',
-          pl: 1,
-          pr: 2,
-          py: 1,
-          minHeight: 56,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <IconButton
-          aria-label="back"
-          onClick={() => navigate(-1)}
-          sx={{ color: 'text.primary' }}
-        >
-          <ArrowBack fontSize="large" />
-        </IconButton>
-        <Typography
-          variant="h6"
-          noWrap
-          sx={{ textAlign: 'right', fontWeight: 600 }}
-        >
-          {TEXTS[lang].addsports.title}
-        </Typography>
-      </Box>
-      <Divider sx={{ mb: 1 }} />
+      <PageHeader
+        headTitle={TEXTS[lang].addsports.headTitle}
+        title={TEXTS[lang].addsports.title}
+      />
       <Container
         maxWidth="md"
         sx={{
@@ -562,7 +531,7 @@ function SubmitInner() {
                 <Stack spacing={1}>
                   {sport.tracks.map((t, idx) => (
                     <TrackItem
-                      key={`${t.distance_meter}-${t.duration_second}-${t.pace_average}-${t.extra.main_stroke}`}
+                      key={`${idx}-${t.distance_meter}-${t.duration_second}-${t.pace_average}-${t.extra.main_stroke}`}
                       lang={lang}
                       idx={idx}
                       t={t}

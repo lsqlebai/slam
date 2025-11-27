@@ -344,16 +344,33 @@ export default function Stats({ lang }: { lang: Lang }) {
 
   const renderTotalContent = () => (
     <Box sx={{ mt: 2 }}>
-      <Box sx={{ mb: 2 }}>
-        <SummaryStats
-          lang={lang}
-          durationSeconds={summary?.total_duration_second || 0}
-          calories={summary?.total_calories || 0}
-          count={summary?.total_count || 0}
-          distanceMeter={summary?.total_distance_meter || 0}
-        />
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 500px))' },
+          columnGap: 2,
+          rowGap: 2,
+          alignItems: 'stretch',
+          justifyItems: { xs: 'center', md: 'start' },
+          justifyContent: { xs: 'center', md: 'start' },
+          width: { xs: '100%', md: 'fit-content' },
+          maxWidth: { xs: 500, md: 'none' },
+          mx: { xs: 'auto', md: 0 },
+        }}
+      >
+        <Box sx={{ width: '100%' }}>
+          <SummaryStats
+            lang={lang}
+            durationSeconds={summary?.total_duration_second || 0}
+            calories={summary?.total_calories || 0}
+            count={summary?.total_count || 0}
+            distanceMeter={summary?.total_distance_meter || 0}
+          />
+        </Box>
+        <Box sx={{ width: '100%', minWidth: 0 }}>
+          <TypeBucketsChart lang={lang} buckets={summary?.type_buckets || []} />
+        </Box>
       </Box>
-      <TypeBucketsChart lang={lang} buckets={summary?.type_buckets || []} />
     </Box>
   );
 

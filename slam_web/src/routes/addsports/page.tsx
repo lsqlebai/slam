@@ -1,12 +1,5 @@
-import { Helmet } from '@modern-js/runtime/head';
 import { useNavigate } from '@modern-js/runtime/router';
-import {
-  AddPhotoAlternate,
-  ArrowBack,
-  Close,
-  Edit,
-  Psychology,
-} from '@mui/icons-material';
+import { Add, Close, Edit, Psychology } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -14,15 +7,14 @@ import {
   Container,
   Dialog,
   DialogContent,
-  Divider,
   IconButton,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import { useRef, useState } from 'react';
 import PageBase from '../../components/PageBase';
 import { useToast } from '../../components/PageBase';
+import PageHeader from '../../components/common/PageHeader';
 import { TEXTS } from '../../i18n';
 import { recognizeImages } from '../../services/sport';
 import { useLangStore } from '../../stores/lang';
@@ -97,56 +89,30 @@ function AddSportsInner() {
     <Box
       sx={{
         minHeight: '100dvh',
-        pb: 'calc(env(safe-area-inset-bottom) + 96px)',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      <Helmet>
-        <title>{TEXTS[lang].addsports.headTitle}</title>
-      </Helmet>
+      <PageHeader
+        headTitle={TEXTS[lang].addsports.headTitle}
+        title={TEXTS[lang].addsports.title}
+      />
       <Box
         sx={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 1300,
-          bgcolor: '#fff',
-          pt: 'calc(env(safe-area-inset-top) + 12px)',
-          pl: 1,
-          pr: 2,
-          py: 1,
-          minHeight: 56,
+          bgcolor: 'grey.50',
+          overflowX: { xs: 'visible', md: 'auto' },
+          py: 2,
+          flex: 1,
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: 'column',
+          minHeight: { md: 'calc(100dvh - 56px - 64px)' },
         }}
       >
-        <IconButton
-          aria-label="back"
-          onClick={() => navigate(-1)}
-          sx={{ color: 'text.primary' }}
+        <Container
+          maxWidth={false}
+          sx={{ px: { xs: 1, md: 2 }, height: '100%' }}
         >
-          <ArrowBack fontSize="large" />
-        </IconButton>
-        <Typography variant="h6" sx={{ textAlign: 'right', fontWeight: 600 }}>
-          {TEXTS[lang].addsports.title}
-        </Typography>
-      </Box>
-      <Divider sx={{ mb: 3 }} />
-      <Container
-        maxWidth="md"
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Stack spacing={2} sx={{ width: '100%', maxWidth: 840 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <Box sx={{ width: '100%' }}>
-              <Button
-                variant="contained"
-                startIcon={<AddPhotoAlternate />}
-                onClick={() => fileInputRef.current?.click()}
-                fullWidth
-              >
-                {TEXTS[lang].addsports.pickImages}
-              </Button>
-            </Box>
+          <Stack spacing={2} sx={{ width: '100%', height: '100%' }}>
             <input
               ref={fileInputRef}
               type="file"
@@ -155,62 +121,123 @@ function AddSportsInner() {
               onChange={handleFileChange}
               style={{ display: 'none' }}
             />
-          </Box>
-          {images.length > 0 && (
-            <Stack spacing={1}>
-              {images.map((img, idx) => (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: { xs: 1, md: 2 },
+                alignItems: { md: 'stretch' },
+                width: { xs: '100%', md: 'max-content' },
+                height: { md: '100%' },
+              }}
+            >
+              <Box
+                sx={{
+                  width: { xs: '100%', md: 'max-content' },
+                  order: { xs: 1, md: 1 },
+                }}
+              >
                 <Box
-                  key={`${idx}-${img.url}`}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', md: 'row' },
+                    gap: 1,
+                  }}
+                >
+                  {images.map((img, idx) => (
+                    <Box
+                      key={`${idx}-${img.url}`}
+                      sx={{
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        bgcolor: 'grey.100',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        maxHeight: { md: 800 },
+                        width: { xs: '100%', md: 512 },
+                        flex: { md: '0 0 auto' },
+                      }}
+                      onClick={() => setPreview(img.url)}
+                    >
+                      <IconButton
+                        aria-label="remove-image"
+                        onClick={e => {
+                          e.stopPropagation();
+                          URL.revokeObjectURL(img.url);
+                          setImages(prev => prev.filter((_, i) => i !== idx));
+                        }}
+                        sx={{
+                          position: 'absolute',
+                          top: 6,
+                          right: 6,
+                          backgroundColor: 'rgba(0,0,0,0.35)',
+                          color: '#fff',
+                          '&:hover': { backgroundColor: 'rgba(0,0,0,0.5)' },
+                          zIndex: 1,
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                      <Box
+                        component="img"
+                        src={img.url}
+                        alt=""
+                        loading="lazy"
+                        sx={{
+                          width: '100%',
+                          height: 'auto',
+                          display: 'block',
+                          maxHeight: { md: 800 },
+                        }}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  width: { xs: '100%', md: 300 },
+                  order: { xs: 2, md: 2 },
+                  display: 'flex',
+                  height: { md: '100%' },
+                }}
+              >
+                <Box
                   sx={{
                     borderRadius: 1,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
                     bgcolor: 'grey.100',
                     border: '1px solid',
                     borderColor: 'divider',
                     display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'center',
-                    position: 'relative',
+                    cursor: 'pointer',
+                    px: 2,
+                    height: { xs: 120, md: 'calc(100% - 96px)' },
+                    my: { md: 6 },
+                    maxHeight: { md: 800 },
+                    flex: 1,
                   }}
-                  onClick={() => setPreview(img.url)}
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <IconButton
-                    aria-label="remove-image"
-                    onClick={e => {
-                      e.stopPropagation();
-                      URL.revokeObjectURL(img.url);
-                      setImages(prev => prev.filter((_, i) => i !== idx));
-                    }}
-                    sx={{
-                      position: 'absolute',
-                      top: 6,
-                      right: 6,
-                      backgroundColor: 'rgba(0,0,0,0.35)',
-                      color: '#fff',
-                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.5)' },
-                      zIndex: 1,
-                    }}
-                  >
-                    <Close fontSize="small" />
-                  </IconButton>
-                  <Box
-                    component="img"
-                    src={img.url}
-                    alt=""
-                    loading="lazy"
-                    sx={{
-                      maxWidth: '100%',
-                      height: 'auto',
-                      maxHeight: 480,
-                      display: 'block',
-                    }}
-                  />
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <IconButton aria-label="add-image" color="primary">
+                      <Add />
+                    </IconButton>
+                    <Typography variant="body2" color="text.secondary">
+                      {TEXTS[lang].addsports.pickImages}
+                    </Typography>
+                  </Stack>
                 </Box>
-              ))}
-            </Stack>
-          )}
-        </Stack>
-      </Container>
+              </Box>
+            </Box>
+          </Stack>
+        </Container>
+      </Box>
       <Dialog
         open={Boolean(preview)}
         onClose={() => setPreview(null)}
@@ -252,6 +279,11 @@ function AddSportsInner() {
           display: 'flex',
           justifyContent: 'center',
           px: 2,
+          pt: 2,
+          bgcolor: '#fff',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
         }}
       >
         <Box sx={{ display: 'flex', gap: 2, width: '100%', maxWidth: 480 }}>
