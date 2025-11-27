@@ -73,7 +73,10 @@ function HomeInner() {
       }}
       sx={{
         px: 2,
-        pb: { xs: 'calc(env(safe-area-inset-bottom) + 72px)', sm: 2 },
+        pb: {
+          xs: 'calc(env(safe-area-inset-bottom) + 72px)',
+          sm: activeTab === 2 ? 10 : 2,
+        },
         flex: 1,
         minHeight: 0,
         overflowY: 'auto',

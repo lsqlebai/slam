@@ -17,6 +17,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Lang } from '../../i18n';
 import { type Sport, listSports } from '../../services/sport';
+import SportField from '../common/SportField';
+import SportListTitle from '../common/SportListTitle';
 import SportList from '../sport/SportList';
 
 export default function Sporting({ lang }: { lang: Lang }) {
@@ -198,15 +200,19 @@ export default function Sporting({ lang }: { lang: Lang }) {
               sx={{ mb: 1 }}
             >
               <LocalFireDepartment
-                fontSize="small"
-                sx={{ color: 'primary.main' }}
+                sx={{
+                  color: 'primary.main',
+                  fontSize: { xs: 18, sm: 20, md: 22, lg: 24, xl: 26 },
+                }}
               />
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 {monthTitle}
               </Typography>
               <LocalFireDepartment
-                fontSize="small"
-                sx={{ color: 'primary.main' }}
+                sx={{
+                  color: 'primary.main',
+                  fontSize: { xs: 18, sm: 20, md: 22, lg: 24, xl: 26 },
+                }}
               />
             </Stack>
             <Box
@@ -276,6 +282,9 @@ export default function Sporting({ lang }: { lang: Lang }) {
               },
               cursor: 'pointer',
               border: 'none',
+              width: '100%',
+              maxWidth: 500,
+              justifySelf: { md: 'start' },
               '&:hover .add-circle': {
                 borderColor: 'primary.main',
                 boxShadow: '0 6px 16px rgba(0,0,0,0.12)',
@@ -345,20 +354,14 @@ export default function Sporting({ lang }: { lang: Lang }) {
       </Box>
       {groups.map(g => (
         <Box key={g.key} sx={{ px: 2, pb: 2 }}>
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1}
-            sx={{
-              py: 1,
-              width: '100%',
-              maxWidth: 500,
-              mx: { xs: 'auto', md: 0 },
-            }}
-          >
-            <BarChart fontSize="small" />
-            <Typography variant="subtitle2">{g.month}</Typography>
-          </Stack>
+          <SportListTitle
+            icon={<BarChart />}
+            label={g.month}
+            labelVariant="subtitle2"
+            iconColor="text.primary"
+            labelColor="text.primary"
+            gap={1}
+          />
           <SportList
             lang={lang}
             items={g.list}

@@ -3,7 +3,6 @@ import { UploadFile } from '@mui/icons-material';
 import {
   Avatar,
   Box,
-  Button,
   Divider,
   MenuItem,
   Select,
@@ -17,6 +16,7 @@ import { logout, uploadAvatar } from '../../services/user';
 import { useLangStore } from '../../stores/lang';
 import { useUserStore } from '../../stores/user';
 import { useToast } from '../PageBase';
+import ResponsiveButton from '../common/ResponsiveButton';
 import AvatarEditor from './AvatarEditor';
 
 export default function Settings({ lang }: { lang: Lang }) {
@@ -41,6 +41,8 @@ export default function Settings({ lang }: { lang: Lang }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 16,
+        maxWidth: { sm: 720, md: 820 },
+        mx: 'auto',
       }}
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -61,8 +63,10 @@ export default function Settings({ lang }: { lang: Lang }) {
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              alignItems: { xs: 'center', sm: 'center' },
+              justifyContent: { xs: 'space-between', sm: 'space-between' },
+              flexDirection: { xs: 'row', sm: 'row' },
+              gap: { xs: 1.25, sm: 2 },
             }}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -72,8 +76,8 @@ export default function Settings({ lang }: { lang: Lang }) {
               <Avatar
                 src={user?.avatar || undefined}
                 sx={{
-                  width: 48,
-                  height: 48,
+                  width: { xs: 48, md: 64 },
+                  height: { xs: 48, md: 64 },
                   cursor: avatarUploading ? 'not-allowed' : 'pointer',
                 }}
                 onClick={() => {
@@ -146,21 +150,24 @@ export default function Settings({ lang }: { lang: Lang }) {
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              alignItems: { xs: 'center', sm: 'center' },
+              justifyContent: { xs: 'space-between', sm: 'space-between' },
+              flexDirection: { xs: 'row', sm: 'row' },
+              gap: { xs: 1.25, sm: 2 },
             }}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {TEXTS[lang].home.miImport}
             </Typography>
-            <Button
+            <ResponsiveButton
               variant="outlined"
               startIcon={<UploadFile />}
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
+              sx={{}}
             >
               {TEXTS[lang].home.xiaomiSports}
-            </Button>
+            </ResponsiveButton>
           </Box>
         </Box>
 
@@ -169,8 +176,10 @@ export default function Settings({ lang }: { lang: Lang }) {
         <Box
           sx={{
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            alignItems: { xs: 'center', sm: 'center' },
+            justifyContent: { xs: 'space-between', sm: 'space-between' },
+            flexDirection: { xs: 'row', sm: 'row' },
+            gap: { xs: 1.25, sm: 2 },
           }}
         >
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -185,6 +194,7 @@ export default function Settings({ lang }: { lang: Lang }) {
             size="small"
             sx={{
               minWidth: 160,
+              width: 'auto',
               '& .MuiSelect-select': { textAlign: 'right' },
               '& .MuiOutlinedInput-notchedOutline': { display: 'none' },
             }}
@@ -203,15 +213,19 @@ export default function Settings({ lang }: { lang: Lang }) {
       <Box
         sx={{
           position: 'fixed',
-          left: 0,
+          left: { xs: 0, sm: 92 },
           right: 0,
-          bottom: 'calc(64px + env(safe-area-inset-bottom) + 20px)',
+          bottom: {
+            xs: 'calc(64px + env(safe-area-inset-bottom) + 20px)',
+            sm: 24,
+          },
           display: 'flex',
           justifyContent: 'center',
           px: 2,
+          zIndex: 1300,
         }}
       >
-        <Button
+        <ResponsiveButton
           variant="contained"
           color="error"
           onClick={async () => {
@@ -230,7 +244,7 @@ export default function Settings({ lang }: { lang: Lang }) {
           }}
         >
           {TEXTS[lang].home.logout}
-        </Button>
+        </ResponsiveButton>
       </Box>
     </Box>
   );

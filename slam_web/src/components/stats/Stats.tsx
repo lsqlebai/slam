@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Lang } from '../../i18n';
 import { type StatSummary, getSportStats } from '../../services/sport';
-import StatsSection from './StatsSection';
+import StatsFilterSection from './StatsFilterSection';
 import SummaryStats from './SummaryStats';
 import TypeBucketsChart from './TypeBucketsChart';
 
@@ -122,6 +122,39 @@ export default function Stats({ lang }: { lang: Lang }) {
     }
     return arr;
   }, []);
+
+  const topSelectorItems = useMemo(() => {
+    if (tabIndex === 1)
+      return monthsDesc.map(m => ({
+        label: lang === 'zh' ? `${m}月` : `M${String(m).padStart(2, '0')}`,
+        selected: m === selectedMonth,
+        onClick: () => setSelectedMonth(m),
+      }));
+    if (tabIndex === 0)
+      return lastWeeks.map(w => ({
+        label: w.label,
+        selected: w.year === selectedWeek.year && w.week === selectedWeek.week,
+        onClick: () => setSelectedWeek({ year: w.year, week: w.week }),
+      }));
+    if (tabIndex === 2)
+      return years.map(y => ({
+        label: String(y),
+        selected: y === selectedYear,
+        onClick: () => setSelectedYear(y),
+      }));
+    return [] as { label: string; selected: boolean; onClick: () => void }[];
+  }, [
+    tabIndex,
+    monthsDesc,
+    selectedMonth,
+    lastWeeks,
+    selectedWeek,
+    years,
+    selectedYear,
+    lang,
+  ]);
+
+  const hasSelector = topSelectorItems.length > 0;
 
   useEffect(() => {
     if (!years.includes(selectedYear)) setSelectedYear(years[0]);
@@ -244,226 +277,202 @@ export default function Stats({ lang }: { lang: Lang }) {
     return map;
   }, [summary, weekdayLabels]);
 
+  const renderMonthContent = () => (
+    <StatsFilterSection
+      lang={lang}
+      totals={totals}
+      title={`${selectedYear}-${String(selectedMonth).padStart(2, '0')}`}
+      data={monthDailyCalories.map(md => ({
+        label: String(md.day),
+        value: md.value,
+      }))}
+      details={monthDailyDetails}
+      barMaxWidth={20}
+      hideZero
+      sports={summary?.sports || []}
+    />
+  );
+
+  const renderWeekContent = () => (
+    <StatsFilterSection
+      lang={lang}
+      totals={totals}
+      title={
+        lastWeeks.find(
+          w => w.year === selectedWeek.year && w.week === selectedWeek.week,
+        )?.label || `${String(selectedWeek.week).padStart(2, '0')}`
+      }
+      data={weekDailyCalories.map(wd => ({ label: wd.label, value: wd.value }))}
+      details={weekDailyDetails}
+      sports={summary?.sports || []}
+    />
+  );
+
+  const renderYearContent = () => (
+    <StatsFilterSection
+      lang={lang}
+      totals={totals}
+      title={`${selectedYear}`}
+      data={monthCalories.map((v, idx) => ({
+        label: String(idx + 1),
+        value: v,
+      }))}
+      details={(() => {
+        const arr = Array.from({ length: 12 }, () => ({
+          duration: 0,
+          count: 0,
+          calories: 0,
+        }));
+        for (const b of summary?.buckets || []) {
+          const idx = Math.max(1, Math.min(12, b.date)) - 1;
+          arr[idx] = {
+            duration: b.duration || 0,
+            count: b.count || 0,
+            calories: b.calories || 0,
+          };
+        }
+        const map: Record<
+          string,
+          { duration: number; count: number; calories: number }
+        > = {};
+        for (let i = 0; i < 12; i++) map[String(i + 1)] = arr[i];
+        return map;
+      })()}
+      sports={summary?.sports || []}
+    />
+  );
+
+  const renderTotalContent = () => (
+    <Box sx={{ mt: 2 }}>
+      <Box sx={{ mb: 2 }}>
+        <SummaryStats
+          lang={lang}
+          durationSeconds={summary?.total_duration_second || 0}
+          calories={summary?.total_calories || 0}
+          count={summary?.total_count || 0}
+          distanceMeter={summary?.total_distance_meter || 0}
+        />
+      </Box>
+      <TypeBucketsChart lang={lang} buckets={summary?.type_buckets || []} />
+    </Box>
+  );
+
   return (
     <Box sx={{ px: 2, pt: 1, pb: 2 }}>
       <Box
         sx={{
-          overflow: 'hidden',
-          touchAction: 'pan-y',
-          background: 'linear-gradient(180deg, #1976d2 0%, #0b5fb8 100%)',
-          color: 'common.white',
-          borderRadius: 1,
-          border: '1px solid',
-          borderColor: 'transparent',
-          boxShadow: '0 6px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.07)',
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            md: hasSelector
+              ? 'repeat(2, minmax(0, 500px))'
+              : 'minmax(0, 500px)',
+          },
+          gridTemplateAreas: {
+            xs: hasSelector ? '"tabs" "selector"' : '"tabs"',
+            md: hasSelector ? '"tabs selector"' : '"tabs"',
+          },
+          columnGap: 2,
+          alignItems: 'stretch',
+          justifyItems: { xs: 'center', md: 'start' },
+          justifyContent: { xs: 'center', md: 'start' },
+          width: { xs: '100%', md: 'fit-content' },
+          maxWidth: { xs: 500, md: 'none' },
+          mx: { xs: 'auto', md: 0 },
+          pb: { md: 2 },
         }}
       >
-        <Tabs
-          value={tabIndex}
-          onChange={(_, v) => setTabIndex(v)}
-          variant="fullWidth"
+        <Box
           sx={{
-            minHeight: 44,
+            gridArea: 'tabs',
+            overflow: 'hidden',
+            touchAction: 'pan-y',
+            background: 'linear-gradient(180deg, #1976d2 0%, #0b5fb8 100%)',
             color: 'common.white',
-            '& .MuiTab-root': {
-              minHeight: 44,
-              minWidth: 0,
-              color: 'rgba(255,255,255,0.75)',
-              fontWeight: 700,
-            },
-            '& .MuiTab-root.Mui-selected': {
-              color: 'rgba(255,255,255,0.98)',
-              textShadow: '0 1px 1px rgba(0,0,0,0.25)',
-            },
-            '& .MuiTabs-indicator': {
-              backgroundColor: 'rgba(255,255,255,0.9)',
-              height: 3,
-              borderRadius: 1,
-            },
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: 'transparent',
+            boxShadow:
+              '0 6px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.07)',
+            maxWidth: 500,
+            width: '100%',
+            mx: { xs: 'auto', sm: 'auto', md: 0 },
           }}
         >
-          {tabs.map(t => (
-            <Tab
-              key={t.key}
-              label={t.label}
-              disableRipple
-              disableTouchRipple
-              sx={{ textTransform: 'none' }}
-            />
+          <Tabs
+            value={tabIndex}
+            onChange={(_, v) => setTabIndex(v)}
+            variant="fullWidth"
+            sx={{
+              minHeight: 44,
+              color: 'common.white',
+              '& .MuiTab-root': {
+                minHeight: 44,
+                minWidth: 0,
+                color: 'rgba(255,255,255,0.75)',
+                fontWeight: 700,
+              },
+              '& .MuiTab-root.Mui-selected': {
+                color: 'rgba(255,255,255,0.98)',
+                textShadow: '0 1px 1px rgba(0,0,0,0.25)',
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                height: 3,
+                borderRadius: 1,
+              },
+            }}
+          >
+            {tabs.map(t => (
+              <Tab
+                key={t.key}
+                label={t.label}
+                disableRipple
+                disableTouchRipple
+                sx={{ textTransform: 'none' }}
+              />
+            ))}
+          </Tabs>
+        </Box>
+        <Box
+          sx={{
+            gridArea: 'selector',
+            display: hasSelector ? 'flex' : 'none',
+            alignItems: 'flex-end',
+            gap: 2,
+            overflowX: 'auto',
+            pb: 1,
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            '&::-webkit-scrollbar': { display: 'none', height: 0 },
+            maxWidth: 500,
+            width: '100%',
+            height: { md: '100%' },
+            mt: 1,
+            mb: 0,
+            mx: { xs: 'auto', sm: 'auto', md: 0 },
+          }}
+        >
+          {topSelectorItems.map(it => (
+            <Typography
+              key={it.label}
+              onClick={it.onClick}
+              sx={{
+                flexShrink: 0,
+                cursor: 'pointer',
+                color: it.selected ? 'primary.main' : 'text.secondary',
+                fontWeight: it.selected ? 700 : 500,
+              }}
+            >
+              {it.label}
+            </Typography>
           ))}
-        </Tabs>
+        </Box>
       </Box>
-      {tabIndex === 1 && (
-        <Box sx={{ mt: 2 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 2,
-              overflowX: 'auto',
-              pb: 1,
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              '&::-webkit-scrollbar': { display: 'none', height: 0 },
-            }}
-          >
-            {monthsDesc.map(m => (
-              <Typography
-                key={m}
-                onClick={() => setSelectedMonth(m)}
-                sx={{
-                  flexShrink: 0,
-                  cursor: 'pointer',
-                  color:
-                    m === selectedMonth ? 'primary.main' : 'text.secondary',
-                  fontWeight: m === selectedMonth ? 700 : 500,
-                }}
-              >
-                {lang === 'zh' ? `${m}月` : `M${String(m).padStart(2, '0')}`}
-              </Typography>
-            ))}
-          </Box>
-          <StatsSection
-            lang={lang}
-            totals={totals}
-            title={`${selectedYear}-${String(selectedMonth).padStart(2, '0')}`}
-            data={monthDailyCalories.map(md => ({
-              label: String(md.day),
-              value: md.value,
-            }))}
-            details={monthDailyDetails}
-            barMaxWidth={20}
-            hideZero
-            sports={summary?.sports || []}
-          />
-        </Box>
-      )}
-      {tabIndex === 0 && (
-        <Box sx={{ mt: 2 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 2,
-              overflowX: 'auto',
-              pb: 1,
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              '&::-webkit-scrollbar': { display: 'none', height: 0 },
-            }}
-          >
-            {lastWeeks.map(w => (
-              <Typography
-                key={`${w.year}-${w.week}`}
-                onClick={() => setSelectedWeek({ year: w.year, week: w.week })}
-                sx={{
-                  flexShrink: 0,
-                  cursor: 'pointer',
-                  color:
-                    w.year === selectedWeek.year && w.week === selectedWeek.week
-                      ? 'primary.main'
-                      : 'text.secondary',
-                  fontWeight:
-                    w.year === selectedWeek.year && w.week === selectedWeek.week
-                      ? 700
-                      : 500,
-                }}
-              >
-                {w.label}
-              </Typography>
-            ))}
-          </Box>
-          <StatsSection
-            lang={lang}
-            totals={totals}
-            title={
-              lastWeeks.find(
-                w =>
-                  w.year === selectedWeek.year && w.week === selectedWeek.week,
-              )?.label || `${String(selectedWeek.week).padStart(2, '0')}`
-            }
-            data={weekDailyCalories.map(wd => ({
-              label: wd.label,
-              value: wd.value,
-            }))}
-            details={weekDailyDetails}
-            sports={summary?.sports || []}
-          />
-        </Box>
-      )}
-      {tabIndex === 2 && (
-        <Box sx={{ mt: 2 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 2,
-              overflowX: 'auto',
-              pb: 1,
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              '&::-webkit-scrollbar': { display: 'none', height: 0 },
-            }}
-          >
-            {years.map(y => (
-              <Typography
-                key={y}
-                onClick={() => setSelectedYear(y)}
-                sx={{
-                  flexShrink: 0,
-                  cursor: 'pointer',
-                  color: y === selectedYear ? 'primary.main' : 'text.secondary',
-                  fontWeight: y === selectedYear ? 700 : 500,
-                }}
-              >
-                {y}
-              </Typography>
-            ))}
-          </Box>
-          <StatsSection
-            lang={lang}
-            totals={totals}
-            title={`${selectedYear}`}
-            data={monthCalories.map((v, idx) => ({
-              label: String(idx + 1),
-              value: v,
-            }))}
-            details={(() => {
-              const arr = Array.from({ length: 12 }, () => ({
-                duration: 0,
-                count: 0,
-                calories: 0,
-              }));
-              for (const b of summary?.buckets || []) {
-                const idx = Math.max(1, Math.min(12, b.date)) - 1;
-                arr[idx] = {
-                  duration: b.duration || 0,
-                  count: b.count || 0,
-                  calories: b.calories || 0,
-                };
-              }
-              const map: Record<
-                string,
-                { duration: number; count: number; calories: number }
-              > = {};
-              for (let i = 0; i < 12; i++) map[String(i + 1)] = arr[i];
-              return map;
-            })()}
-            sports={summary?.sports || []}
-          />
-        </Box>
-      )}
-      {tabIndex === 3 && (
-        <Box sx={{ mt: 2 }}>
-          <Box sx={{ mb: 2 }}>
-            <SummaryStats
-              lang={lang}
-              durationSeconds={summary?.total_duration_second || 0}
-              calories={summary?.total_calories || 0}
-              count={summary?.total_count || 0}
-              distanceMeter={summary?.total_distance_meter || 0}
-            />
-          </Box>
-          <TypeBucketsChart lang={lang} buckets={summary?.type_buckets || []} />
-        </Box>
-      )}
+      {tabIndex === 1 && renderMonthContent()}
+      {tabIndex === 0 && renderWeekContent()}
+      {tabIndex === 2 && renderYearContent()}
+      {tabIndex === 3 && renderTotalContent()}
     </Box>
   );
 }

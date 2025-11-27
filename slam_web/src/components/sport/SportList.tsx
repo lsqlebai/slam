@@ -14,6 +14,7 @@ import { Box, Card, CardContent, Stack, Typography } from '@mui/material';
 import type { Lang } from '../../i18n';
 import { TEXTS } from '../../i18n';
 import type { Sport } from '../../services/sport';
+import SportField from '../common/SportField';
 
 export default function SportList({
   lang,
@@ -52,16 +53,6 @@ export default function SportList({
     return `${y}-${mo}-${da} ${h}:${mi}:${s}`;
   };
 
-  const IconFor = (t: string) => {
-    const key = t.toLowerCase();
-    if (key.includes('run')) return <DirectionsRun />;
-    if (key.includes('swim')) return <Pool />;
-    if (key.includes('bike') || key.includes('cycle'))
-      return <DirectionsBike />;
-    if (key.includes('walk') || key.includes('hike')) return <DirectionsWalk />;
-    if (key.includes('unknown')) return <HelpOutline />;
-    return <HelpOutline />;
-  };
   const TypeLabelFor = (t: string) => {
     const key = t.toLowerCase();
     if (key.includes('swim')) return TEXTS[lang].addsports.optSwimming;
@@ -71,28 +62,6 @@ export default function SportList({
     if (key.includes('unknown')) return TEXTS[lang].addsports.optUnknown;
     return t;
   };
-
-  const iconSize = {
-    xs: 16,
-    sm: 18,
-    md: 20,
-    lg: 22,
-    xl: 24,
-  } as const;
-  const fontSizeLabel = {
-    xs: 15,
-    sm: 16,
-    md: 18,
-    lg: 20,
-    xl: 22,
-  } as const;
-  const fontSizeBody = {
-    xs: 13,
-    sm: 14,
-    md: 15,
-    lg: 16,
-    xl: 18,
-  } as const;
 
   return (
     <Box
@@ -157,30 +126,24 @@ export default function SportList({
                 <Box
                   sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}
                 >
-                  {(() => {
-                    const key = s.type.toLowerCase();
-                    if (key.includes('run'))
-                      return (
-                        <DirectionsRun sx={{ fontSize: iconSize, mr: 0.5 }} />
-                      );
-                    if (key.includes('swim'))
-                      return <Pool sx={{ fontSize: iconSize, mr: 0.5 }} />;
-                    if (key.includes('bike') || key.includes('cycle'))
-                      return (
-                        <DirectionsBike sx={{ fontSize: iconSize, mr: 0.5 }} />
-                      );
-                    if (key.includes('walk') || key.includes('hike'))
-                      return (
-                        <DirectionsWalk sx={{ fontSize: iconSize, mr: 0.5 }} />
-                      );
-                    return <HelpOutline sx={{ fontSize: iconSize, mr: 0.5 }} />;
-                  })()}
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 600, fontSize: fontSizeLabel }}
-                  >
-                    {TypeLabelFor(s.type)}
-                  </Typography>
+                  <SportField
+                    icon={(() => {
+                      const key = s.type.toLowerCase();
+                      if (key.includes('run')) return <DirectionsRun />;
+                      if (key.includes('swim')) return <Pool />;
+                      if (key.includes('bike') || key.includes('cycle'))
+                        return <DirectionsBike />;
+                      if (key.includes('walk') || key.includes('hike'))
+                        return <DirectionsWalk />;
+                      return <HelpOutline />;
+                    })()}
+                    label={TypeLabelFor(s.type)}
+                    labelVariant="subtitle1"
+                    labelColor="text.primary"
+                    labelWeight={600}
+                    colon={false}
+                    responsive
+                  />
                 </Box>
                 <Box
                   sx={{
@@ -190,24 +153,15 @@ export default function SportList({
                     justifyContent: 'flex-end',
                   }}
                 >
-                  <AccessTime
-                    sx={{
-                      color: 'text.secondary',
-                      mr: 0.5,
-                      fontSize: iconSize,
-                    }}
+                  <SportField
+                    icon={<AccessTime />}
+                    value={formatDateTimeFull(s.start_time)}
+                    valueVariant="body2"
+                    valueColor="text.secondary"
+                    iconColor="text.secondary"
+                    align="center"
+                    responsive
                   />
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      minWidth: 0,
-                      textAlign: 'right',
-                      fontSize: fontSizeBody,
-                    }}
-                  >
-                    {formatDateTimeFull(s.start_time)}
-                  </Typography>
                 </Box>
               </Box>
               <Box
@@ -227,25 +181,15 @@ export default function SportList({
                     minWidth: 0,
                   }}
                 >
-                  <AvTimer
-                    sx={{
-                      color: 'text.secondary',
-                      mr: 0.5,
-                      fontSize: iconSize,
-                    }}
+                  <SportField
+                    icon={<AvTimer />}
+                    value={formatDurationHMS(s.duration_second)}
+                    valueVariant="body2"
+                    valueColor="text.secondary"
+                    iconColor="text.secondary"
+                    align="center"
+                    responsive
                   />
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    noWrap
-                    sx={{
-                      minWidth: 0,
-                      lineHeight: 1.1,
-                      fontSize: fontSizeBody,
-                    }}
-                  >
-                    {formatDurationHMS(s.duration_second)}
-                  </Typography>
                 </Box>
                 <Box
                   sx={{
@@ -255,53 +199,15 @@ export default function SportList({
                     minWidth: 0,
                   }}
                 >
-                  <AltRoute
-                    sx={{
-                      color: 'text.secondary',
-                      mr: 0.5,
-                      fontSize: iconSize,
-                    }}
+                  <SportField
+                    icon={<AltRoute />}
+                    value={`${s.distance_meter} m`}
+                    valueVariant="body2"
+                    valueColor="text.secondary"
+                    iconColor="text.secondary"
+                    align="center"
+                    responsive
                   />
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      minWidth: 0,
-                      gap: 0.25,
-                      maxWidth: '100%',
-                    }}
-                  >
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      color="text.secondary"
-                      noWrap
-                      sx={{
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        lineHeight: 1.1,
-                        textAlign: 'left',
-                        fontSize: fontSizeBody,
-                      }}
-                    >
-                      {s.distance_meter}
-                    </Typography>
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        whiteSpace: 'nowrap',
-                        lineHeight: 1.1,
-                        flexShrink: 0,
-                        fontSize: fontSizeBody,
-                      }}
-                    >
-                      m
-                    </Typography>
-                  </Box>
                 </Box>
                 <Box
                   sx={{
@@ -311,54 +217,15 @@ export default function SportList({
                     minWidth: 0,
                   }}
                 >
-                  <LocalFireDepartment
-                    sx={{
-                      color: 'text.secondary',
-                      mr: 0.5,
-                      fontSize: iconSize,
-                    }}
+                  <SportField
+                    icon={<LocalFireDepartment />}
+                    value={`${s.calories} kcal`}
+                    valueVariant="body2"
+                    valueColor="text.secondary"
+                    iconColor="text.secondary"
+                    align="center"
+                    responsive
                   />
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      minWidth: 0,
-                      gap: 0.25,
-                      justifyContent: 'flex-end',
-                      maxWidth: '100%',
-                    }}
-                  >
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      color="text.secondary"
-                      noWrap
-                      sx={{
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        lineHeight: 1.1,
-                        textAlign: 'right',
-                        fontSize: fontSizeBody,
-                      }}
-                    >
-                      {s.calories}
-                    </Typography>
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        whiteSpace: 'nowrap',
-                        lineHeight: 1.1,
-                        flexShrink: 0,
-                        fontSize: fontSizeBody,
-                      }}
-                    >
-                      kcal
-                    </Typography>
-                  </Box>
                 </Box>
               </Box>
             </Stack>

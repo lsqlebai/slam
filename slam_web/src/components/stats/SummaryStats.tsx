@@ -7,6 +7,7 @@ import {
 import { Box, Paper, Typography } from '@mui/material';
 import type { Lang } from '../../i18n';
 import { TEXTS } from '../../i18n';
+import SportField from '../common/SportField';
 
 export default function SummaryStats({
   lang,
@@ -38,66 +39,59 @@ export default function SummaryStats({
         borderRadius: 2,
         boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
         minHeight: 32,
+        maxWidth: 500,
+        width: '100%',
+        mx: 0,
+        height: { md: '100%' },
       }}
     >
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          columnGap: 2,
-          rowGap: 1,
+          gridTemplateColumns: {
+            xs: 'repeat(2, 1fr)',
+            sm: 'repeat(2, 1fr)',
+            md: '1fr',
+          },
+          columnGap: { xs: 1, sm: 2 },
+          rowGap: { xs: 0.75, sm: 1 },
+          height: { md: '100%' },
+          alignContent: { md: 'center' },
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <AccessTime
-            fontSize="small"
-            sx={{ color: 'text.primary', mr: 0.5 }}
-          />
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-            {TEXTS[lang].home.labels.time}:
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {formatDurationHMS(durationSeconds)}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <FormatListNumbered
-            fontSize="small"
-            sx={{ color: 'text.secondary', mr: 0.5 }}
-          />
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-            {TEXTS[lang].home.labels.count}:
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {count}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap' }}>
-          <MapIcon fontSize="small" sx={{ color: 'text.primary', mr: 0.5 }} />
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ mr: 0.5 }}
-            noWrap
-          >
-            {TEXTS[lang].home.labels.distance}:
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-            {formatDistance(distanceMeter)}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <LocalFireDepartment
-            fontSize="small"
-            sx={{ color: 'error.main', mr: 0.5 }}
-          />
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-            {TEXTS[lang].home.labels.calories}:
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {calories}
-          </Typography>
-        </Box>
+        <SportField
+          icon={<AccessTime />}
+          label={TEXTS[lang].home.labels.time}
+          value={formatDurationHMS(durationSeconds)}
+          iconColor="text.primary"
+          labelColor="text.secondary"
+          responsive
+        />
+        <SportField
+          icon={<FormatListNumbered />}
+          label={TEXTS[lang].home.labels.count}
+          value={count}
+          iconColor="text.secondary"
+          labelColor="text.secondary"
+          responsive
+        />
+        <SportField
+          icon={<MapIcon />}
+          label={TEXTS[lang].home.labels.distance}
+          value={formatDistance(distanceMeter)}
+          iconColor="text.primary"
+          labelColor="text.secondary"
+          noWrap
+          responsive
+        />
+        <SportField
+          icon={<LocalFireDepartment />}
+          label={TEXTS[lang].home.labels.calories}
+          value={calories}
+          iconColor="error.main"
+          labelColor="text.secondary"
+          responsive
+        />
       </Box>
     </Paper>
   );
