@@ -29,23 +29,19 @@ export default function Sporting({ lang }: { lang: Lang }) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
 
-  const loadPage = useCallback(
-    async (p: number) => {
-      setLoading(true);
-      try {
-        const data = await listSports(p, 20);
-        if (p === 0) setItems(data);
-        else setItems(prev => prev.concat(data));
-        setHasMore(data.length >= 20);
-        setPage(p);
-      } catch {
-        if (p === 0) navigate('/login');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [navigate],
-  );
+  const loadPage = useCallback(async (p: number) => {
+    setLoading(true);
+    try {
+      const data = await listSports(p, 20);
+      if (p === 0) setItems(data);
+      else setItems(prev => prev.concat(data));
+      setHasMore(data.length >= 20);
+      setPage(p);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadPage(0);

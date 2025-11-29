@@ -1,5 +1,4 @@
 import { Helmet } from '@modern-js/runtime/head';
-import { useNavigate } from '@modern-js/runtime/router';
 import { BarChart, DirectionsRun, Settings } from '@mui/icons-material';
 import {
   BottomNavigation,
@@ -23,18 +22,14 @@ function HomeInner() {
   const { lang } = useLangStore();
   const [activeTab, setActiveTab] = useState(0);
   const { user, refresh } = useUserStore();
-  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
       try {
-        const ok = await refresh();
-        if (!ok) throw new Error('unauth');
-      } catch {
-        navigate('/login');
-      }
+        await refresh();
+      } catch {}
     })();
-  }, [navigate, refresh]);
+  }, [refresh]);
 
   const hour = new Date().getHours();
   const gKey = (() => {

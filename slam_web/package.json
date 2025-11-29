@@ -10,7 +10,11 @@
     "new": "modern new",
     "lint": "biome check",
     "prepare": "simple-git-hooks",
-    "upgrade": "modern upgrade"
+    "upgrade": "modern upgrade",
+    "android:add": "cap add android",
+    "android:sync": "modern build && cp -f dist/html/main/index.html dist/index.html && cap sync android",
+    "android:open": "cap open android",
+    "android:build": "cp -f dist/html/main/index.html dist/index.html && cap sync android && cd android && ./gradlew assembleDebug"
   },
   "engines": {
     "node": ">=16.18.1"
@@ -24,6 +28,8 @@
     "pre-commit": "npx lint-staged"
   },
   "dependencies": {
+    "@capacitor-community/http": "^1.4.1",
+    "@capacitor/core": "^7.4.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@modern-js/runtime": "2.68.20",
@@ -37,6 +43,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/cli": "^7.4.4",
     "@modern-js/app-tools": "2.68.20",
     "@modern-js/plugin-proxy": "^2.68.20",
     "@modern-js/tsconfig": "2.68.20",
