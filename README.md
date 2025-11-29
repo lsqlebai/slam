@@ -1,183 +1,192 @@
-# SLAM —— 跨平台个人运动数据管理中心
+# SLAM — Cross-Platform Personal Sports Data Hub
 
-[English](README.en.md) | [简体中文](README.md)
+[English](README.md) | [简体中文](README.cn.md)
 
-你因为更换了运动手表、手环或骑行码表，或者更换了运动平台，结果历史数据散落难以整合？SLAM 为此而生——轻松打通并统一你的运动数据，让记录真正可归档、可视化、可用。
+Changed your sports watch, fitness band, or cycling computer — or switched platforms — and now your history is scattered and hard to consolidate? SLAM is built for this — effortlessly unify and connect your workout data so your records are truly archivable, visualized, and usable.
 
-> 轻量、易部署、高性能。通过 AI 能力打通各厂商/平台数据壁垒，让个人运动数据真正归档、可视、可用。
+> Lightweight, easy to deploy, and high-performance. Break platform/vendor data silos with AI so your personal workout data is archived, visible, and usable.
 
-## 项目概览
+## Overview
 
-- 目标：实现一个可在低性能服务器上运行的跨平台个人运动数据管理中心，前后端均以轻量与高性能为优先。
-- 架构：后端 `Rust + Axum + SQLite`，前端 `Modern.js + React + MUI`，通过 `Nginx` 统一对外服务。
-- AI 能力：接入字节跳动火山引擎 Doubao（Ark）多模态接口，支持图片文字识别，将运动数据结构化入库。
-- 部署：提供本地开发与 Docker 一键部署，默认持久化到本地卷。
-- 运动类型支持：目前只支持 游泳；跑步（不完整，只有最基础数据）；骑行（不完整，只有最基础数据）。
+- Goal: Build a cross-platform personal sports data hub that runs on low-end servers, prioritizing lightweight and performance across both backend and frontend.
+- Architecture: Backend `Rust + Axum + SQLite`, frontend `Modern.js + React + MUI`, unified serving via `Nginx`.
+- AI Capability: Integrates ByteDance Volcano Engine Doubao (Ark) multimodal APIs for image/OCR to structure workout data into the database.
+- Deployment: Supports local development and one-click Docker deployment, with default persistence to local volume.
+- Sport types support: currently only Swimming; Running (incomplete, basic data only); Cycling (incomplete, basic data only).
 
-## 功能特性
+## Features
 
-- 账号与认证：注册、登录、退出；登录后通过 `Cookie: slam=<JWT>` 进行鉴权（`slam_server/src/handlers/jwt.rs:43`）。
-- 运动记录：新增、修改、删除、分页查询，兼容多类型运动（`slam_server/src/handlers/sport_handler.rs:26`）。
-- 批量导入：支持厂商 CSV 导入，当前实现 `Xiaomi` 游泳记录解析，支持时间戳单位自动识别（`slam_server/src/service/sport_service.rs:401`）。
-- 数据统计：年/月/周/总维度聚合统计，类型分桶，支持最早年份查询（`slam_server/src/service/sport_service.rs:127`）。
-- AI 图片识别：将运动截图/照片识别为结构化运动条目（`slam_server/src/service/ai_service.rs:69`）。
-- 前端体验：Modern.js 应用，MUI 组件，内置代理到后端，易于本地开发与打包分发（`slam_web/modern.config.ts:9`）。
-- 文档与自描述：后端自动生成 OpenAPI 并提供 Swagger UI，访问 `/docs`（`slam_server/src/app/setup.rs:80`）。
+- Accounts & Auth: Register/login/logout; after login, authentication via `Cookie: slam=<JWT>` (`slam_server/src/handlers/jwt.rs:43`).
+- Workout Records: Create/update/delete/paginated list, multi-sport types supported (`slam_server/src/handlers/sport_handler.rs:26`).
+- Bulk Import: Vendor CSV import; Xiaomi swimming records parsing with automatic timestamp unit detection (`slam_server/src/service/sport_service.rs:401`).
+- Stats: Aggregations by year/month/week/total, type buckets, earliest year supported (`slam_server/src/service/sport_service.rs:127`).
+- AI Image Parsing: Recognize workout screenshots/photos into structured records (`slam_server/src/service/ai_service.rs:69`).
+- Frontend DX: Modern.js app with MUI, built-in proxy to backend for easy local dev and packaging (`slam_web/modern.config.ts:9`).
+- OpenAPI & Swagger: Backend auto-generates API docs, available at `/docs` (`slam_server/src/app/setup.rs:80`).
+- Responsive layout improvements and better device coverage.
+- Android app (native HTTP; configurable backend; automatic cross-origin handling).
 
-## Roadmap
-
-- 增加更多的运动类型
-- 前端响应式布局完善与适配更多终端尺寸
-- 提供 Android / iOS 壳程序（WebView + 原生桥接），支持离线缓存与文件导入
-- 更多 AI 能力：支持多图片合并解析、对话式校正与补录
-- 导入导出：支持全数据导出（CSV/JSON），多源合并与冲突解决
-- 多语言与无障碍：完善 i18n 与可访问性支持
-
-## 目录结构
+## Repository Layout
 
 ```
 slam/
-├─ slam_server/         # Rust 后端（Axum + SQLite）
+├─ slam_server/         # Rust backend (Axum + SQLite)
 │  ├─ src/
-│  │  ├─ app/           # 应用启动、路由与 OpenAPI
-│  │  ├─ handlers/      # 鉴权/用户/运动/AI 等接口
-│  │  ├─ service/       # 业务服务（AI、统计、图片处理）
-│  │  ├─ dao/           # SQLite DAO 实现
-│  │  └─ model/         # 领域模型
-│  ├─ config/app.yml    # 本地配置
-│  └─ tests/            # 接口级测试（cargo test）
-├─ slam_web/            # 前端（Modern.js + React + MUI）
-│  ├─ src/              # 页面、组件、服务、状态
-│  ├─ modern.config.ts  # Dev 代理与构建配置
-│  └─ scripts/          # 打包与发布工具
-├─ deploy/              # Docker 构建与编排
-│  ├─ server/Dockerfile # 后端镜像构建
-│  ├─ web/Dockerfile    # 前端镜像构建（从 Release 取包）
-│  ├─ config/           # Nginx 与容器内配置
+│  │  ├─ app/           # App bootstrap, routes, OpenAPI
+│  │  ├─ handlers/      # Auth/User/Sport/AI endpoints
+│  │  ├─ service/       # Business services (AI, stats, image processing)
+│  │  ├─ dao/           # SQLite DAO implementations
+│  │  └─ model/         # Domain models
+│  ├─ config/app.yml    # Local config
+│  └─ tests/            # API-level tests (cargo test)
+├─ slam_web/            # Frontend (Modern.js + React + MUI)
+│  ├─ src/              # Pages, components, services, state
+│  ├─ modern.config.ts  # Dev proxy & build
+│  └─ scripts/          # Packaging & release scripts
+├─ deploy/              # Docker build & compose
+│  ├─ server/Dockerfile # Backend image build
+│  ├─ web/Dockerfile    # Frontend image build (pulls Release assets)
+│  ├─ config/           # Nginx & in-container config
 │  └─ docker-compose.yml
 └─ LICENSE
 ```
 
-## 快速开始
+## Getting Started
 
-### 本地开发
+### Local Development
 
-1. 后端（Rust）：
-   - 安装 Rust toolchain（推荐稳定版）。
-   - 配置 `slam_server/config/app.yml` 中的 `db.path` 与 `security.key`（默认 key 为占位，需手动替换）。
-   - 如需启用 AI，设置环境变量 `AI_API_KEY`。
-   - 启动：
+1. Backend (Rust):
+   - Install the Rust toolchain (stable recommended).
+   - Configure `db.path` and `security.key` in `slam_server/config/app.yml` (default key is a placeholder; replace it).
+   - To enable AI, set env var `AI_API_KEY`.
+   - Run:
      ```bash
      cd slam_server
      cargo run
      ```
-   - 默认监听 `127.0.0.1:3000`，Swagger UI: `http://127.0.0.1:3000/docs`。
+   - Default listen `127.0.0.1:3000`, Swagger UI: `http://127.0.0.1:3000/docs`.
 
-2. 前端（Modern.js）：
-   - 安装 Node.js（推荐 >= 16.18，脚本打包使用 22.16）。
-   - 使用 `pnpm`（可通过 `corepack enable` 激活）。
-   - 启动：
+2. Frontend (Modern.js):
+   - Install Node.js (>= 16.18; release script uses 22.16).
+   - Use `pnpm` (activate via `corepack enable`).
+   - Run:
      ```bash
      cd slam_web
      pnpm install
      pnpm dev
      ```
-   - 开发环境已代理后端：`/api -> http://127.0.0.1:3000`（`slam_web/modern.config.ts:9`）。
+   - Dev proxy to backend: `/api -> http://127.0.0.1:3000` (`slam_web/modern.config.ts:9`).
 
-3. 运行测试（后端）：
+3. Backend tests:
    ```bash
    cd slam_server
    cargo test
    ```
 
-### Docker 部署
+### Docker Deployment
 
-- 先设置环境变量并启动：
+- Set env and start:
   ```bash
   cd deploy
-  export AI_API_KEY="<你的密钥>"
+  export AI_API_KEY="<your-key>"
   docker compose up -d
   ```
-- 访问：
-  - Web：`http://localhost:8080`
-  - 后端 API（经 Nginx 反代）：`http://localhost:8080/api/...`
-  - Swagger UI：`http://localhost:8080/docs`
-- 数据持久化：卷 `./db -> /data`（`deploy/docker-compose.yml:31`）。容器内配置挂载至 `/app/config/app.yml`（`deploy/docker-compose.yml:12`）。
+- Access:
+  - Web: `http://localhost:8080`
+  - Backend API (via Nginx reverse proxy): `http://localhost:8080/api/...`
+  - Swagger UI: `http://localhost:8080/docs`
+- Data persistence: volume `./db -> /data` (`deploy/docker-compose.yml:31`). In-container config mounted at `/app/config/app.yml` (`deploy/docker-compose.yml:12`).
 
-### 前端发布产物打包
+### Build Frontend Release Artifact
 
-- 生成 tar 包供 Docker 拉取：
+- Generate tarball for Docker to fetch:
   ```bash
   bash slam_web/scripts/compress_web_dist.sh
   ```
-- 输出路径示例：`slam_web/release/slam_web-v0.2.0.tar.gz`；`deploy/web/Dockerfile` 会从 GitHub Release 取对应资产。
+- Example output: `slam_web/release/slam_web-v0.2.0.tar.gz`; `deploy/web/Dockerfile` pulls the matching asset from GitHub Release.
 
-## 配置说明
+## Configuration
 
-- 本地配置文件：`slam_server/config/app.yml`
-  - `server.ip/port`：监听地址与端口。
-  - `db.path`：SQLite 文件路径（本地示例 `sport.db`）。
-  - `ai.key`：可留空，优先从环境变量 `AI_API_KEY` 读取。
-  - `security.salt/key`：用于派生 JWT 密钥与加解密，务必更换默认值（`change-me-key`）。
-- 容器内配置：`deploy/config/app.container.yml`（`db.path` 已指向 `/data/sport.db`）。
-- Nginx：静态资源与反代（`deploy/config/nginx.conf:6`）。
+- Local config file: `slam_server/config/app.yml`
+  - `server.ip/port`: listen address and port.
+  - `db.path`: SQLite file path (e.g., `sport.db`).
+  - `ai.key`: optional; prefer reading from env `AI_API_KEY`.
+  - `security.salt/key`: derive JWT secrets and (de)encryption; replace the defaults (`change-me-key`).
+- In-container config: `deploy/config/app.container.yml` (`db.path` points to `/data/sport.db`).
+- Nginx: static assets and reverse proxy (`deploy/config/nginx.conf:6`).
 
-## API 速览
+### Android Configuration
 
-- 路由常量见：`slam_server/src/app/routes.rs`
-  - 状态：`GET /api/status`
-  - AI 图片识别：`POST /api/ai/image-parse`
-  - 用户注册：`POST /api/user/register`
-  - 用户登录：`POST /api/user/login`
-  - 用户信息：`GET /api/user/info`
-  - 退出登录：`POST /api/user/logout`
-  - 头像上传：`POST /api/user/avatar/upload`
-  - 运动新增：`POST /api/sport/insert`
-  - 运动列表：`GET /api/sport/list?page=0&size=20`
-  - 统计：`GET /api/sport/stats?kind=year|month|week|total&year=2025[&month=11][&week=47]`
-  - 更新：`POST /api/sport/update`
-  - 删除：`POST /api/sport/delete`
+- Set backend base in `slam_web/.env`:
+  ```bash
+  MODERN_PUBLIC_API_BASE=https://<your-host-or-ip>/api
+  ```
+- On Android native (Capacitor), the frontend reads this variable and uses a native HTTP adapter to bypass browser CORS (`slam_web/src/services/http.ts:11`, `slam_web/src/services/axiosCapacitorAdapter.ts:23`).
+- When unset, default `baseURL='/api'` relies on dev proxy or Nginx reverse proxy.
 
-### 示例：注册登录与新增运动
+## API Quick Reference
+
+- Route constants: `slam_server/src/app/routes.rs`
+  - Status: `GET /api/status`
+  - AI image parse: `POST /api/ai/image-parse`
+  - User register: `POST /api/user/register`
+  - User login: `POST /api/user/login`
+  - User info: `GET /api/user/info`
+  - Logout: `POST /api/user/logout`
+  - Avatar upload: `POST /api/user/avatar/upload`
+  - Sport insert: `POST /api/sport/insert`
+  - Sport list: `GET /api/sport/list?page=0&size=20`
+  - Stats: `GET /api/sport/stats?kind=year|month|week|total&year=2025[&month=11][&week=47]`
+  - Update: `POST /api/sport/update`
+  - Delete: `POST /api/sport/delete`
+
+### Example: Register, Login, and Insert Sport
 
 ```bash
-# 注册
+# Register
 curl -s -X POST http://127.0.0.1:3000/api/user/register \
   -H 'Content-Type: application/json' \
   -d '{"name":"alice","password":"p@ssw0rd","nickname":"Alice"}' -i
 
-# 从 Set-Cookie 中提取 slam=...
+# Extract slam=... from Set-Cookie
 
-# 新增运动（带 Cookie）
+# Insert a sport (with Cookie)
 curl -s -X POST http://127.0.0.1:3000/api/sport/insert \
   -H 'Content-Type: application/json' \
-  -H 'Cookie: slam=<你的token>' \
+  -H 'Cookie: slam=<your-token>' \
   -d '{"type":"Swimming","start_time":1731888000,"calories":120,"distance_meter":1000,"duration_second":600,"heart_rate_avg":120,"heart_rate_max":140,"pace_average":"3\'59\''"}'
 ```
 
-### 示例：CSV 批量导入（小米）
+### Example: CSV Bulk Import (Xiaomi)
 
 ```bash
 curl -s -X POST http://127.0.0.1:3000/api/sport/import \
-  -H 'Cookie: slam=<你的token>' \
+  -H 'Cookie: slam=<your-token>' \
   -F 'vendor=xiaomi' \
   -F 'file=@/path/to/sports.csv;type=text/csv'
 ```
 
-## 设计与实现要点
+## Design Notes
 
-- 高性能与轻量：Axum + Tokio 异步，SQLite 本地存储，内存缓存减少重复统计（`slam_server/src/service/sport_service.rs:13`）。
-- 统一数据模型：`Sport` 统一承载核心字段与类型扩展（如游泳），便于不同来源数据适配（`slam_server/src/model/sport.rs:1`）。
-- 安全性：JWT 写入 `HttpOnly` Cookie，过期与校验在服务端完成（`slam_server/src/handlers/jwt.rs:23`）。
-- 可观测性：自动生成 API 文档，便于前端与第三方集成（`slam_server/src/app/setup.rs:36`）。
+- Performance & Lightweight: Axum + Tokio async, SQLite local store, in-memory caching to avoid repeated aggregation (`slam_server/src/service/sport_service.rs:13`).
+- Unified Model: `Sport` centralizes core fields with type extensions (e.g., swimming), enabling easy adaptation across sources (`slam_server/src/model/sport.rs:1`).
+- Security: JWT stored in `HttpOnly` cookie; expiration and verification handled server-side (`slam_server/src/handlers/jwt.rs:23`).
+- Observability: Auto-generated API docs easing frontend/third-party integration (`slam_server/src/app/setup.rs:36`).
 
- 
-## 许可证
+## Roadmap
 
-- 项目采用 MIT 许可证，详见 `LICENSE`。
+- More sport types.
+- More AI capabilities: multi-image merge parsing, dialog-style correction and completion.
+- Import/Export: full data export (CSV/JSON), multi-source merge and conflicts.
+- i18n & Accessibility enhancements.
+- iOS app shell (WebView + native bridge), offline cache and file import.
 
-## 致谢
+## License
 
-- 后端基础设施：Axum、Tokio、Utoipa、Rusqlite 等优秀开源项目。
-- 前端框架：Modern.js、MUI、React 社区。
-- 多模态 AI：Doubao（Ark）能力支持。
+- MIT License, see `LICENSE`.
+
+## Acknowledgements
+
+- Backend Infra: Axum, Tokio, Utoipa, Rusqlite, and more great OSS.
+- Frontend Framework: Modern.js, MUI, React community.
+- Multimodal AI: Doubao (Ark).
