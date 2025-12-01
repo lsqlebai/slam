@@ -44,7 +44,7 @@ export default function PageHeader({
           {title}
         </Typography>
       </Box>
-      <Divider sx={{ mb: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }} />
+      <Divider sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }} />
     </>
   );
 }
