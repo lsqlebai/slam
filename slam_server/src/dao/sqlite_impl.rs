@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 use rusqlite::{params, Connection, OpenFlags};
+use r2d2::{Pool, PooledConnection};
+use r2d2_sqlite::SqliteConnectionManager;
 use serde_json;
 
 use crate::model::sport::{Sport, Swimming, Track, SportType};
@@ -7,31 +9,32 @@ use crate::model::user::{User, UserInfo};
 use super::idl::{SportDao, UserDao};
 
 pub struct SqliteImpl {
-    db_path: String,
+    pool: Pool<SqliteConnectionManager>,
 }
 
 impl SqliteImpl {
     pub async fn new(database_path: &str) -> Result<Self, String> {
-        let dao = Self { db_path: database_path.to_string() };
-        dao.init_schema().await?;
-        Ok(dao)
+        Self::new_sync(database_path)
     }
 
     pub fn new_sync(database_path: &str) -> Result<Self, String> {
-        let dao = Self { db_path: database_path.to_string() };
-        dao.init_schema_sync()?;
+        let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE;
+        let manager = SqliteConnectionManager::file(database_path).with_flags(flags);
+        let pool = Pool::new(manager).map_err(|e| format!("创建连接池失败: {}", e))?;
+        let dao = Self { pool };
+        {
+            let conn = dao.get_conn()?;
+            dao.init_schema_with_conn(&conn)?;
+            dao.write_check(&conn)?;
+        }
         Ok(dao)
     }
 
-    fn open_conn(&self) -> Result<Connection, String> {
-        Connection::open_with_flags(
-            &self.db_path,
-            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
-        )
-        .map_err(|e| format!("连接数据库失败: {}", e))
+    fn get_conn(&self) -> Result<PooledConnection<SqliteConnectionManager>, String> {
+        self.pool.get().map_err(|e| format!("获取连接失败: {}", e))
     }
 
-    async fn init_schema(&self) -> Result<(), String> {
+    fn init_schema_with_conn(&self, conn: &Connection) -> Result<(), String> {
         let create_sql = r#"
         CREATE TABLE IF NOT EXISTS sports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,7 +72,6 @@ impl SqliteImpl {
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_avatars_uid ON avatars(uid);
         "#;
-        let conn = self.open_conn()?;
         conn.execute_batch(create_sql)
             .map_err(|e| format!("建表失败: {}", e))?;
         let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT ''", params![]);
@@ -77,49 +79,16 @@ impl SqliteImpl {
         Ok(())
     }
 
-    fn init_schema_sync(&self) -> Result<(), String> {
-        let create_sql = r#"
-        CREATE TABLE IF NOT EXISTS sports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uid INTEGER NOT NULL DEFAULT 0,
-            type TEXT NOT NULL,
-            start_time INTEGER NOT NULL,
-            calories INTEGER NOT NULL,
-            distance_meter INTEGER NOT NULL,
-            duration_second INTEGER NOT NULL,
-            heart_rate_avg INTEGER NOT NULL,
-            heart_rate_max INTEGER NOT NULL,
-            pace_average TEXT NOT NULL,
-            extra TEXT NOT NULL,
-            tracks TEXT NOT NULL,
-            CHECK (json_valid(extra)),
-            CHECK (json_valid(tracks))
-        );
-        CREATE INDEX IF NOT EXISTS idx_sports_start_time ON sports(start_time);
-
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            password TEXT NOT NULL,
-            nickname TEXT NOT NULL DEFAULT '',
-            avatar TEXT NOT NULL DEFAULT ''
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_name ON users(name);
-        CREATE TABLE IF NOT EXISTS avatars (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uid INTEGER NOT NULL UNIQUE,
-            data TEXT NOT NULL,
-            mime TEXT NOT NULL DEFAULT 'image/jpeg',
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_avatars_uid ON avatars(uid);
-        "#;
-        let conn = self.open_conn()?;
-        conn.execute_batch(create_sql)
-            .map_err(|e| format!("建表失败: {}", e))?;
-        let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT NOT NULL DEFAULT ''", params![]);
-        let _ = conn.execute("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT ''", params![]);
+    fn write_check(&self, conn: &Connection) -> Result<(), String> {
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS __healthcheck (id INTEGER PRIMARY KEY AUTOINCREMENT, n INTEGER NOT NULL);
+            "#,
+        ).map_err(|e| format!("写入检查表创建失败: {}", e))?;
+        conn.execute("INSERT INTO __healthcheck (n) VALUES (1)", params![])
+            .map_err(|e| format!("写入检查失败: {}", e))?;
+        conn.execute("DELETE FROM __healthcheck", params![])
+            .map_err(|e| format!("写入检查失败: {}", e))?;
         Ok(())
     }
 }
@@ -132,7 +101,7 @@ impl SportDao for SqliteImpl {
         let tracks_json = serde_json::to_string(&sport.tracks)
             .map_err(|e| format!("tracks 序列化失败: {}", e))?;
 
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         conn
             .execute(
                 r#"
@@ -160,7 +129,7 @@ impl SportDao for SqliteImpl {
     }
 
     async fn insert_many(&self, uid: i32, sports: Vec<Sport>) -> Result<usize, String> {
-        let mut conn = self.open_conn()?;
+        let mut conn = self.get_conn()?;
         let tx = conn.transaction().map_err(|e| format!("开启事务失败: {}", e))?;
         let mut count = 0usize;
         {
@@ -199,7 +168,7 @@ impl SportDao for SqliteImpl {
         let safe_size = if size <= 0 { 20 } else { size.min(100) } as i64;
         let safe_page = if page < 0 { 0 } else { page } as i64;
         let offset = safe_page * safe_size;
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         let mut stmt = conn
             .prepare(
                 r#"
@@ -254,7 +223,7 @@ impl SportDao for SqliteImpl {
     }
 
     async fn list_by_time_range(&self, uid: i32, start_time: i64, end_time: i64) -> Result<Vec<Sport>, String> {
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         let mut stmt = conn
             .prepare(
                 r#"
@@ -313,7 +282,7 @@ impl SportDao for SqliteImpl {
             .map_err(|e| format!("extra 序列化失败: {}", e))?;
         let tracks_json = serde_json::to_string(&sport.tracks)
             .map_err(|e| format!("tracks 序列化失败: {}", e))?;
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         let affected = conn
             .execute(
                 r#"
@@ -344,7 +313,7 @@ impl SportDao for SqliteImpl {
 
     async fn remove(&self, uid: i32, id: i32) -> Result<(), String> {
         if id <= 0 { return Err("invalid sport id".to_string()); }
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         let affected = conn
             .execute(
                 r#"
@@ -359,7 +328,7 @@ impl SportDao for SqliteImpl {
 
     async fn get_by_id(&self, uid: i32, id: i32) -> Result<Option<Sport>, String> {
         if id <= 0 { return Ok(None); }
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         let mut stmt = conn
             .prepare(
                 r#"
@@ -411,7 +380,7 @@ impl SportDao for SqliteImpl {
     }
 
     async fn get_first(&self, uid: i32) -> Result<Option<Sport>, String> {
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         let mut stmt = conn
             .prepare(
                 r#"
@@ -467,7 +436,7 @@ impl SportDao for SqliteImpl {
 #[async_trait]
 impl UserDao for SqliteImpl {
     async fn insert(&self, user: User) -> Result<i32, String> {
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         conn
             .execute(
                 r#"
@@ -481,7 +450,7 @@ impl UserDao for SqliteImpl {
     }
 
     async fn get_by_id(&self, id: i32) -> Result<Option<UserInfo>, String> {
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         let mut stmt = conn
             .prepare(
                 r#"
@@ -507,7 +476,7 @@ impl UserDao for SqliteImpl {
     }
 
     async fn login(&self, name: &str, password: &str) -> Result<Option<User>, String> {
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         let mut stmt = conn
             .prepare(
                 r#"
@@ -532,7 +501,7 @@ impl UserDao for SqliteImpl {
     }
 
     async fn set_avatar(&self, uid: i32, base64: String) -> Result<(), String> {
-        let conn = self.open_conn()?;
+        let conn = self.get_conn()?;
         conn.execute(
             r#"
             INSERT INTO avatars (uid, data, mime, created_at, updated_at)

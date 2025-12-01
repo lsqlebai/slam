@@ -1,6 +1,8 @@
 use axum::{
     Router, extract::DefaultBodyLimit, routing::{get, post}
 };
+use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, DefaultOnFailure};
+use tracing::Level;
 use std::net::SocketAddr;
 use std::sync::Arc;
 // removed unused imports
@@ -125,5 +127,12 @@ fn create_production_router(config: AppConfig) -> Router {
         .route(routes::API_SPORT_DELETE, post(crate::handlers::sport_handler::delete_sport_handler))
         .route(routes::API_SPORT_LIST, get(crate::handlers::sport_handler::list_sport_handler))
         .route(routes::API_SPORT_STATS, get(crate::handlers::sport_handler::stats_handler))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO))
+                .on_failure(DefaultOnFailure::new().level(Level::ERROR))
+        )
         .with_state(app)
 }

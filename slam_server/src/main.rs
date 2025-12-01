@@ -1,7 +1,15 @@
 use slam_server::app;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
-    // 启动服务器
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("info,tower_http=info"))
+        )
+        .with_target(false)
+        .compact()
+        .init();
     app::run().await;
 }
