@@ -1,5 +1,14 @@
 import { Delete } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Typography,
+} from '@mui/material';
+import { useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Track as TrackType } from '../../services/sport';
 
@@ -9,15 +18,16 @@ export default function TrackItem({
   t,
   readonly,
   onEdit,
-  onDeleteClick,
+  onDelete,
 }: {
   lang: 'zh' | 'en';
   idx: number;
   t: TrackType;
   readonly: boolean;
   onEdit: (idx: number) => void;
-  onDeleteClick: (idx: number) => void;
+  onDelete: (idx: number) => void;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const strokeLabel = (v: string) => {
     switch (v) {
       case 'freestyle':
@@ -150,7 +160,7 @@ export default function TrackItem({
                 startIcon={<Delete />}
                 onClick={e => {
                   e.stopPropagation();
-                  onDeleteClick(idx);
+                  setConfirmOpen(true);
                 }}
                 sx={{
                   whiteSpace: 'nowrap',
@@ -161,12 +171,40 @@ export default function TrackItem({
                   '& .MuiButton-startIcon': { mr: 0.5 },
                 }}
               >
-                {lang === 'zh' ? '删除' : 'Delete'}
+                {TEXTS[lang].addsports.submitTrackDelete}
               </Button>
             )}
           </Box>
         </Box>
       </Box>
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{TEXTS[lang].addsports.deleteConfirmTitle}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            {TEXTS[lang].addsports.deleteConfirmMessage}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={() => setConfirmOpen(false)}>
+            {TEXTS[lang].register.cancel}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => {
+              onDelete(idx);
+              setConfirmOpen(false);
+            }}
+          >
+            {TEXTS[lang].addsports.submitTrackDelete}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
