@@ -1,4 +1,4 @@
-# SLAM —— 跨平台个人运动数据管理中心
+# <img src="slam.png" alt="SLAM" height="28"> SLAM —— 跨平台个人运动数据管理中心
 
 [English](README.md) | [简体中文](README.cn.md)
 

@@ -1,4 +1,4 @@
-# SLAM — Cross-Platform Personal Sports Data Hub
+# <img src="slam.png" alt="SLAM" height="28"> SLAM — Cross-Platform Personal Sports Data Hub
 
 [English](README.md) | [简体中文](README.cn.md)
 

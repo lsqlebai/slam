@@ -141,8 +141,8 @@ export default function SportTracks({
           setTrackDialogOpen(false);
           setEditingIndex(null);
         }}
-        maxWidth="md"
         fullWidth
+        PaperProps={{ sx: { maxWidth: 440 } }}
       >
         <DialogTitle>{TEXTS[lang].addsports.submitTrackAdd}</DialogTitle>
         <DialogContent>
