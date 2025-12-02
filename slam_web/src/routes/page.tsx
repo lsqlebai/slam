@@ -6,13 +6,14 @@ import {
   Box,
   List,
 } from '@mui/material';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import PageBase from '../components/PageBase';
 import HomeHeader from '../components/home/HomeHeader';
 import SettingsPage from '../components/home/Settings';
 import SidebarNavItem from '../components/home/SidebarNavItem';
 import Sporting from '../components/home/Sporting';
 import Stats from '../components/stats/Stats';
+import useAndroidDoubleBackExit from '../hooks/useAndroidDoubleBackExit';
 import { TEXTS } from '../i18n';
 import { useLangStore } from '../stores/lang';
 import { useUserStore } from '../stores/user';
@@ -22,6 +23,7 @@ function HomeInner() {
   const { lang } = useLangStore();
   const [activeTab, setActiveTab] = useState(0);
   const { user, refresh } = useUserStore();
+  useAndroidDoubleBackExit(TEXTS[lang].home.pressAgainExit);
 
   useEffect(() => {
     (async () => {
@@ -49,23 +51,11 @@ function HomeInner() {
     return TEXTS[lang].home.settings;
   })();
 
-  const contentRef = useRef<HTMLDivElement | null>(null);
-  const [scrolling, setScrolling] = useState(false);
-  const scrollTimerRef = useRef<number | null>(null);
+  const [scrolling] = useState(false);
 
   const content = (
     <Box
-      ref={contentRef}
-      className={scrolling ? 'scroll-auto scrolling' : 'scroll-auto'}
-      onScroll={() => {
-        if (scrollTimerRef.current) {
-          window.clearTimeout(scrollTimerRef.current);
-        }
-        setScrolling(true);
-        scrollTimerRef.current = window.setTimeout(() => {
-          setScrolling(false);
-        }, 800);
-      }}
+      className={'scroll-auto'}
       sx={{
         px: 2,
         pb: {

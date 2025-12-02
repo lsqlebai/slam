@@ -7,6 +7,7 @@
 .scroll-auto {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  scrollbar-gutter: stable;
 }
 .scroll-auto::-webkit-scrollbar {
   width: 0;

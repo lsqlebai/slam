@@ -12,6 +12,7 @@ export const TEXTS = {
       motion: '运动',
       stats: '统计',
       settings: '设置',
+      pressAgainExit: '再按一次退出应用',
       greetings: {
         morning: '早上好',
         noon: '中午好',
@@ -119,6 +120,7 @@ export const TEXTS = {
       motion: 'Sports',
       stats: 'Stats',
       settings: 'Settings',
+      pressAgainExit: 'Press back again to exit',
       greetings: {
         morning: 'Good morning',
         noon: 'Good noon',
