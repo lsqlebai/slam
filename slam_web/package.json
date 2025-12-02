@@ -1,6 +1,6 @@
 {
   "name": "slam_web",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "scripts": {
     "reset": "npx rimraf node_modules ./**/node_modules",
     "dev": "modern dev",
@@ -30,6 +30,7 @@
   "dependencies": {
     "@capacitor-community/http": "^1.4.1",
     "@capacitor/core": "^7.4.4",
+    "@capacitor/app": "^7.1.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@modern-js/runtime": "2.68.20",

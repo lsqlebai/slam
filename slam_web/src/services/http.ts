@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import axios from 'axios';
-import { axiosAndroidAdapter } from './axiosCapacitorAdapter';
+import { axiosAndroidAdapter } from './capacitor/axiosAdapter';
+import { initHttp, restoreAllCookies } from './capacitor/cookie';
 
 export const http = axios.create({
   baseURL: '/api',
@@ -9,6 +10,13 @@ export const http = axios.create({
 });
 
 if (Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform()) {
+  // 🟢 关键：在 App 启动时恢复所有 cookie
+  // 🔥 request 拦截器： 所有请求都等 init 完成
+  http.interceptors.request.use(async config => {
+    await initHttp(); // 等 cookie 恢复完成
+    return config;
+  });
+
   const apiBase = process.env.MODERN_PUBLIC_API_BASE;
   if (apiBase && /^https?:\/\//.test(apiBase)) {
     http.defaults.baseURL = apiBase;
@@ -22,6 +30,7 @@ function redirectToLogin() {
   if (p !== '/login') window.location.replace('/login');
 }
 
+// 🔥 response 拦截器：处理 401 错误
 http.interceptors.response.use(
   res => {
     const status = res?.status;

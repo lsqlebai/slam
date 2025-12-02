@@ -37,7 +37,6 @@ export default function ImagePickerCard({
           width: { xs: '100%', md: 300 },
           order: { xs: 2, md: 2 },
           height: { xs: 120, md: 'auto' },
-          my: { md: 6 },
           alignSelf: { md: 'stretch' },
           flex: { md: '0 0 auto' },
         },

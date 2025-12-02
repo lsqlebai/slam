@@ -11,6 +11,9 @@ importers:
       '@capacitor-community/http':
         specifier: ^1.4.1
         version: 1.4.1
+      '@capacitor/app':
+        specifier: ^7.1.1
+        version: 7.1.1(@capacitor/core@7.4.4)
       '@capacitor/core':
         specifier: ^7.4.4
         version: 7.4.4
@@ -760,6 +763,11 @@ packages:
     resolution: {integrity: sha512-y8knfV1JXNrd6XZZLZireGT+EBCN0lvOo+HZ/s7L8LkrPBu4nY5UZn0Wxz4yOezItEII9rqYJSHsS5fMJG9gdw==}
     peerDependencies:
       '@capacitor/core': ^7.4.0
+
+  '@capacitor/app@7.1.1':
+    resolution: {integrity: sha512-H4rmMXlL6GEDs2Yds5JvYqZxz4mdp7R4XdGJ7p+oGV+YapuQ2kW38UabuhdP6qSrKfIeLde6qx+8FEX02krypA==}
+    peerDependencies:
+      '@capacitor/core': '>=7.0.0'
 
   '@capacitor/cli@7.4.4':
     resolution: {integrity: sha512-J7ciBE7GlJ70sr2s8oz1+H4ZdNk4MGG41fsakUlDHWva5UWgFIZYMiEdDvGbYazAYTaxN3lVZpH9zil9FfZj+Q==}
@@ -6480,6 +6488,10 @@ snapshots:
       '@capacitor/core': 3.9.0
 
   '@capacitor/android@7.4.4(@capacitor/core@7.4.4)':
+    dependencies:
+      '@capacitor/core': 7.4.4
+
+  '@capacitor/app@7.1.1(@capacitor/core@7.4.4)':
     dependencies:
       '@capacitor/core': 7.4.4
 

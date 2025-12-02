@@ -69,7 +69,7 @@ function HomeInner() {
       sx={{
         px: 2,
         pb: {
-          xs: 'calc(env(safe-area-inset-bottom) + 72px)',
+          xs: 'env(safe-area-inset-bottom)',
           sm: activeTab === 2 ? 10 : 2,
         },
         flex: 1,
@@ -169,22 +169,19 @@ function HomeInner() {
       </Box>
       <Box
         sx={{
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 0,
           borderTop: '1px solid rgba(0,0,0,0.12)',
           bgcolor: '#fff',
-          zIndex: 1300,
           width: '100%',
           display: { xs: 'block', sm: 'none' },
+          flexShrink: 0,
+          minHeight: 'calc(64px + env(safe-area-inset-bottom))',
         }}
       >
         <BottomNavigation
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}
           showLabels
-          sx={{ height: 64, paddingBottom: 'env(safe-area-inset-bottom)' }}
+          sx={{ height: 64 }}
         >
           <BottomNavigationAction
             label={TEXTS[lang].home.motion}

@@ -1,5 +1,6 @@
 import { Http } from '@capacitor-community/http';
 import type { InternalAxiosRequestConfig } from 'axios';
+import { saveCookiesForUrl } from './cookie';
 
 function isAbsoluteURL(url?: string) {
   if (!url) return false;
@@ -39,6 +40,12 @@ export const axiosAndroidAdapter = async (
     url: request.url,
     method: request.method || 'GET',
   });
+
+  // 🟢 关键：同步 cookie 到 localStorage
+  saveCookiesForUrl(request.url).catch(err =>
+    console.warn('[cookie] save error', err),
+  );
+
   return {
     data: response.data,
     status: response.status,

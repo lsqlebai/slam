@@ -11,6 +11,7 @@ RELEASE_DIR="$WEB_DIR/release"
 VERSION="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"[:space:]]*\)".*/\1/p' "$WEB_DIR/package.json" | head -n 1)"
 if [ -z "$VERSION" ]; then VERSION="0.0.0"; fi
 OUT_GZ="$RELEASE_DIR/slam_web-v$VERSION.tar.gz"
+OUT_ZIP="$RELEASE_DIR/slam_web-v$VERSION.zip"
 
 if ! command -v pnpm >/dev/null 2>&1; then
   command -v corepack >/dev/null 2>&1 && corepack enable || true
@@ -33,4 +34,14 @@ fi
 
 mkdir -p "$RELEASE_DIR"
 tar -C "$WEB_DIR" -czf "$OUT_GZ" dist
+if command -v zip >/dev/null 2>&1; then
+  (cd "$WEB_DIR" && zip -r -q "$OUT_ZIP" dist)
+elif command -v ditto >/dev/null 2>&1; then
+  # macOS fallback
+  (cd "$WEB_DIR" && ditto -c -k --sequesterRsrc --keepParent dist "$OUT_ZIP")
+else
+  echo "zip工具未找到，跳过zip生成" >&2
+fi
+
 echo "$OUT_GZ"
+echo "$OUT_ZIP"
