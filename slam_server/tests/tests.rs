@@ -47,19 +47,47 @@ async fn test_doubao_request() {
 async fn test_sqlite_insert_and_query_sport_from_sample_xml() {
 use slam_server::dao::sqlite_impl::SqliteImpl;
     use slam_server::dao::idl::SportDao;
-    use slam_server::model::sport::{Sport, SAMPLE_XML};
+use slam_server::model::sport::Sport;
+use slam_server::model::sport::SAMPLE_XML_SWIMMING;
     use std::path::Path;
     let db_path = "tests/test.db";
     if Path::new(db_path).exists() {
         let _ = std::fs::remove_file(db_path);
     }
-    let sport = Sport::parse_from_xml(SAMPLE_XML).expect("parse xml");
+    let sport = Sport::parse_from_xml(SAMPLE_XML_SWIMMING).expect("parse xml");
     let dao = SqliteImpl::new(db_path).await.expect("dao new");
     dao.insert(0, sport.clone()).await.expect("dao insert");
     let default_page = 0;
     let default_size = 20;
     let all = dao.list(0, default_page, default_size).await.expect("dao list");
     assert_eq!(all.len(), 1);
+}
+
+#[tokio::test]
+async fn test_sqlite_insert_and_query_running_from_sample_xml() {
+    use std::path::Path;
+    use slam_server::dao::sqlite_impl::SqliteImpl;
+    use slam_server::dao::idl::SportDao;
+    use slam_server::model::sport::{Sport, SAMPLE_XML_RUNNING, SportType, SportExtra};
+    let db_path = "tests/test.db";
+    if Path::new(db_path).exists() { let _ = std::fs::remove_file(db_path); }
+    let sport = Sport::parse_from_xml(SAMPLE_XML_RUNNING).expect("parse xml");
+    assert_eq!(sport.r#type, SportType::Running);
+    let dao = SqliteImpl::new(db_path).await.expect("dao new");
+    dao.insert(0, sport.clone()).await.expect("dao insert");
+    let all = dao.list(0, 0, 20).await.expect("dao list");
+    assert_eq!(all.len(), 1);
+    let got = &all[0];
+    assert_eq!(got.r#type, SportType::Running);
+    assert_eq!(got.distance_meter, 4820);
+    assert_eq!(got.duration_second, 1872);
+    match &got.extra { Some(SportExtra::Running(r)) => {
+        assert_eq!(r.cadence_avg, 164);
+        assert_eq!(r.steps_total, 5122);
+    }, _ => panic!("extra 类型错误") }
+    assert_eq!(got.tracks.len(), 5);
+    assert_eq!(got.tracks[0].distance_meter, 1000);
+    assert_eq!(got.tracks[0].duration_second, 377);
 }
 
 #[test]
@@ -102,7 +130,8 @@ fn test_xiaomi_parser_parse_from_csv_file() {
         assert!(s.calories >= 0);
         assert!(s.distance_meter >= 0);
         assert!(s.duration_second >= 0);
-        assert!(s.extra.swolf_avg >= 0);
+        let swim = match &s.extra { Some(slam_server::model::sport::SportExtra::Swimming(x)) => x, _ => panic!("extra 类型错误") };
+        assert!(swim.swolf_avg >= 0);
     }
 
     let file2 = File::open("tests/test.csv").expect("tests/test.csv should exist");
@@ -131,8 +160,9 @@ fn test_xiaomi_parser_parse_from_csv_file() {
         assert_eq!(s.calories, ec);
         assert_eq!(s.distance_meter, ed);
         assert_eq!(s.duration_second, edur);
-        assert_eq!(s.extra.swolf_avg, eswolf);
-        assert_eq!(s.extra.stroke_avg, estroke);
+        let swim = match &s.extra { Some(slam_server::model::sport::SportExtra::Swimming(x)) => x, _ => panic!("extra 类型错误") };
+        assert_eq!(swim.swolf_avg, eswolf);
+        assert_eq!(swim.stroke_avg, estroke);
     }
 }
 

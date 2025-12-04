@@ -205,6 +205,8 @@ impl LLM for Doubao {
         }
 
         let v: Value = serde_json::from_str(&text).unwrap();
+
+        // 7) Try to extract the assistant's message text (best-effort across common shapes)
         if let Some(extracted) = extract_text_from_response(&v) {
             Ok(extracted)
         } else {

@@ -6,12 +6,12 @@ use serde::{Deserialize, Serialize};
 // AI服务配置结构
 use utoipa::ToSchema;
 
-use crate::model;
 use crate::service::common;
 use crate::service::llm;
 use crate::service::llm::ChatCompletionRequest;
 use crate::service::llm::{LLM, Doubao};
-use crate::model::sport::{Sport};
+use crate::model::sport::Sport;
+use crate::model::sport::{SAMPLE_XML_SWIMMING, SAMPLE_XML_RUNNING};
 use std::sync::Arc;
 // AI服务核心结构
 pub struct AIService {
@@ -26,7 +26,11 @@ impl ImageParser {
             role: "system".to_string(),
             content: vec![llm::ContentPart::Text(llm::TextContent {
                 r#type: "text".to_string(),
-                text: format!("你是一个专业的图片文字识别员,你的任务是根据图片中的文字,生成以下的XML格式数据: {},其中tracks字段是分段数据的数组,请尽量按分段顺序放入数据。注意，如果发现图片中缺少某些字段数据,请在xml中忽略掉", model::sport::SAMPLE_XML).to_string(),
+                text: format!(
+                    "你是图片文字识别员,根据图片内容输出XML。不同运动类型请输出对应的extra字段。示例(请根据实际类型选择其一):\n游泳示例:\n{}\n跑步示例:\n{}\n要求: 1) 按示例字段命名 2) tracks为分段数组 3) 缺失字段请忽略",
+                    SAMPLE_XML_SWIMMING,
+                    SAMPLE_XML_RUNNING,
+                ),
             })],
         }
     }
@@ -104,6 +108,10 @@ impl AIService {
         })
     }
 
+}
+
+impl Default for AIService {
+    fn default() -> Self { Self::new() }
 }
 
 // 错误响应结构

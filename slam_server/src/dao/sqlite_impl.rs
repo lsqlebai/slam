@@ -4,7 +4,7 @@ use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use serde_json;
 
-use crate::model::sport::{Sport, Swimming, Track, SportType};
+use crate::model::sport::{Sport, SportExtra, Track, SportType, DbSportExtra, DbSportTrack, Swimming, Running};
 use crate::model::user::{User, UserInfo};
 use super::idl::{SportDao, UserDao};
 
@@ -96,9 +96,11 @@ impl SqliteImpl {
 #[async_trait]
 impl SportDao for SqliteImpl {
     async fn insert(&self, uid: i32, sport: Sport) -> Result<(), String> {
-        let extra_json = serde_json::to_string(&sport.extra)
+        let extra_tagged = sport.extra.clone().map(DbSportExtra::from);
+        let extra_json = serde_json::to_string(&extra_tagged)
             .map_err(|e| format!("extra 序列化失败: {}", e))?;
-        let tracks_json = serde_json::to_string(&sport.tracks)
+        let db_tracks: Vec<DbSportTrack> = sport.tracks.clone().into_iter().map(DbSportTrack::from).collect();
+        let tracks_json = serde_json::to_string(&db_tracks)
             .map_err(|e| format!("tracks 序列化失败: {}", e))?;
 
         let conn = self.get_conn()?;
@@ -142,8 +144,10 @@ impl SportDao for SqliteImpl {
                 "#,
             ).map_err(|e| format!("预编译失败: {}", e))?;
             for sport in sports {
-                let extra_json = serde_json::to_string(&sport.extra).map_err(|e| e.to_string())?;
-                let tracks_json = serde_json::to_string(&sport.tracks).map_err(|e| e.to_string())?;
+                let extra_tagged = sport.extra.clone().map(DbSportExtra::from);
+                let extra_json = serde_json::to_string(&extra_tagged).map_err(|e| e.to_string())?;
+                let db_tracks: Vec<DbSportTrack> = sport.tracks.clone().into_iter().map(DbSportTrack::from).collect();
+                let tracks_json = serde_json::to_string(&db_tracks).map_err(|e| e.to_string())?;
                 stmt.execute(params![
                     uid,
                     sport.r#type.as_str(),
@@ -196,8 +200,8 @@ impl SportDao for SqliteImpl {
                 let extra_json: String = row.get(9).unwrap_or_else(|_| "{}".to_string());
                 let tracks_json: String = row.get(10).unwrap_or_else(|_| "[]".to_string());
 
-                let extra: Swimming = serde_json::from_str(&extra_json).unwrap_or_default();
-                let tracks: Vec<Track> = serde_json::from_str(&tracks_json).unwrap_or_default();
+                let extra: Option<SportExtra> = parse_extra_compat(&extra_json);
+                let tracks: Vec<Track> = parse_tracks_compat(&tracks_json);
 
                 Ok(Sport {
                     id,
@@ -250,8 +254,8 @@ impl SportDao for SqliteImpl {
                 let extra_json: String = row.get(9).unwrap_or_else(|_| "{}".to_string());
                 let tracks_json: String = row.get(10).unwrap_or_else(|_| "[]".to_string());
 
-                let extra: Swimming = serde_json::from_str(&extra_json).unwrap_or_default();
-                let tracks: Vec<Track> = serde_json::from_str(&tracks_json).unwrap_or_default();
+                let extra: Option<SportExtra> = parse_extra_compat(&extra_json);
+                let tracks: Vec<Track> = parse_tracks_compat(&tracks_json);
 
                 Ok(Sport {
                     id,
@@ -278,9 +282,11 @@ impl SportDao for SqliteImpl {
 
     async fn update(&self, uid: i32, sport: Sport) -> Result<(), String> {
         if sport.id <= 0 { return Err("invalid sport id".to_string()); }
-        let extra_json = serde_json::to_string(&sport.extra)
+        let extra_tagged = sport.extra.clone().map(DbSportExtra::from);
+        let extra_json = serde_json::to_string(&extra_tagged)
             .map_err(|e| format!("extra 序列化失败: {}", e))?;
-        let tracks_json = serde_json::to_string(&sport.tracks)
+        let db_tracks: Vec<DbSportTrack> = sport.tracks.clone().into_iter().map(DbSportTrack::from).collect();
+        let tracks_json = serde_json::to_string(&db_tracks)
             .map_err(|e| format!("tracks 序列化失败: {}", e))?;
         let conn = self.get_conn()?;
         let affected = conn
@@ -358,8 +364,8 @@ impl SportDao for SqliteImpl {
             let extra_json: String = row.get(9).unwrap_or_else(|_| "{}".to_string());
             let tracks_json: String = row.get(10).unwrap_or_else(|_| "[]".to_string());
 
-            let extra: Swimming = serde_json::from_str(&extra_json).unwrap_or_default();
-            let tracks: Vec<Track> = serde_json::from_str(&tracks_json).unwrap_or_default();
+            let extra: Option<SportExtra> = parse_extra_compat(&extra_json);
+            let tracks: Vec<Track> = parse_tracks_compat(&tracks_json);
 
             Ok(Some(Sport {
                 id,
@@ -411,8 +417,8 @@ impl SportDao for SqliteImpl {
             let extra_json: String = row.get(9).unwrap_or_else(|_| "{}".to_string());
             let tracks_json: String = row.get(10).unwrap_or_else(|_| "[]".to_string());
 
-            let extra: Swimming = serde_json::from_str(&extra_json).unwrap_or_default();
-            let tracks: Vec<Track> = serde_json::from_str(&tracks_json).unwrap_or_default();
+            let extra: Option<SportExtra> = parse_extra_compat(&extra_json);
+            let tracks: Vec<Track> = parse_tracks_compat(&tracks_json);
 
             Ok(Some(Sport {
                 id,
@@ -431,6 +437,24 @@ impl SportDao for SqliteImpl {
             Ok(None)
         }
     }
+}
+
+fn parse_extra_compat(extra_json: &str) -> Option<SportExtra> {
+    if extra_json.trim().is_empty() { return None; }
+    serde_json::from_str::<Option<DbSportExtra>>(extra_json)
+        .map(|o| o.map(SportExtra::from))
+        .or_else(|_| serde_json::from_str::<Swimming>(extra_json).map(|s| Some(SportExtra::Swimming(s))))
+        .or_else(|_| serde_json::from_str::<Running>(extra_json).map(|r| Some(SportExtra::Running(r))))
+        .ok()
+        .flatten()
+}
+
+fn parse_tracks_compat(tracks_json: &str) -> Vec<Track> {
+    if tracks_json.trim().is_empty() { return Vec::new(); }
+    serde_json::from_str::<Vec<DbSportTrack>>(tracks_json)
+        .map(|v| v.into_iter().map(Track::from).collect())
+        .or_else(|_| serde_json::from_str::<Vec<Track>>(tracks_json))
+        .unwrap_or_default()
 }
 
 #[async_trait]
