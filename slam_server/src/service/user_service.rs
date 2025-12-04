@@ -39,7 +39,7 @@ impl UserService {
         let mut buf = pwd.as_bytes().to_vec();
         let block_size = 16;
         let pad_len = block_size - (buf.len() % block_size);
-        buf.extend(std::iter::repeat(0u8).take(pad_len));
+        buf.extend(std::iter::repeat_n(0u8, pad_len));
         let ct = enc.encrypt_padded_mut::<Pkcs7>(&mut buf, pwd.len()).unwrap();
         BASE64_ENGINE.encode(ct)
     }
