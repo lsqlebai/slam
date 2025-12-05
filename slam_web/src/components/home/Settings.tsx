@@ -20,7 +20,7 @@ import ResponsiveButton from '../common/ResponsiveButton';
 import AvatarEditor from './AvatarEditor';
 
 export default function Settings({ lang }: { lang: Lang }) {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -110,9 +110,6 @@ export default function Settings({ lang }: { lang: Lang }) {
               }
               setEditorUrl(null);
               showSuccess('头像已更新');
-            } catch (err: unknown) {
-              const msg = err instanceof Error ? err.message : String(err);
-              showError(msg || '上传失败');
             } finally {
               setAvatarUploading(false);
             }
@@ -130,17 +127,12 @@ export default function Settings({ lang }: { lang: Lang }) {
             onChange={async e => {
               const f = e.target.files?.[0];
               if (!f) return;
+              setUploading(true);
               try {
-                setUploading(true);
                 const ok = await importSportsCsv(f, 'xiaomi');
                 if (ok) {
                   showSuccess('上传成功');
-                } else {
-                  showError('上传失败');
                 }
-              } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : String(err);
-                showError(msg || '上传失败');
               } finally {
                 setUploading(false);
                 e.target.value = '';
@@ -229,17 +221,10 @@ export default function Settings({ lang }: { lang: Lang }) {
           variant="contained"
           color="error"
           onClick={async () => {
-            try {
-              const ok = await logout();
-              if (ok) {
-                showSuccess(TEXTS[lang].home.logout);
-                navigate('/login');
-              } else {
-                showError('退出失败');
-              }
-            } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : String(e);
-              showError(msg || '退出失败');
+            const ok = await logout();
+            if (ok) {
+              showSuccess(TEXTS[lang].home.logout);
+              navigate('/login');
             }
           }}
         >

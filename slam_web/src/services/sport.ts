@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { emitError } from '../utils/notify';
 import { http } from './http';
 
 export type Swimming = {
@@ -28,7 +30,10 @@ export type Sport = {
 };
 
 export async function listSports(page = 0, size = 20): Promise<Sport[]> {
-  const res = await http.get('/sport/list', { params: { page, size } });
+  const res = await http.get('/sport/list', {
+    params: { page, size },
+    headers: { 'X-Silent-Error': '1' },
+  });
   return Array.isArray(res.data) ? res.data : [];
 }
 
@@ -43,7 +48,19 @@ export type AIResponse<T> = {
 export async function recognizeImages(
   formData: FormData,
 ): Promise<AIResponse<Sport>> {
-  const res = await http.post('/ai/image-parse', formData, {
+  const requesst = formData;
+  // if (Capacitor.getPlatform() === 'android' && Capacitor.isNativePlatform()) {
+  //   const tmpFormData: FormData = new FormData();
+  //   formData.forEach((value, key) => {
+  //     if (key === 'image') {
+  //       tmpFormData.append('base64', value);
+  //     } else {
+  //       tmpFormData.append(key, value);
+  //     }
+  //   });
+  //   requesst = tmpFormData;
+  // }
+  const res = await http.post('/ai/image-parse', requesst, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 300_000,
   });
@@ -52,20 +69,29 @@ export async function recognizeImages(
 
 export async function insertSport(sport: Sport): Promise<boolean> {
   const res = await http.post('/sport/insert', sport);
-  const data = res.data as { success?: boolean };
-  return !!data?.success;
+  const data = res.data as { success?: boolean; error?: string };
+  if (data?.success) return true;
+  const msg = String(data?.error || '提交失败');
+  emitError(msg);
+  throw new Error(msg);
 }
 
 export async function updateSport(sport: Sport): Promise<boolean> {
   const res = await http.post('/sport/update', sport);
-  const data = res.data as { success?: boolean };
-  return !!data?.success;
+  const data = res.data as { success?: boolean; error?: string };
+  if (data?.success) return true;
+  const msg = String(data?.error || '提交失败');
+  emitError(msg);
+  throw new Error(msg);
 }
 
 export async function deleteSport(id: number): Promise<boolean> {
   const res = await http.post('/sport/delete', { id });
-  const data = res.data as { success?: boolean };
-  return !!data?.success;
+  const data = res.data as { success?: boolean; error?: string };
+  if (data?.success) return true;
+  const msg = String(data?.error || '删除失败');
+  emitError(msg);
+  throw new Error(msg);
 }
 
 export async function importSportsCsv(
@@ -79,8 +105,11 @@ export async function importSportsCsv(
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 120_000,
   });
-  const data = res.data as { success?: boolean };
-  return !!data?.success;
+  const data = res.data as { success?: boolean; error?: string };
+  if (data?.success) return true;
+  const msg = String(data?.error || '上传失败');
+  emitError(msg);
+  throw new Error(msg);
 }
 
 export type StatBucket = {
@@ -117,6 +146,7 @@ export async function getSportStats(
   const res = await http.get('/sport/stats', {
     params: { kind, year, month, week },
     signal,
+    headers: { 'X-Silent-Error': '1' },
   });
   return res.data as StatSummary;
 }

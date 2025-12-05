@@ -4,7 +4,7 @@ import {
   LocalFireDepartment,
   Map as MapIcon,
 } from '@mui/icons-material';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper } from '@mui/material';
 import type { Lang } from '../../i18n';
 import { TEXTS } from '../../i18n';
 import SportField from '../common/SportField';

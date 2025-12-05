@@ -4,13 +4,12 @@ import {
   Box,
   Button,
   CircularProgress,
-  Container,
   Dialog,
   DialogContent,
   IconButton,
   Typography,
 } from '@mui/material';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import PageBase from '../../components/PageBase';
 import { useToast } from '../../components/PageBase';
 import ImagePickerCard from '../../components/common/ImagePickerCard';
@@ -26,7 +25,7 @@ function AddSportsInner() {
   const [recognizing, setRecognizing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { showError, showSuccess } = useToast();
+  const { showError } = useToast();
 
   const handleFilesSelected = (fs: FileList | null) => {
     if (!fs || fs.length === 0) return;
@@ -67,17 +66,9 @@ function AddSportsInner() {
         : 0;
       const aiToast =
         lang === 'zh'
-          ? `恭喜你AI识别成功，运动总消耗 ${calories} Kcal，有${segments}段分段数据哦`
+          ? `AI识别成功，运动总消耗 ${calories} Kcal，有${segments}段分段数据`
           : `AI recognition succeeded. Total calories ${calories} Kcal, with ${segments} segments.`;
       navigate('/sport/detail', { state: { sport: resp.data, aiToast } });
-    } catch (e: unknown) {
-      const raw = e instanceof Error ? e.message : String(e);
-      const isTimeout = /timeout|超时|ECONNABORTED/i.test(String(raw));
-      showError(
-        isTimeout
-          ? TEXTS[lang].addsports.aiTimeoutBusy
-          : raw || TEXTS[lang].addsports.aiFail,
-      );
     } finally {
       setRecognizing(false);
     }
@@ -87,8 +78,11 @@ function AddSportsInner() {
     <Box
       sx={{
         minHeight: '100dvh',
+        height: '100dvh',
         display: 'flex',
         flexDirection: 'column',
+        overflowX: 'hidden',
+        overflowY: 'hidden',
       }}
     >
       <PageHeader
@@ -98,16 +92,20 @@ function AddSportsInner() {
       <Box
         sx={{
           bgcolor: 'grey.50',
-          overflowX: { xs: 'visible', md: 'auto' },
+          overflowX: { xs: 'hidden', md: 'auto' },
+          overflowY: { xs: 'auto', md: 'hidden' },
+          //scrollbarWidth: 'none',
+          //'&::-webkit-scrollbar': { width: 0, height: 0 },
           py: 2,
+          pb: 'calc(env(safe-area-inset-bottom) + 92px)',
           flex: 1,
           display: 'flex',
           flexDirection: { xs: 'column', md: 'row' },
           gap: { xs: 1, md: 2 },
           alignItems: { md: 'stretch' },
-          width: { xs: '100%', md: 'max-content' },
+          width: { xs: '100%', md: '100%' },
           minWidth: { md: '100%' },
-          height: { md: '100%' },
+          minHeight: 0,
           px: { xs: 2, md: 2 },
         }}
       >
@@ -124,7 +122,8 @@ function AddSportsInner() {
               display: 'flex',
               justifyContent: 'center',
               position: 'relative',
-              maxHeight: { md: 800 },
+              maxHeight: { md: '100%' },
+              height: { xs: 512, md: '100%' },
               width: { xs: '100%', md: 512 },
               flex: { md: '0 0 auto' },
             }}
@@ -155,10 +154,10 @@ function AddSportsInner() {
               alt=""
               loading="lazy"
               sx={{
-                width: '100%',
-                height: 'auto',
+                width: { xs: '100%', md: '100%' },
+                height: { xs: '100%', md: '100%' },
+                objectFit: { xs: 'contain', md: 'contain' },
                 display: 'block',
-                maxHeight: { md: 800 },
               }}
             />
           </Box>
@@ -184,7 +183,15 @@ function AddSportsInner() {
           minHeight: 36,
         }}
       >
-        <Box sx={{ display: 'flex', gap: 2, width: '100%', maxWidth: 480 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            width: '100%',
+            maxWidth: 480,
+            mb: 'calc(env(safe-area-inset-bottom))',
+          }}
+        >
           <Button
             variant="outlined"
             startIcon={<Edit />}

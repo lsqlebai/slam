@@ -1,23 +1,11 @@
 import { useNavigate } from '@modern-js/runtime/router';
-import {
-  AccessTime,
-  Add,
-  AltRoute,
-  AvTimer,
-  BarChart,
-  DirectionsBike,
-  DirectionsRun,
-  DirectionsWalk,
-  HelpOutline,
-  LocalFireDepartment,
-  Pool,
-} from '@mui/icons-material';
+import { Add, BarChart } from '@mui/icons-material';
 import { Box, Card, CardContent, Fab, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Lang } from '../../i18n';
 import { type Sport, listSports } from '../../services/sport';
-import SportField from '../common/SportField';
+import SportCalendar from '../common/SportCalendar';
 import SportListTitle from '../common/SportListTitle';
 import SportList from '../sport/SportList';
 
@@ -37,7 +25,9 @@ export default function Sporting({ lang }: { lang: Lang }) {
       else setItems(prev => prev.concat(data));
       setHasMore(data.length >= 20);
       setPage(p);
+      return data;
     } catch {
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -76,89 +66,72 @@ export default function Sporting({ lang }: { lang: Lang }) {
     return keys.map(k => ({ key: k, month: k, list: byMonth[k] }));
   }, [items]);
 
-  const locale = lang === 'zh' ? 'zh-CN' : 'en-US';
-  const formatDate = (t: number) =>
-    new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(new Date(t * 1000));
-  const formatDateOnly = (t: number) =>
-    new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date(t * 1000));
-  const formatDurationHMS = (s: number) => {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(h)}:${pad(m)}:${pad(sec)}`;
-  };
-  const km = (m: number) => (m / 1000).toFixed(2);
-
-  const IconFor = (t: string) => {
-    const key = t.toLowerCase();
-    if (key.includes('run')) return <DirectionsRun />;
-    if (key.includes('swim')) return <Pool />;
-    if (key.includes('bike') || key.includes('cycle'))
-      return <DirectionsBike />;
-    if (key.includes('walk') || key.includes('hike')) return <DirectionsWalk />;
-    if (key.includes('unknown')) return <HelpOutline />;
-    return <HelpOutline />;
-  };
-  const TypeLabelFor = (t: string) => {
-    const key = t.toLowerCase();
-    if (key.includes('swim')) return TEXTS[lang].addsports.optSwimming;
-    if (key.includes('run')) return TEXTS[lang].addsports.optRunning;
-    if (key.includes('bike') || key.includes('cycl'))
-      return TEXTS[lang].addsports.optCycling;
-    if (key.includes('unknown')) return TEXTS[lang].addsports.optUnknown;
-    return t;
-  };
-
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const monthTitle = new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'long',
-  }).format(now);
-  const firstDay = new Date(year, month, 1);
-  const startOffset = (firstDay.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const mondayThisWeek = new Date(now);
-  mondayThisWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  const weekdayLabels = Array.from({ length: 7 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(
-      new Date(
-        mondayThisWeek.getFullYear(),
-        mondayThisWeek.getMonth(),
-        mondayThisWeek.getDate() + i,
-      ),
-    ),
-  );
-  const blankKeys = useMemo(
-    () =>
-      Array.from({ length: startOffset }, (_, i) =>
-        new Date(year, month, 1 - (startOffset - i)).toISOString(),
-      ),
-    [startOffset, year, month],
-  );
+  const [displayYear, setDisplayYear] = useState(now.getFullYear());
+  const [displayMonth, setDisplayMonth] = useState(now.getMonth());
+  const prevYear = displayMonth === 0 ? displayYear - 1 : displayYear;
+  const prevMonth = displayMonth === 0 ? 11 : displayMonth - 1;
+  const isNowMonth =
+    displayYear === now.getFullYear() && displayMonth === now.getMonth();
+  const hasPrevInItems = useMemo(() => {
+    for (const it of items) {
+      const d = new Date(it.start_time * 1000);
+      if (d.getFullYear() === prevYear && d.getMonth() === prevMonth)
+        return true;
+    }
+    return false;
+  }, [items, prevYear, prevMonth]);
+  const disablePrev = !hasPrevInItems && !hasMore;
+  const disableNext = isNowMonth;
+  const handlePrev = useCallback(async () => {
+    if (loading) return;
+    const py = prevYear;
+    const pm = prevMonth;
+    const hasPrev = hasPrevInItems;
+    if (hasPrev) {
+      setDisplayYear(py);
+      setDisplayMonth(pm);
+      return;
+    }
+    if (hasMore) {
+      const data = await loadPage(page + 1);
+      const merged = items.concat(data ?? []);
+      const found = merged.some(it => {
+        const d = new Date(it.start_time * 1000);
+        return d.getFullYear() === py && d.getMonth() === pm;
+      });
+      if (found) {
+        setDisplayYear(py);
+        setDisplayMonth(pm);
+      }
+    }
+  }, [
+    hasPrevInItems,
+    hasMore,
+    loadPage,
+    page,
+    items,
+    prevYear,
+    prevMonth,
+    loading,
+  ]);
+  const handleNext = useCallback(() => {
+    if (disableNext) return;
+    const ny = displayMonth === 11 ? displayYear + 1 : displayYear;
+    const nm = displayMonth === 11 ? 0 : displayMonth + 1;
+    setDisplayYear(ny);
+    setDisplayMonth(nm);
+  }, [disableNext, displayMonth, displayYear]);
   const activeDays = useMemo(() => {
     const s = new Set<number>();
     for (const it of items) {
       const d = new Date(it.start_time * 1000);
-      if (d.getFullYear() === year && d.getMonth() === month) {
+      if (d.getFullYear() === displayYear && d.getMonth() === displayMonth) {
         s.add(d.getDate());
       }
     }
     return s;
-  }, [items, year, month]);
+  }, [items, displayYear, displayMonth]);
 
   return (
     <Box sx={{ px: 0, py: 0 }}>
@@ -171,98 +144,16 @@ export default function Sporting({ lang }: { lang: Lang }) {
             alignItems: 'stretch',
           }}
         >
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor: '#fff',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-              maxWidth: 500,
-              width: { xs: '100%', sm: 500, md: 500 },
-              mx: { xs: 'auto', sm: 'auto', md: 'auto', lg: 0 },
-              alignSelf: {
-                xs: 'center',
-                sm: 'center',
-                md: 'stretch',
-                lg: 'stretch',
-              },
-            }}
-          >
-            <Stack
-              direction="row"
-              justifyContent="center"
-              alignItems="center"
-              spacing={0.75}
-              sx={{ mb: 1 }}
-            >
-              <LocalFireDepartment
-                sx={{
-                  color: 'primary.main',
-                  fontSize: { xs: 18, sm: 20, md: 22, lg: 24, xl: 26 },
-                }}
-              />
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                {monthTitle}
-              </Typography>
-              <LocalFireDepartment
-                sx={{
-                  color: 'primary.main',
-                  fontSize: { xs: 18, sm: 20, md: 22, lg: 24, xl: 26 },
-                }}
-              />
-            </Stack>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(7, 1fr)',
-                gap: 1,
-              }}
-            >
-              {weekdayLabels.map(w => (
-                <Typography
-                  key={w}
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ textAlign: 'center', fontWeight: 600 }}
-                >
-                  {w}
-                </Typography>
-              ))}
-            </Box>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(7, 1fr)',
-                gap: 0.75,
-                mt: 1,
-              }}
-            >
-              {blankKeys.map(k => (
-                <Box key={k} />
-              ))}
-              {Array.from({ length: daysInMonth }, (_, i) => {
-                const day = i + 1;
-                const isActive = activeDays.has(day);
-                return (
-                  <Box
-                    key={`day-${day}`}
-                    sx={{
-                      height: 32,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: 1,
-                      bgcolor: isActive ? 'primary.light' : 'transparent',
-                      color: 'text.primary',
-                      fontWeight: isActive ? 600 : 500,
-                    }}
-                  >
-                    <Typography variant="body2">{day}</Typography>
-                  </Box>
-                );
-              })}
-            </Box>
-          </Box>
+          <SportCalendar
+            year={displayYear}
+            month={displayMonth}
+            lang={lang}
+            activeDays={activeDays}
+            disablePrev={disablePrev}
+            disableNext={disableNext}
+            onPrev={handlePrev}
+            onNext={handleNext}
+          />
           <Card
             onClick={() => navigate('/addsports')}
             sx={{

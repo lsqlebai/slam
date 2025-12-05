@@ -1,6 +1,14 @@
+import { Helmet } from '@modern-js/runtime/head';
 import { Alert, Snackbar } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { createContext, useContext, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+import { onError } from '../utils/notify';
 
 type Severity = 'success' | 'error' | 'info' | 'warning';
 
@@ -25,11 +33,16 @@ export default function PageBase({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState('');
   const [severity, setSeverity] = useState<Severity>('info');
 
-  const show = (msg: string, s: Severity = 'info') => {
+  const show = useCallback((msg: string, s: Severity = 'info') => {
     setMessage(msg);
     setSeverity(s);
     setOpen(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    const off = onError(m => show(m, 'error'));
+    return () => off();
+  }, [show]);
 
   const handleClose = (
     _event?: React.SyntheticEvent | Event,
@@ -47,6 +60,12 @@ export default function PageBase({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastContext.Provider value={value}>
+      <Helmet>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+      </Helmet>
       {children}
       <Snackbar
         key={`${severity}-${message}`}

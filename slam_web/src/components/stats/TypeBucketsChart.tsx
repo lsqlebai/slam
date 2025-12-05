@@ -12,11 +12,9 @@ import type { TypeBucket } from '../../services/sport';
 export default function TypeBucketsChart({
   lang,
   buckets,
-  barMaxWidth,
 }: {
   lang: Lang;
   buckets: TypeBucket[];
-  barMaxWidth?: number;
 }) {
   const dataset = buckets.map(b => ({
     label: typeLabelFor(lang, b.type),
@@ -126,11 +124,7 @@ export default function TypeBucketsChart({
           series={[
             {
               dataKey: 'calories',
-              valueFormatter: (v: number | null, ctx?: unknown) => {
-                const dataIndex = (ctx as { dataIndex?: number } | undefined)
-                  ?.dataIndex;
-                const idx = (dataIndex ?? -1) as number;
-                const it = dataset[idx];
+              valueFormatter: (v: number | null) => {
                 const val = v ?? 0;
                 return `${val} Kcal`;
               },

@@ -84,18 +84,11 @@ function SubmitInner() {
   };
 
   const handleSubmit = async () => {
-    try {
-      const ok =
-        sport.id > 0 ? await updateSport(sport) : await insertSport(sport);
-      if (ok) {
-        showSuccess(TEXTS[lang].addsports.submitSuccess);
-        navigate('/');
-      } else {
-        showError(TEXTS[lang].addsports.submitFail);
-      }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      showError(msg || TEXTS[lang].addsports.submitFail);
+    const ok =
+      sport.id > 0 ? await updateSport(sport) : await insertSport(sport);
+    if (ok) {
+      showSuccess(TEXTS[lang].addsports.submitSuccess);
+      navigate('/');
     }
   };
 
@@ -121,12 +114,7 @@ function SubmitInner() {
       if (ok) {
         showSuccess(TEXTS[lang].addsports.deleteSuccess);
         navigate('/');
-      } else {
-        showError(TEXTS[lang].addsports.deleteFail);
       }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      showError(msg || TEXTS[lang].addsports.deleteFail);
     } finally {
       setDeleteDialogOpen(false);
     }

@@ -4,14 +4,11 @@ import { Settings, Visibility, VisibilityOff } from '@mui/icons-material';
 import {
   Box,
   Container,
-  FormControl,
   IconButton,
   InputAdornment,
-  InputLabel,
   Menu,
   MenuItem,
   Paper,
-  Select,
   Stack,
   Typography,
 } from '@mui/material';
@@ -47,17 +44,10 @@ function RegisterInner() {
       showError(TEXTS[lang].register.errorMismatch);
       return;
     }
-    try {
-      const ok = await registerRequest(username, password, nickname);
-      if (ok) {
-        showSuccess(TEXTS[lang].register.success);
-        navigate('/');
-      } else {
-        showError('注册失败');
-      }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      showError(msg || '注册失败');
+    const ok = await registerRequest(username, password, nickname);
+    if (ok) {
+      showSuccess(TEXTS[lang].register.success);
+      navigate('/');
     }
   };
 

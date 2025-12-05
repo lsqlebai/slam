@@ -35,3 +35,20 @@ export const fromHMS = (v: string): number => {
   const [hh, mm, ss] = [parts[0] || 0, parts[1] || 0, parts[2] || 0];
   return hh * 3600 + mm * 60 + ss;
 };
+
+export const toLocaleDateTime = (s: number, locale: string): string =>
+  new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(s * 1000));
+
+export const toLocaleDate = (s: number, locale: string): string =>
+  new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(s * 1000));

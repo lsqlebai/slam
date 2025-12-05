@@ -10,7 +10,7 @@ import {
   LocalFireDepartment,
   Pool,
 } from '@mui/icons-material';
-import { Box, Card, CardContent, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Stack } from '@mui/material';
 import type { Lang } from '../../i18n';
 import { TEXTS } from '../../i18n';
 import type { Sport } from '../../services/sport';
@@ -27,13 +27,6 @@ export default function SportList({
 }) {
   const navigate = useNavigate();
 
-  const locale = lang === 'zh' ? 'zh-CN' : 'en-US';
-  const formatDateOnly = (t: number) =>
-    new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date(t * 1000));
   const formatDurationHMS = (s: number) => {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);

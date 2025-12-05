@@ -51,8 +51,6 @@ function HomeInner() {
     return TEXTS[lang].home.settings;
   })();
 
-  const [scrolling] = useState(false);
-
   const content = (
     <Box
       className={'scroll-auto'}
@@ -85,10 +83,6 @@ function HomeInner() {
     >
       <Helmet>
         <title>{TEXTS[lang].home.headTitle}</title>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover"
-        />
       </Helmet>
       <HomeHeader
         title={title}

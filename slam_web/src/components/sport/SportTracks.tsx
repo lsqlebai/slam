@@ -32,7 +32,7 @@ export default function SportTracks({
   readonly: boolean;
   update: (patch: Partial<Sport>) => void;
 }) {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
   const addsports = TEXTS[lang].addsports as (typeof TEXTS)['zh']['addsports'];
   const noTracksText = addsports.noTracksData;
   const defaultTrack: Track = {
@@ -112,22 +112,15 @@ export default function SportTracks({
                     (_, i) => i !== delIdx,
                   );
                   const nextSport = { ...sport, tracks: nextTracks } as Sport;
-                  try {
-                    if (nextSport.id && nextSport.id > 0) {
-                      const ok = await updateSport(nextSport);
-                      if (ok) {
-                        update({ tracks: nextTracks });
-                        showSuccess(TEXTS[lang].addsports.deleteSuccess);
-                      } else {
-                        showError(TEXTS[lang].addsports.deleteFail);
-                      }
-                    } else {
+                  if (nextSport.id && nextSport.id > 0) {
+                    const ok = await updateSport(nextSport);
+                    if (ok) {
                       update({ tracks: nextTracks });
                       showSuccess(TEXTS[lang].addsports.deleteSuccess);
                     }
-                  } catch (e: unknown) {
-                    const msg = e instanceof Error ? e.message : String(e);
-                    showError(msg || TEXTS[lang].addsports.deleteFail);
+                  } else {
+                    update({ tracks: nextTracks });
+                    showSuccess(TEXTS[lang].addsports.deleteSuccess);
                   }
                 }}
               />

@@ -33,17 +33,10 @@ function LoginInner() {
       showError('请填写用户名和密码');
       return;
     }
-    try {
-      const ok = await loginRequest(username, password);
-      if (ok) {
-        showSuccess('登录成功');
-        navigate('/');
-      } else {
-        showError('登录失败');
-      }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      showError(msg || '登录失败');
+    const ok = await loginRequest(username, password);
+    if (ok) {
+      showSuccess('登录成功');
+      navigate('/');
     }
   };
 

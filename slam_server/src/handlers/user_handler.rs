@@ -25,7 +25,7 @@ pub fn token_response(app: &AppState, uid: i32) -> axum::response::Response {
     match app.jwt.create_token(uid) {
         Ok(token) => {
             let mut resp = HandlerResponse::Success(UserActionResponse { success: true }).into_response();
-            if let Ok(val) = HeaderValue::from_str(&format!("slam={}; Path=/; HttpOnly; SameSite=Lax", token)) {
+            if let Ok(val) = HeaderValue::from_str(&format!("slam={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000", token)) {
                 resp.headers_mut().append(SET_COOKIE, val);
             }
             resp
