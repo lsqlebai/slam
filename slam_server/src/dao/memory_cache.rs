@@ -12,6 +12,10 @@ impl<T: Clone + Send + Sync + 'static, K: Eq + Hash + Clone + Send + Sync + 'sta
     pub fn new() -> Self { Self { inner: RwLock::new(HashMap::new()) } }
 }
 
+impl<T: Clone + Send + Sync + 'static, K: Eq + Hash + Clone + Send + Sync + 'static> Default for MemoryResultCache<T, K> {
+    fn default() -> Self { Self::new() }
+}
+
 #[async_trait]
 impl<T: Clone + Send + Sync + 'static, K: Eq + Hash + Clone + Send + Sync + 'static> ResultCache<T, K> for MemoryResultCache<T, K> {
     async fn get(&self, key: K) -> Option<T> {

@@ -202,9 +202,9 @@ impl LLM {
 
         // 7) Try to extract the assistant's message text (best-effort across common shapes)
         if let Some(extracted) = Self::extract_text_from_response(&v) {
-            return Ok(extracted);
+            Ok(extracted)
         } else {
-            return Err(Box::new(LLMError::InternalError("\n(No recognizable message text field found; see full JSON above.)\n".to_string())));
+            Err(Box::new(LLMError::InternalError("\n(No recognizable message text field found; see full JSON above.)\n".to_string())))
         }
     }
 }

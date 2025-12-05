@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 use crate::dao::idl::SportDao;
 use crate::dao::cache::ResultCache;
 use crate::handlers::jwt::Context;
-use crate::model::sport::{Sport, SportType};
+use crate::model::sport::{Sport, SportType, SportExtra};
 use crate::service::common::ServiceError;
 
 pub struct SportService {
@@ -312,7 +312,7 @@ fn group_by_key(items: Vec<Sport>, key: impl Fn(&DateTime<Utc>) -> u32) -> Vec<S
         entry.duration += sport.duration_second;
         entry.calories += sport.calories;
     }
-    let mut v: Vec<StatBucket> = acc.into_iter().map(|(_, b)| b).collect();
+    let mut v: Vec<StatBucket> = acc.into_values().collect();
     v.sort_by_key(|b| b.date);
     v
 }
@@ -434,11 +434,11 @@ impl VendorFileParser for XiaomiParser {
                 heart_rate_avg: 0,
                 heart_rate_max: 0,
                 pace_average: String::new(),
-                extra: crate::model::sport::Swimming {
+                extra: Some(SportExtra::Swimming(crate::model::sport::Swimming { 
                     main_stroke: main_stroke.to_string(),
                     stroke_avg,
                     swolf_avg,
-                },
+                })),
                 tracks: vec![],
             };
             res.push(sport);

@@ -20,12 +20,12 @@ impl ImageService {
     /// 图片切割功能：递归切割图片，确保最终所有图片的宽高都不超过指定阈值
     pub fn split_image(&self, img: DynamicImage, threshold: u32) -> Vec<DynamicImage> {
         let mut result = Vec::new();
-        self.split_image_recursive(img, threshold, &mut result);
+        Self::split_image_recursive(img, threshold, &mut result);
         result
     }
     
     /// 递归辅助函数，用于切割单个图片直到满足尺寸要求
-    fn split_image_recursive(&self, mut img: DynamicImage, threshold: u32, result: &mut Vec<DynamicImage>) {
+    fn split_image_recursive(mut img: DynamicImage, threshold: u32, result: &mut Vec<DynamicImage>) {
         let (width, height) = img.dimensions();
         
         // 终止条件：如果宽和高都小于等于阈值，直接添加到结果中
@@ -42,8 +42,8 @@ impl ImageService {
             let right_part = img.crop(mid_width, 0, width - mid_width, height);
             
             // 递归处理切割后的两部分
-            self.split_image_recursive(left_part, threshold, result);
-            self.split_image_recursive(right_part, threshold, result);
+            Self::split_image_recursive(left_part, threshold, result);
+            Self::split_image_recursive(right_part, threshold, result);
         } else if height > threshold {
             // 垂直切割（高大于阈值）
             let mid_height = height / 2;
@@ -51,8 +51,8 @@ impl ImageService {
             let bottom_part = img.crop(0, mid_height, width, height - mid_height);
             
             // 递归处理切割后的两部分
-            self.split_image_recursive(top_part, threshold, result);
-            self.split_image_recursive(bottom_part, threshold, result);
+            Self::split_image_recursive(top_part, threshold, result);
+            Self::split_image_recursive(bottom_part, threshold, result);
         } else {
             // 其他情况，直接添加到结果中
             result.push(img);
@@ -82,16 +82,16 @@ impl ImageService {
 
         let base64_data: Vec<String> = split_imgs.iter().map(|img| self.image_to_base64(img.clone())).collect::<Result<Vec<_>, _>>()?;
         // 转换为base64
-        if base64_data.len() > 0 {            
+        if !base64_data.is_empty() {            
             // 返回响应
             Ok(ImageProcessResponse {
                 base64_data
             })
         } else {
-            return Err(ServiceError {
+            Err(ServiceError {
                 code: 500,
-                message: format!("无法切割图片"),
-            });
+                message: "无法切割图片".to_string(),
+            })
         }
         
 
@@ -131,6 +131,8 @@ impl ImageService {
         Ok(format!("data:image/jpeg;base64,{}", encoded))
     }
 }
+
+impl Default for ImageService { fn default() -> Self { Self::new() } }
 
 // 图片处理请求结构
 #[derive(Debug, Serialize, Deserialize)]

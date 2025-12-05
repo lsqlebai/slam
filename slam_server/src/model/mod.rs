@@ -1,3 +1,5 @@
-// 导出运动相关数据结构
 pub mod sport;
+pub mod sport_runtime;
+pub mod sport_xml;
+pub mod sport_db;
 pub mod user;
