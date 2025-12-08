@@ -10,12 +10,12 @@ use crate::model;
 use crate::service::common;
 use crate::service::llm;
 use crate::service::llm::ChatCompletionRequest;
-use crate::service::llm::LLM;
+use crate::service::llm::{LLM, Doubao};
 use crate::model::sport::{Sport};
+use std::sync::Arc;
 // AI服务核心结构
 pub struct AIService {
-    /// 服务配置
-    llm: LLM,
+    llm: Arc<dyn LLM + Send + Sync>,
 }
 
 struct ImageParser {}
@@ -63,8 +63,8 @@ impl ImageParser {
 
 // AI服务实现
 impl AIService {
-    /// 创建新的AI服务实例
-    pub fn new() -> Self { Self { llm: LLM::doubao() } }
+    pub fn new() -> Self { Self { llm: Arc::new(Doubao::new()) } }
+    pub fn with_llm(llm: Arc<dyn LLM + Send + Sync>) -> Self { Self { llm } }
 
     /// 生成文本内容
     pub async fn sports_image_recognition(
@@ -76,21 +76,25 @@ impl AIService {
         let chat_request = ImageParser::create_chat_completion_request(base64_data);
         println!("chat_request: {:?}", chat_request);
         let content = self.llm.chat(chat_request).await.map_err(|e| {
-            // A simple mapping for now. A more advanced implementation could inspect `e`
-            // to differentiate between network errors, auth errors, etc.
-            common::ServiceError {
-                code: 500,
-                message: e.to_string(),
+            let err_msg = e.to_string();
+            if let Ok(llm_err) = e.downcast::<llm::LLMError>() {
+                match *llm_err {
+                    llm::LLMError::LLMAuthenticationError(msg) => common::ServiceError { code: 502, message: msg },
+                    llm::LLMError::TimeoutError(msg) => common::ServiceError { code: 504, message: msg },
+                    llm::LLMError::ValidationError(msg) => common::ServiceError { code: 400, message: msg },
+                    llm::LLMError::APIFailure(msg) => common::ServiceError { code: 502, message: msg },
+                    llm::LLMError::InternalError(msg) => common::ServiceError { code: 500, message: msg },
+                    llm::LLMError::ConfigurationError(msg) => common::ServiceError { code: 500, message: msg },
+                }
+            } else {
+                common::ServiceError { code: 500, message: err_msg }
             }
         })?;
         println!("content: {:?}", content);
 
 
         let sport = Sport::parse_from_xml(&content)
-            .map_err(|e| common::ServiceError {
-                code: 500,
-                message: e.to_string(),
-            })?;            
+            .map_err(|e| common::ServiceError { code: 422, message: e.to_string() })?;            
         // 返回成功响应
         Ok(AIResponse {
             success: true,

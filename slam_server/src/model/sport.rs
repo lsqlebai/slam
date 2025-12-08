@@ -1,7 +1,7 @@
 use quick_xml::de as xml_de;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use chrono::{NaiveDate, NaiveDateTime, Local, TimeZone};
+use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default, rename = "sport")]
@@ -38,6 +38,32 @@ pub struct Swimming {
     pub swolf_avg: i32,
 }
 
+impl Swimming {
+    pub fn normalize(&mut self) {
+        self.main_stroke = self.main_stroke.trim().to_lowercase();
+        self.main_stroke = match self.main_stroke.as_str() {
+            // English values
+            "unknown" => "unknown",
+            "freestyle" => "freestyle",
+            "butterfly" => "butterfly",
+            "breaststroke" => "breaststroke",
+            "backstroke" => "backstroke",
+            "medley" => "medley",
+            "mixed" => "medley",
+            // Chinese values
+            "未知" => "unknown",
+            "自由泳" => "freestyle",
+            "蝶泳" => "butterfly",
+            "蛙泳" => "breaststroke",
+            "仰泳" => "backstroke",
+            "混合泳" => "medley",
+            _ => "unknown", // Default to unknown for any invalid values
+        }.to_string();
+    }
+}
+
+
+
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 pub struct Running {
     pub test: i32,
@@ -45,8 +71,12 @@ pub struct Running {
 
 impl Sport {
     pub fn parse_from_xml(xml: &str) -> Result<Sport, String> {
-        let data: SportXML = xml_de::from_str(xml).map_err(|e| format!("XML解析失败: {}", e))?;
+        let mut data: SportXML = xml_de::from_str(xml).map_err(|e| format!("XML解析失败: {}", e))?;
         let ts = parse_timestamp(&data.start_time)?;
+        data.extra.normalize();
+        for track in &mut data.tracks {
+            track.extra.normalize();
+        }
         Ok(Sport {
             id: 0,
             r#type: data.r#type,
@@ -257,17 +287,17 @@ pub struct SportXML {
 
 fn parse_timestamp(s: &str) -> Result<i64, String> {
     if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
-        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+        if let Some(dt) = Utc.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
     }
     if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M") {
-        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+        if let Some(dt) = Utc.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
     }
     if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H") {
-        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+        if let Some(dt) = Utc.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
     }
     if let Ok(nd) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
         let ndt = nd.and_hms_opt(0, 0, 0).unwrap();
-        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+        if let Some(dt) = Utc.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
     }
     Err("时间格式错误".to_string())
 }

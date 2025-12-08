@@ -1,13 +1,6 @@
 export const toInputDateTime = (s: number): string => {
   const d = new Date(s * 1000);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const y = d.getFullYear();
-  const m = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mm = pad(d.getMinutes());
-  const ss = pad(d.getSeconds());
-  return `${y}-${m}-${day}T${hh}:${mm}:${ss}`;
+  return d.toISOString().substring(0, 19);
 };
 
 export const toDisplayDateTime = (s: number): string =>

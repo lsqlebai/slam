@@ -12,6 +12,11 @@ use slam_server::app;
 use slam_server::app::routes;
 use slam_server::app::AppConfig;
 use chrono::{Utc, TimeZone, Datelike};
+use std::sync::{Arc, RwLock};
+use slam_server::service::ai_service::AIService;
+use slam_server::service::llm::LLM as LlmTrait;
+use slam_server::model::sport::SAMPLE_XML;
+use async_trait::async_trait;
 
 /// 通用的响应打印函数
 /// 打印指定接口的响应状态和响应体
@@ -727,7 +732,6 @@ async fn test_sport_stats_total() {
 #[tokio::test]
 async fn test_user_avatar_upload_and_get() {
     let mut app = app::create_app(AppConfig::default());
-
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -787,4 +791,99 @@ async fn test_user_avatar_upload_and_get() {
     let get_json: serde_json::Value = serde_json::from_slice(&get_bytes).unwrap();
     assert_eq!(get_json.get("nickname").unwrap().as_str().unwrap(), "AvatarUser");
     assert!(get_json.get("avatar").unwrap().as_str().unwrap().starts_with("data:image/jpeg;base64,"));
+}
+struct TestMockLLM {
+    result: RwLock<Result<String, slam_server::service::llm::LLMError>>,    
+}
+
+impl TestMockLLM {
+    fn new() -> Self { Self { result: RwLock::new(Ok(SAMPLE_XML.to_string())) } }
+    fn set_result(&self, r: Result<String, slam_server::service::llm::LLMError>) { *self.result.write().unwrap() = r; }
+}
+
+#[async_trait]
+impl LlmTrait for TestMockLLM {
+    async fn chat(&self, _request: slam_server::service::llm::ChatCompletionRequest) -> Result<String, Box<dyn std::error::Error>> {
+        match self.result.read().unwrap().clone() {
+            Ok(s) => Ok(s),
+            Err(e) => Err(Box::new(e)),
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_llm_mock_set_result_controls_response() {
+    let mock = Arc::new(TestMockLLM::new());
+    let svc = AIService::with_llm(mock.clone());
+    mock.set_result(Ok(SAMPLE_XML.to_string()));
+    let resp = svc.sports_image_recognition(vec![]).await.unwrap();
+    assert!(resp.success);
+    assert!(resp.data.is_some());
+    assert_eq!(resp.data.unwrap().r#type.as_str(), "Swimming");
+}
+
+#[tokio::test]
+async fn test_llm_error_timeout_maps_504() {
+    let mock = Arc::new(TestMockLLM::new());
+    let svc = AIService::with_llm(mock.clone());
+    mock.set_result(Err(slam_server::service::llm::LLMError::TimeoutError("timeout".to_string())));
+    let result = svc.sports_image_recognition(vec![]).await;
+    assert!(result.is_err());
+    let err = result.err().unwrap();
+    assert_eq!(err.code, 504);
+}
+
+#[tokio::test]
+async fn test_llm_error_api_failure_maps_502() {
+    let mock = Arc::new(TestMockLLM::new());
+    let svc = AIService::with_llm(mock.clone());
+    mock.set_result(Err(slam_server::service::llm::LLMError::APIFailure("api fail".to_string())));
+    let result = svc.sports_image_recognition(vec![]).await;
+    assert!(result.is_err());
+    let err = result.err().unwrap();
+    assert_eq!(err.code, 502);
+}
+
+#[tokio::test]
+async fn test_llm_error_auth_maps_502() {
+    let mock = Arc::new(TestMockLLM::new());
+    let svc = AIService::with_llm(mock.clone());
+    mock.set_result(Err(slam_server::service::llm::LLMError::LLMAuthenticationError("auth".to_string())));
+    let result = svc.sports_image_recognition(vec![]).await;
+    assert!(result.is_err());
+    let err = result.err().unwrap();
+    assert_eq!(err.code, 502);
+}
+
+#[tokio::test]
+async fn test_llm_error_validation_maps_400() {
+    let mock = Arc::new(TestMockLLM::new());
+    let svc = AIService::with_llm(mock.clone());
+    mock.set_result(Err(slam_server::service::llm::LLMError::ValidationError("validation".to_string())));
+    let result = svc.sports_image_recognition(vec![]).await;
+    assert!(result.is_err());
+    let err = result.err().unwrap();
+    assert_eq!(err.code, 400);
+}
+
+#[tokio::test]
+async fn test_llm_error_internal_maps_500() {
+    let mock = Arc::new(TestMockLLM::new());
+    let svc = AIService::with_llm(mock.clone());
+    mock.set_result(Err(slam_server::service::llm::LLMError::InternalError("internal".to_string())));
+    let result = svc.sports_image_recognition(vec![]).await;
+    assert!(result.is_err());
+    let err = result.err().unwrap();
+    assert_eq!(err.code, 500);
+}
+
+#[tokio::test]
+async fn test_llm_error_config_maps_500() {
+    let mock = Arc::new(TestMockLLM::new());
+    let svc = AIService::with_llm(mock.clone());
+    mock.set_result(Err(slam_server::service::llm::LLMError::ConfigurationError("config".to_string())));
+    let result = svc.sports_image_recognition(vec![]).await;
+    assert!(result.is_err());
+    let err = result.err().unwrap();
+    assert_eq!(err.code, 500);
 }
