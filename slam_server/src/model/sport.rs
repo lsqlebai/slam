@@ -1,7 +1,7 @@
 use quick_xml::de as xml_de;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::{ NaiveDate, NaiveDateTime, TimeZone, Utc};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default, rename = "sport")]

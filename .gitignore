@@ -5,3 +5,4 @@ deploy/dockerhub/.env
 slam_web/pnpm-lock.yaml
 deploy.zip
 scripts/
+slam_server/sport copy.db

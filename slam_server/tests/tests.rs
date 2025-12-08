@@ -147,3 +147,92 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
     assert_eq!(cfg.server.port, 3000);
     assert_eq!(cfg.ai.key, "");
 }
+
+// #[tokio::test]
+// async fn test_read_sports_in_batches_of_100() {
+//     use slam_server::dao::sqlite_impl::SqliteImpl;
+//     use slam_server::dao::idl::SportDao;
+//     use slam_server::config::AppConfig;
+    
+//     // Use the default database path from config
+//     let db_path = "./sport.db";
+    
+//     // Check if database file exists
+//     if !std::path::Path::new(db_path).exists() {
+//         println!("Database file {} does not exist, skipping test", db_path);
+//         return;
+//     }
+    
+//     let dao = SqliteImpl::new(db_path).await.expect("Failed to create DAO");
+//     let batch_size = 100;
+//     let mut page = 0;
+//     let mut total_sports = 0;
+//     let mut updated_sports = 0;
+//     const EIGHT_HOURS_IN_SECONDS: i64 = 8 * 3600; // 8 hours = 28800 seconds
+    
+//     println!("Reading sports data from {} in batches of {}", db_path, batch_size);
+//     println!("Will add 8 hours ({} seconds) to each sport's start_time and update database", EIGHT_HOURS_IN_SECONDS);
+    
+//     loop {
+//         // Read one batch of sports data (user ID 1 for testing)
+//         match dao.list(1, page, batch_size).await {
+//             Ok(sports) => {
+//                 let batch_count = sports.len();
+//                 if batch_count == 0 {
+//                     println!("No more data available at page {}", page);
+//                     break;
+//                 }
+                
+//                 total_sports += batch_count;
+//                 println!("Batch {}: {} sports (total so far: {})", page + 1, batch_count, total_sports);
+                
+//                 // Process each sport in the batch
+//                 for (i, mut sport) in sports.into_iter().enumerate() {
+//                     let original_time = sport.start_time;
+//                     sport.start_time -= EIGHT_HOURS_IN_SECONDS;
+                    
+//                     println!("  Sport {}: ID={}, Type={}, Start Time={} -> {} (added 8 hours), Calories={}, Distance={}m, Duration={}s",
+//                         i + 1,
+//                         sport.id,
+//                         sport.r#type.as_str(),
+//                         original_time,
+//                         sport.start_time,
+//                         sport.calories,
+//                         sport.distance_meter,
+//                         sport.duration_second
+//                     );
+                    
+//                     // Update the sport in the database
+//                     let id = sport.id;
+//                     match dao.update(1, sport).await {
+//                         Ok(_) => {
+//                             updated_sports += 1;
+//                             println!("    ✓ Updated sport ID {} successfully", id);
+
+//                         }
+//                         Err(e) => {
+//                             println!("    ✗ Failed to update sport ID {}: {}", id, e);
+//                         }
+//                     }
+//                 }
+                
+//                 // If we got less than batch_size, we've reached the end
+//                 if batch_count < batch_size as usize {
+//                     println!("Reached end of data (got {} < batch_size {})", batch_count, batch_size);
+//                     break;
+//                 }
+                
+//                 page += 1;
+//             }
+//             Err(e) => {
+//                 println!("Error reading batch {}: {}", page + 1, e);
+//                 break;
+//             }
+//         }
+//     }
+    
+//     println!("Total sports read: {}", total_sports);
+//     println!("Total sports updated: {}", updated_sports);
+//     assert!(total_sports >= 0, "Should have read some sports data");
+// }
+

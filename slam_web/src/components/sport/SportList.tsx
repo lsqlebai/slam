@@ -1,3 +1,4 @@
+import { toDisplayDateTime } from '@/utils/time';
 import { useNavigate } from '@modern-js/runtime/router';
 import {
   AccessTime,
@@ -33,17 +34,6 @@ export default function SportList({
     const sec = s % 60;
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${pad(h)}:${pad(m)}:${pad(sec)}`;
-  };
-  const formatDateTimeFull = (t: number) => {
-    const d = new Date(t * 1000);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const y = d.getFullYear();
-    const mo = pad(d.getMonth() + 1);
-    const da = pad(d.getDate());
-    const h = pad(d.getHours());
-    const mi = pad(d.getMinutes());
-    const s = pad(d.getSeconds());
-    return `${y}-${mo}-${da} ${h}:${mi}:${s}`;
   };
 
   const TypeLabelFor = (t: string) => {
@@ -148,7 +138,7 @@ export default function SportList({
                 >
                   <SportField
                     icon={<AccessTime />}
-                    value={formatDateTimeFull(s.start_time)}
+                    value={toDisplayDateTime(s.start_time)}
                     valueVariant="body2"
                     valueColor="text.secondary"
                     iconColor="text.secondary"
