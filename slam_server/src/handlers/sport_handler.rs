@@ -39,6 +39,9 @@ pub async fn insert_sport_handler(
     ctx: Context,
     Json(sport): Json<Sport>,
 ) -> axum::response::Response {
+    if let Err(e) = sport.validate_type_consistency() {
+        return HandlerResponse::<ActionResponse>::Error(e).into_response();
+    }
     match app.sport_service.insert(sport, &ctx).await {
         Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse { success: true }).into_response(),
         Err(e) => HandlerResponse::<ActionResponse>::Error(e.message).into_response(),
@@ -118,6 +121,9 @@ pub async fn update_sport_handler(
     Json(sport): Json<Sport>,
 ) -> axum::response::Response {
     if sport.id <= 0 { return HandlerResponse::<ActionResponse>::Error("invalid id".to_string()).into_response(); }
+    if let Err(e) = sport.validate_type_consistency() {
+        return HandlerResponse::<ActionResponse>::Error(e).into_response();
+    }
     match app.sport_service.update(sport, &ctx).await {
         Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse { success: true }).into_response(),
         Err(e) => HandlerResponse::<ActionResponse>::Error(e.message).into_response(),

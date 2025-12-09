@@ -89,6 +89,12 @@ impl SportService {
                 message: "no valid rows".to_string(),
             });
         }
+        // 校验类型一致性，发现不一致直接报错（避免错误数据入库）
+        for (i, s) in sports.iter().enumerate() {
+            if let Err(e) = s.validate_type_consistency() {
+                return Err(ServiceError { code: 400, message: format!("row {}: {}", i, e) });
+            }
+        }
         let mut years: std::collections::HashSet<i32> = std::collections::HashSet::new();
         for s in &sports { 
             if let Some(y) = DateTime::from_timestamp(s.start_time, 0).map(|dt| dt.year()) { years.insert(y); }
