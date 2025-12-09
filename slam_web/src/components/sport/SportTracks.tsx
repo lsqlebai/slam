@@ -1,25 +1,15 @@
 import { Add, Timeline } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Fab,
-  MenuItem,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Box, Fab, Paper, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Sport, Track } from '../../services/sport';
+import { getSportType, SportType } from '../../services/sport';
 import { updateSport } from '../../services/sport';
 import { fromHMS, toHMS } from '../../utils/time';
 import { useToast } from '../PageBase';
 import TrackItem from './TrackItem';
+import TrackDialog from './TrackDialog';
+import { getDefaultTrackByType } from './ExtraConfig';
 
 export default function SportTracks({
   lang,
@@ -35,12 +25,8 @@ export default function SportTracks({
   const { showSuccess } = useToast();
   const addsports = TEXTS[lang].addsports as (typeof TEXTS)['zh']['addsports'];
   const noTracksText = addsports.noTracksData;
-  const defaultTrack: Track = {
-    distance_meter: 0,
-    duration_second: 0,
-    pace_average: '0',
-    extra: { main_stroke: 'unknown', stroke_avg: 0, swolf_avg: 0 },
-  };
+  const sportTypeEnum = getSportType(sport.type);
+  const defaultTrack: Track = getDefaultTrackByType(sportTypeEnum);
   const [trackDialogOpen, setTrackDialogOpen] = useState(false);
   const [trackDraft, setTrackDraft] = useState<Track>(defaultTrack);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -97,11 +83,12 @@ export default function SportTracks({
           <Stack spacing={1}>
             {sport.tracks.map((t, idx) => (
               <TrackItem
-                key={`${idx}-${t.distance_meter}-${t.duration_second}-${t.pace_average}-${t.extra.main_stroke}`}
+                key={`${idx}-${t.distance_meter}-${t.duration_second}-${t.pace_average}`}
                 lang={lang}
                 idx={idx}
                 t={t}
                 readonly={readonly}
+                sportType={sport.type}
                 onEdit={() => {
                   setEditingIndex(idx);
                   setTrackDraft(sport.tracks[idx]);
@@ -128,159 +115,29 @@ export default function SportTracks({
           </Stack>
         )}
       </Paper>
-      <Dialog
+      <TrackDialog
+        lang={lang}
         open={trackDialogOpen}
-        onClose={() => {
+        trackDraft={trackDraft}
+        sportType={sportTypeEnum}
+        onChange={updateTrackDraft}
+        onCancel={() => {
           setTrackDialogOpen(false);
           setEditingIndex(null);
         }}
-        fullWidth
-        PaperProps={{ sx: { maxWidth: 440 } }}
-      >
-        <DialogTitle>{TEXTS[lang].addsports.submitTrackAdd}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField
-              variant="standard"
-              label={TEXTS[lang].addsports.submitDistanceLabel}
-              type="number"
-              value={
-                trackDraft.distance_meter === 0 ? '' : trackDraft.distance_meter
-              }
-              onChange={e =>
-                updateTrackDraft({
-                  distance_meter: Number.parseInt(e.target.value || '0'),
-                })
-              }
-              fullWidth
-            />
-            <TextField
-              variant="standard"
-              label={TEXTS[lang].addsports.submitDurationLabel}
-              type="time"
-              value={toHMS(trackDraft.duration_second)}
-              slotProps={{ htmlInput: { step: 1 } }}
-              onChange={e =>
-                updateTrackDraft({ duration_second: fromHMS(e.target.value) })
-              }
-              fullWidth
-            />
-            <TextField
-              variant="standard"
-              label={TEXTS[lang].addsports.submitPaceLabel}
-              value={trackDraft.pace_average}
-              onChange={e => updateTrackDraft({ pace_average: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              variant="standard"
-              select
-              label={TEXTS[lang].addsports.submitStrokeLabel}
-              value={trackDraft.extra.main_stroke}
-              onChange={e =>
-                updateTrackDraft({
-                  extra: { ...trackDraft.extra, main_stroke: e.target.value },
-                })
-              }
-              fullWidth
-            >
-              {[
-                {
-                  label: TEXTS[lang].addsports.strokeUnknown,
-                  value: 'unknown',
-                },
-                {
-                  label: TEXTS[lang].addsports.strokeFreestyle,
-                  value: 'freestyle',
-                },
-                {
-                  label: TEXTS[lang].addsports.strokeButterfly,
-                  value: 'butterfly',
-                },
-                {
-                  label: TEXTS[lang].addsports.strokeBreaststroke,
-                  value: 'breaststroke',
-                },
-                {
-                  label: TEXTS[lang].addsports.strokeBackstroke,
-                  value: 'backstroke',
-                },
-                { label: TEXTS[lang].addsports.strokeMedley, value: 'medley' },
-              ].map(opt => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              variant="standard"
-              label={TEXTS[lang].addsports.submitStrokeAvgLabel}
-              type="number"
-              value={
-                trackDraft.extra.stroke_avg === 0
-                  ? ''
-                  : trackDraft.extra.stroke_avg
-              }
-              onChange={e =>
-                updateTrackDraft({
-                  extra: {
-                    ...trackDraft.extra,
-                    stroke_avg: Number.parseInt(e.target.value || '0'),
-                  },
-                })
-              }
-              fullWidth
-            />
-            <TextField
-              variant="standard"
-              label={TEXTS[lang].addsports.submitSwolfAvgLabel}
-              type="number"
-              value={
-                trackDraft.extra.swolf_avg === 0
-                  ? ''
-                  : trackDraft.extra.swolf_avg
-              }
-              onChange={e =>
-                updateTrackDraft({
-                  extra: {
-                    ...trackDraft.extra,
-                    swolf_avg: Number.parseInt(e.target.value || '0'),
-                  },
-                })
-              }
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setTrackDialogOpen(false);
-              setEditingIndex(null);
-            }}
-          >
-            {TEXTS[lang].register.cancel}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              if (editingIndex !== null) {
-                const next = sport.tracks.slice();
-                next[editingIndex] = trackDraft;
-                update({ tracks: next });
-              } else {
-                update({ tracks: [...sport.tracks, trackDraft] });
-              }
-              setTrackDialogOpen(false);
-              setTrackDraft(defaultTrack);
-              setEditingIndex(null);
-            }}
-          >
-            {TEXTS[lang].addsports.submitButton}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onSubmit={() => {
+          if (editingIndex !== null) {
+            const next = sport.tracks.slice();
+            next[editingIndex] = trackDraft;
+            update({ tracks: next });
+          } else {
+            update({ tracks: [...sport.tracks, trackDraft] });
+          }
+          setTrackDialogOpen(false);
+          setTrackDraft(defaultTrack);
+          setEditingIndex(null);
+        }}
+      />
     </Stack>
   );
 }

@@ -18,12 +18,14 @@ import SportTracks from '../../../components/sport/SportTracks';
 import { TEXTS } from '../../../i18n';
 import {
   type Sport,
-  type Swimming,
+  type SportExtra,
   type Track,
   deleteSport,
   insertSport,
   updateSport,
+  getSportType,
 } from '../../../services/sport';
+import { getDefaultExtraByType } from '../../../components/sport/ExtraConfig';
 import { useLangStore } from '../../../stores/lang';
 // time utils are used inside child components
 
@@ -54,11 +56,7 @@ function SubmitInner() {
         heart_rate_avg: 0,
         heart_rate_max: 0,
         pace_average: '0',
-        extra: {
-          main_stroke: 'unknown',
-          stroke_avg: 0,
-          swolf_avg: 0,
-        } as Swimming,
+        extra: undefined,
         tracks: [] as Track[],
       },
   );
@@ -73,14 +71,23 @@ function SubmitInner() {
   }, [location.state, showSuccess, navigate, sport]);
 
   const update = (patch: Partial<Sport>) =>
-    setSport(prev => ({ ...prev, ...patch }));
-  const updateExtra = (patch: Partial<Swimming>) => {
-    const base = sport.extra ?? {
-      main_stroke: 'unknown',
-      stroke_avg: 0,
-      swolf_avg: 0,
-    };
-    update({ extra: { ...base, ...patch } });
+    setSport(prev => {
+      const next = { ...prev, ...patch } as Sport;
+      // 当类型发生变化时，重置 extra 与 tracks
+      if (patch.type && patch.type !== prev.type) {
+        const nextType = getSportType(patch.type);
+        const defaultExtra = getDefaultExtraByType(nextType);
+        next.extra = defaultExtra ?? undefined;
+        next.tracks = [] as Track[];
+      }
+      return next;
+    });
+  const updateExtra = (patch: Partial<SportExtra>) => {
+    const sportType = getSportType(sport.type);
+    const defaultExtra = getDefaultExtraByType(sportType);
+    if (!defaultExtra) return; // Unknown/Cycling 不设置 extra
+    const base = { ...defaultExtra, ...(sport.extra as any) } as SportExtra;
+    update({ extra: { ...(base as SportExtra), ...(patch as SportExtra) } });
   };
 
   const handleSubmit = async () => {

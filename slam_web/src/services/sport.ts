@@ -8,11 +8,24 @@ export type Swimming = {
   swolf_avg: number;
 };
 
+// 参考后端 `Running` 结构定义
+export type Running = {
+  speed_avg: number;
+  cadence_avg: number;
+  stride_length_avg: number;
+  steps_total: number;
+  pace_min: string;
+  pace_max: string;
+};
+
+// 与后端 `SportExtra` (serde untagged) 对齐：无显式类型标签的联合
+export type SportExtra = Swimming | Running;
+
 export type Track = {
   distance_meter: number;
   duration_second: number;
   pace_average: string;
-  extra: Swimming;
+  extra?: SportExtra;
 };
 
 export type Sport = {
@@ -25,9 +38,33 @@ export type Sport = {
   heart_rate_avg: number;
   heart_rate_max: number;
   pace_average: string;
-  extra: Swimming;
+  extra?: SportExtra;
   tracks: Track[];
 };
+
+// 运动类型枚举与判断（基于字符串）
+export enum SportType {
+  Unknown = 'Unknown',
+  Swimming = 'Swimming',
+  Running = 'Running',
+  Cycling = 'Cycling',
+}
+
+export function getSportType(typeOrSport: string | Sport | undefined): SportType {
+  const raw = typeof typeOrSport === 'string' ? typeOrSport : typeOrSport?.type;
+  const key = String(raw || '').toLowerCase();
+  if (key.includes('swim')) return SportType.Swimming;
+  if (key.includes('run')) return SportType.Running;
+  if (key.includes('cycle') || key.includes('bike')) return SportType.Cycling;
+  return SportType.Unknown;
+}
+
+export function isSwimmingType(type: string | undefined): boolean {
+  return getSportType(type) === SportType.Swimming;
+}
+export function isRunningType(type: string | undefined): boolean {
+  return getSportType(type) === SportType.Running;
+}
 
 export async function listSports(page = 0, size = 20): Promise<Sport[]> {
   const res = await http.get('/sport/list', {

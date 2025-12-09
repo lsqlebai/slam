@@ -11,12 +11,15 @@ import {
 import { useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Track as TrackType } from '../../services/sport';
+import { getSportType } from '../../services/sport';
+import { getExtraConfigByType, groupByLayout, makeUniformLayout, type FieldConfig } from './ExtraConfig';
 
 export default function TrackItem({
   lang,
   idx,
   t,
   readonly,
+  sportType,
   onEdit,
   onDelete,
 }: {
@@ -24,26 +27,15 @@ export default function TrackItem({
   idx: number;
   t: TrackType;
   readonly: boolean;
+  sportType?: string;
   onEdit: (idx: number) => void;
   onDelete: (idx: number) => void;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const strokeLabel = (v: string) => {
-    switch (v) {
-      case 'freestyle':
-        return TEXTS[lang].addsports.strokeFreestyle;
-      case 'butterfly':
-        return TEXTS[lang].addsports.strokeButterfly;
-      case 'breaststroke':
-        return TEXTS[lang].addsports.strokeBreaststroke;
-      case 'backstroke':
-        return TEXTS[lang].addsports.strokeBackstroke;
-      case 'medley':
-        return TEXTS[lang].addsports.strokeMedley;
-      default:
-        return TEXTS[lang].addsports.strokeUnknown;
-    }
-  };
+  const sportTypeEnum = getSportType(sportType);
+  const fields: FieldConfig[] = getExtraConfigByType(lang, sportTypeEnum);
+  const layout = makeUniformLayout(fields.length, 4);
+  const rows = groupByLayout(fields, layout);
 
   return (
     <Box
@@ -120,36 +112,35 @@ export default function TrackItem({
               {t.pace_average}
             </Typography>
           </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {TEXTS[lang].addsports.submitStrokeLabel}
-            </Typography>
-            <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
-              {strokeLabel(t.extra.main_stroke)}
-            </Typography>
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {TEXTS[lang].addsports.submitStrokeAvgLabel}
-            </Typography>
-            <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
-              {t.extra.stroke_avg}
-            </Typography>
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {TEXTS[lang].addsports.submitSwolfAvgLabel}
-            </Typography>
-            <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
-              {t.extra.swolf_avg}
-            </Typography>
-          </Box>
+          {rows.length > 0 && t.extra
+            ? rows
+                .flat()
+                .map(cfg => {
+                  const raw = (t.extra as any)?.[cfg.key];
+                  const value = raw ?? cfg.default;
+                  const display =
+                    cfg.kind === 'select' && cfg.options
+                      ? (cfg.options.find(o => o.value === value)?.label ?? value)
+                      : value;
+                  return (
+                    <Box key={`extra-${cfg.key}`} sx={{ minWidth: 0 }}>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {cfg.label}
+                      </Typography>
+                      <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+                        {String(display)}
+                      </Typography>
+                    </Box>
+                  );
+                })
+            : null}
           <Box
             sx={{
               minWidth: 0,
               display: 'flex',
               alignItems: 'flex-end',
-              justifyContent: 'center',
+              justifyContent: 'flex-end',
+              gridColumn: '4',
             }}
           >
             {readonly ? null : (
