@@ -45,7 +45,7 @@ async fn test_doubao_request() {
 
 #[tokio::test]
 async fn test_sqlite_insert_and_query_sport_from_sample_xml() {
-use slam_server::dao::sqlite_impl::SqliteImpl;
+use slam_server::dao::Repository;
     use slam_server::dao::idl::SportDao;
 use slam_server::model::sport::Sport;
 use slam_server::model::sport::SAMPLE_XML_SWIMMING;
@@ -55,7 +55,7 @@ use slam_server::model::sport::SAMPLE_XML_SWIMMING;
         let _ = std::fs::remove_file(db_path);
     }
     let sport = Sport::parse_from_xml(SAMPLE_XML_SWIMMING).expect("parse xml");
-    let dao = SqliteImpl::new(db_path).await.expect("dao new");
+let dao = Repository::new(db_path).await.expect("dao new");
     dao.insert(0, sport.clone()).await.expect("dao insert");
     let default_page = 0;
     let default_size = 20;
@@ -66,14 +66,14 @@ use slam_server::model::sport::SAMPLE_XML_SWIMMING;
 #[tokio::test]
 async fn test_sqlite_insert_and_query_running_from_sample_xml() {
     use std::path::Path;
-    use slam_server::dao::sqlite_impl::SqliteImpl;
+    use slam_server::dao::Repository;
     use slam_server::dao::idl::SportDao;
     use slam_server::model::sport::{Sport, SAMPLE_XML_RUNNING, SportType, SportExtra};
     let db_path = "tests/test.db";
     if Path::new(db_path).exists() { let _ = std::fs::remove_file(db_path); }
     let sport = Sport::parse_from_xml(SAMPLE_XML_RUNNING).expect("parse xml");
     assert_eq!(sport.r#type, SportType::Running);
-    let dao = SqliteImpl::new(db_path).await.expect("dao new");
+    let dao = Repository::new(db_path).await.expect("dao new");
     dao.insert(0, sport.clone()).await.expect("dao insert");
     let all = dao.list(0, 0, 20).await.expect("dao list");
     assert_eq!(all.len(), 1);
@@ -180,7 +180,7 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
 
 // #[tokio::test]
 // async fn test_read_sports_in_batches_of_100() {
-//     use slam_server::dao::sqlite_impl::SqliteImpl;
+//     use slam_server::dao::Repository;
 //     use slam_server::dao::idl::SportDao;
 //     use slam_server::config::AppConfig;
     
@@ -193,7 +193,7 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
 //         return;
 //     }
     
-//     let dao = SqliteImpl::new(db_path).await.expect("Failed to create DAO");
+//     let dao = Repository::new(db_path).await expect("Failed to create DAO");
 //     let batch_size = 100;
 //     let mut page = 0;
 //     let mut total_sports = 0;
@@ -265,4 +265,3 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
 //     println!("Total sports updated: {}", updated_sports);
 //     assert!(total_sports >= 0, "Should have read some sports data");
 // }
-

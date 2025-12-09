@@ -6,3 +6,6 @@ pub trait ResultCache<T: Clone + Send + Sync + 'static, K: Clone + Send + Sync +
     async fn set(&self, key: K, value: T);
     async fn invalidate(&self, key: K);
 }
+
+pub mod memory;
+

@@ -11,9 +11,9 @@ use utoipa_swagger_ui::SwaggerUi;
 
 // 导入服务相关模块
 use crate::service::{ai_service::AIService, image_service::ImageService, user_service::UserService, sport_service::SportService};
-use crate::dao::memory_cache::MemoryResultCache;
+use crate::dao::cache::memory::MemoryResultCache;
 use crate::service::sport_service::StatSummary;
-use crate::dao::sqlite_impl::SqliteImpl;
+use crate::dao::Repository;
 use std::sync::Arc as StdArc;
 use crate::config::AppConfig;
 use crate::handlers::jwt::Jwt;
@@ -96,7 +96,7 @@ pub struct AppState {
 async fn create_production_router(config: AppConfig) -> Router {
     // 创建AI服务实例（使用默认配置）
 
-    let sqlite_db = StdArc::new(SqliteImpl::new(&config.db.path).await.expect("init sqlite dao"));
+let sqlite_db = StdArc::new(Repository::new(&config.db.path).await.expect("init repository"));
     let jwt = Jwt::new(config.security.jwt_ttl_seconds, config.security.key.clone());
     let cache_total = StdArc::new(MemoryResultCache::<StatSummary, i32>::new());
     let cache_year = StdArc::new(MemoryResultCache::<StatSummary, String>::new());

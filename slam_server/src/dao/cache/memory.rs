@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 use async_trait::async_trait;
-use super::cache::ResultCache;
+use super::ResultCache;
 use std::hash::Hash;
 
 pub struct MemoryResultCache<T: Clone + Send + Sync + 'static, K: Eq + Hash + Clone + Send + Sync + 'static> {
@@ -28,3 +28,4 @@ impl<T: Clone + Send + Sync + 'static, K: Eq + Hash + Clone + Send + Sync + 'sta
         self.inner.write().await.remove(&key);
     }
 }
+
