@@ -30,7 +30,7 @@ pub fn get_current_timestamp() -> u64 {
 /// 生成唯一的请求ID
 pub fn generate_request_id() -> String {
     let mut rng = rand::thread_rng();
-    let random_part: u64 = rng.gen();
+    let random_part: u64 = rng.r#gen();
     let timestamp = get_current_timestamp();
     format!("req_{}_{:x}", timestamp, random_part)
 }
