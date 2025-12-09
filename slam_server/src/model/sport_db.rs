@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::sport_runtime::{Track, SportExtra, Swimming, Running};
+use super::sport::{Track, SportExtra, Swimming, Running};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 #[serde(tag = "type", content = "data")]
