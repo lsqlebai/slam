@@ -22,7 +22,7 @@ use crate::handlers::jwt::Jwt;
 
 pub async fn run() {
     let config = AppConfig::default();
-    let app = create_app(config.clone());
+    let app = create_app(config.clone()).await;
 
     let addr_str = format!("{}:{}", config.server.ip, config.server.port);
     let addr: SocketAddr = addr_str.parse().unwrap();
@@ -34,7 +34,7 @@ pub async fn run() {
 }
 
 /// 创建应用实例的通用函数
-pub fn create_app(config: AppConfig) -> Router {
+pub async fn create_app(config: AppConfig) -> Router {
     #[derive(OpenApi)]
     #[openapi(
         paths(
@@ -81,7 +81,7 @@ pub fn create_app(config: AppConfig) -> Router {
     
     // 创建Swagger UI并组合路由和CORS
     let swagger_ui = SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi());
-    create_production_router(config)
+    create_production_router(config).await
         .merge(swagger_ui)
 }
 
@@ -93,10 +93,10 @@ pub struct AppState {
     pub jwt: Jwt,
 }
 /// 创建生产环境的路由
-fn create_production_router(config: AppConfig) -> Router {
+async fn create_production_router(config: AppConfig) -> Router {
     // 创建AI服务实例（使用默认配置）
 
-    let sqlite_db = StdArc::new(SqliteImpl::new_sync(&config.db.path).expect("init sqlite dao"));
+    let sqlite_db = StdArc::new(SqliteImpl::new(&config.db.path).await.expect("init sqlite dao"));
     let jwt = Jwt::new(config.security.jwt_ttl_seconds, config.security.key.clone());
     let cache_total = StdArc::new(MemoryResultCache::<StatSummary, i32>::new());
     let cache_year = StdArc::new(MemoryResultCache::<StatSummary, String>::new());

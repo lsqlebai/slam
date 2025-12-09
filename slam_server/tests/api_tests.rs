@@ -39,7 +39,7 @@ async fn print_response(endpoint_name: &str, response: Response<Body>) -> (Statu
 // 测试函数 - 获取状态接口
 #[tokio::test]
 async fn test_status_endpoint() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     // 创建请求 - 注意路径修正为 /api/status
     let request = Request::builder()
@@ -66,7 +66,7 @@ async fn test_status_endpoint() {
 
 #[tokio::test]
 async fn test_user_register_and_login() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     // 随机用户名，避免与现有数据冲突
     let unique = std::time::SystemTime::now()
@@ -132,7 +132,7 @@ async fn test_user_register_and_login() {
 
 #[tokio::test]
 async fn test_user_login_wrong_password() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -175,7 +175,7 @@ async fn test_user_login_wrong_password() {
 
 #[tokio::test]
 async fn test_sport_insert_list_stats() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -300,7 +300,7 @@ async fn test_sport_insert_list_stats() {
 
 #[tokio::test]
 async fn test_sport_insert_list_stats_running() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -423,7 +423,7 @@ async fn test_sport_insert_list_stats_running() {
 #[tokio::test]
 #[ignore]
 async fn test_image_endpoint() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     // Read image data from local test.jpg file
     let image_data = std::fs::read("tests/test_img/test1.jpg").expect("Failed to read test.jpg file");
@@ -473,7 +473,7 @@ async fn test_image_endpoint() {
 #[tokio::test]
 #[ignore]
 async fn test_image_running_recognition() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
     let username = format!("test_image_running_{}", unique);
@@ -526,7 +526,7 @@ async fn test_image_running_recognition() {
 
 #[tokio::test]
 async fn test_image_endpoint_unauthenticated() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let form = multipart::Form::new();
     let boundary = form.boundary().to_string();
@@ -554,7 +554,7 @@ async fn test_image_endpoint_unauthenticated() {
 
 #[tokio::test]
 async fn test_user_info_endpoint() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -599,7 +599,7 @@ async fn test_user_info_endpoint() {
 
 #[tokio::test]
 async fn test_user_logout() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -670,7 +670,7 @@ async fn test_user_logout() {
 
 #[tokio::test]
 async fn test_sport_update() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -783,7 +783,7 @@ async fn test_sport_update() {
 }
 #[tokio::test]
 async fn test_sport_import_csv() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -854,7 +854,7 @@ async fn test_sport_import_csv() {
 }
 #[tokio::test]
 async fn test_sport_stats_total() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
 
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -903,7 +903,7 @@ async fn test_sport_stats_total() {
 
 #[tokio::test]
 async fn test_user_avatar_upload_and_get() {
-    let mut app = app::create_app(AppConfig::default());
+    let mut app = app::create_app(AppConfig::default()).await;
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
