@@ -158,7 +158,6 @@ impl Sport {
                 extra: t.extra.and_then(|raw| SportExtra::from_raw(data.r#type, raw)),
             })
             .collect::<Vec<_>>();
-
         Ok(Sport {
             id: 0,
             r#type: data.r#type,
@@ -407,7 +406,6 @@ impl SportExtra {
                 let main_stroke = raw.main_stroke.unwrap_or_default();
                 let stroke_avg = raw.stroke_avg.unwrap_or(0);
                 let swolf_avg = raw.swolf_avg.unwrap_or(0);
-                
                 Some(SportExtra::Swimming(Swimming::new(main_stroke, stroke_avg, swolf_avg)))
             }
             SportType::Running => {
