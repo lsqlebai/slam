@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use super::sport_runtime::SportType;
+use super::sport::SportType;
+use chrono::{NaiveDate, NaiveDateTime, Local, TimeZone};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default, rename = "sport")]
@@ -38,6 +39,23 @@ pub struct XMLSportExtra {
     pub steps_total: Option<i32>,
     pub pace_min: Option<String>,
     pub pace_max: Option<String>,
+}
+
+pub fn parse_timestamp(s: &str) -> Result<i64, String> {
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+    }
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M") {
+        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+    }
+    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H") {
+        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+    }
+    if let Ok(nd) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        let ndt = nd.and_hms_opt(0, 0, 0).unwrap();
+        if let Some(dt) = Local.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
+    }
+    Err("时间格式错误".to_string())
 }
 
 pub const SAMPLE_XML_SWIMMING: &str = r#"

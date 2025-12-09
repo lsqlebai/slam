@@ -4,7 +4,8 @@ use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use serde_json;
 
-use crate::model::sport::{Sport, SportExtra, Track, SportType, DbSportExtra, DbSportTrack, Swimming, Running};
+use crate::model::sport::{Sport, SportExtra, Track, SportType, Swimming};
+use crate::model::sport_db::{DbSportExtra, DbSportTrack};
 use crate::model::user::{User, UserInfo};
 use super::idl::{SportDao, UserDao};
 
@@ -444,7 +445,6 @@ fn parse_extra_compat(extra_json: &str) -> Option<SportExtra> {
     serde_json::from_str::<Option<DbSportExtra>>(extra_json)
         .map(|o| o.map(SportExtra::from))
         .or_else(|_| serde_json::from_str::<Swimming>(extra_json).map(|s| Some(SportExtra::Swimming(s))))
-        .or_else(|_| serde_json::from_str::<Running>(extra_json).map(|r| Some(SportExtra::Running(r))))
         .ok()
         .flatten()
 }

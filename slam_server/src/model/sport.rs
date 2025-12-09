@@ -1,8 +1,8 @@
 use quick_xml::de as xml_de;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use chrono::{ NaiveDate, NaiveDateTime, TimeZone, Utc};
 pub use crate::model::sport_xml::{SAMPLE_XML_SWIMMING, SAMPLE_XML_RUNNING};
+use crate::model::sport_xml::{SportXML, XMLSportExtra, parse_timestamp};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default, rename = "sport")]
@@ -19,8 +19,6 @@ pub struct Sport {
     pub extra: Option<SportExtra>,
     pub tracks: Vec<Track>,
 }
-
-// 移除错误的 SportExtra 结构
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default)]
@@ -85,61 +83,6 @@ pub enum SportExtra {
     Running(Running),
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
-#[serde(tag = "type", content = "data")]
-pub enum DbSportExtra {
-    Swimming(Swimming),
-    Running(Running),
-}
-
-impl From<SportExtra> for DbSportExtra {
-    fn from(e: SportExtra) -> Self {
-        match e {
-            SportExtra::Swimming(s) => DbSportExtra::Swimming(s),
-            SportExtra::Running(r) => DbSportExtra::Running(r),
-        }
-    }
-}
-
-impl From<DbSportExtra> for SportExtra {
-    fn from(e: DbSportExtra) -> Self {
-        match e {
-            DbSportExtra::Swimming(s) => SportExtra::Swimming(s),
-            DbSportExtra::Running(r) => SportExtra::Running(r),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
-#[serde(default)]
-pub struct DbSportTrack {
-    pub distance_meter: i32,
-    pub duration_second: i32,
-    pub pace_average: String,
-    pub extra: Option<DbSportExtra>,
-}
-
-impl From<Track> for DbSportTrack {
-    fn from(t: Track) -> Self {
-        DbSportTrack {
-            distance_meter: t.distance_meter,
-            duration_second: t.duration_second,
-            pace_average: t.pace_average,
-            extra: t.extra.map(DbSportExtra::from),
-        }
-    }
-}
-
-impl From<DbSportTrack> for Track {
-    fn from(t: DbSportTrack) -> Self {
-        Track {
-            distance_meter: t.distance_meter,
-            duration_second: t.duration_second,
-            pace_average: t.pace_average,
-            extra: t.extra.map(SportExtra::from),
-        }
-    }
-}
 
 impl Sport {
     pub fn parse_from_xml(xml: &str) -> Result<Sport, String> {
@@ -331,6 +274,7 @@ mod tests {
         assert_eq!(ts, expected);
     }
 }
+
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[serde(rename_all = "PascalCase")]
 pub enum SportType {
@@ -360,45 +304,6 @@ impl SportType {
         }
     }
 }
-
-#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
-#[serde(default, rename = "sport")]
-pub struct SportXML {
-    pub r#type: SportType,
-    pub start_time: String,
-    pub calories: i32,
-    pub distance_meter: i32,
-    pub duration_second: i32,
-    pub heart_rate_avg: i32,
-    pub heart_rate_max: i32,
-    pub pace_average: String,
-    pub extra: Option<XMLSportExtra>,
-    pub tracks: Vec<XMLSportTrack>,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
-#[serde(default)]
-pub struct XMLSportTrack {
-    pub distance_meter: i32,
-    pub duration_second: i32,
-    pub pace_average: String,
-    pub extra: Option<XMLSportExtra>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
-#[serde(default)]
-pub struct XMLSportExtra {
-    pub main_stroke: Option<String>,
-    pub stroke_avg: Option<i32>,
-    pub swolf_avg: Option<i32>,
-    pub speed_avg: Option<f32>,
-    pub cadence_avg: Option<i32>,
-    pub stride_length_avg: Option<i32>,
-    pub steps_total: Option<i32>,
-    pub pace_min: Option<String>,
-    pub pace_max: Option<String>,
-}
-
 impl SportExtra {
     pub fn from_raw(r#type: SportType, raw: XMLSportExtra) -> Option<SportExtra> {
         match r#type {
@@ -420,21 +325,4 @@ impl SportExtra {
             _ => None,
         }
     }
-}
-
-fn parse_timestamp(s: &str) -> Result<i64, String> {
-    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
-        if let Some(dt) = Utc.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
-    }
-    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M") {
-        if let Some(dt) = Utc.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
-    }
-    if let Ok(ndt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H") {
-        if let Some(dt) = Utc.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
-    }
-    if let Ok(nd) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-        let ndt = nd.and_hms_opt(0, 0, 0).unwrap();
-        if let Some(dt) = Utc.from_local_datetime(&ndt).earliest() { return Ok(dt.timestamp()); }
-    }
-    Err("时间格式错误".to_string())
 }
