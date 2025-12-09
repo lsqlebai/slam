@@ -262,6 +262,107 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_type_consistency_swimming_ok() {
+        let sport = Sport {
+            id: 0,
+            r#type: SportType::Swimming,
+            start_time: 0,
+            calories: 0,
+            distance_meter: 0,
+            duration_second: 0,
+            heart_rate_avg: 0,
+            heart_rate_max: 0,
+            pace_average: "".to_string(),
+            extra: Some(SportExtra::Swimming(Swimming { main_stroke: "freestyle".to_string(), stroke_avg: 20, swolf_avg: 80 })),
+            tracks: vec![
+                Track { distance_meter: 25, duration_second: 30, pace_average: "".to_string(), extra: Some(SportExtra::Swimming(Swimming { main_stroke: "freestyle".to_string(), stroke_avg: 18, swolf_avg: 75 })) },
+                Track { distance_meter: 25, duration_second: 30, pace_average: "".to_string(), extra: None },
+            ],
+        };
+        assert!(sport.validate_type_consistency().is_ok());
+    }
+
+    #[test]
+    fn test_validate_type_consistency_running_ok() {
+        let sport = Sport {
+            id: 0,
+            r#type: SportType::Running,
+            start_time: 0,
+            calories: 0,
+            distance_meter: 0,
+            duration_second: 0,
+            heart_rate_avg: 0,
+            heart_rate_max: 0,
+            pace_average: "".to_string(),
+            extra: Some(SportExtra::Running(Running { speed_avg: 10.0, cadence_avg: 160, stride_length_avg: 100, steps_total: 5000, pace_min: "5'30''".to_string(), pace_max: "6'30''".to_string() })),
+            tracks: vec![
+                Track { distance_meter: 1000, duration_second: 360, pace_average: "".to_string(), extra: None },
+            ],
+        };
+        assert!(sport.validate_type_consistency().is_ok());
+    }
+
+    #[test]
+    fn test_validate_type_consistency_swimming_extra_mismatch() {
+        let sport = Sport {
+            id: 0,
+            r#type: SportType::Swimming,
+            start_time: 0,
+            calories: 0,
+            distance_meter: 0,
+            duration_second: 0,
+            heart_rate_avg: 0,
+            heart_rate_max: 0,
+            pace_average: "".to_string(),
+            extra: Some(SportExtra::Running(Running { speed_avg: 10.0, cadence_avg: 160, stride_length_avg: 100, steps_total: 5000, pace_min: "5'30''".to_string(), pace_max: "6'30''".to_string() })),
+            tracks: vec![],
+        };
+        let err = sport.validate_type_consistency().expect_err("should mismatch");
+        assert_eq!(err, "extra 与 SportType 不匹配");
+    }
+
+    #[test]
+    fn test_validate_type_consistency_swimming_track_mismatch() {
+        let sport = Sport {
+            id: 0,
+            r#type: SportType::Swimming,
+            start_time: 0,
+            calories: 0,
+            distance_meter: 0,
+            duration_second: 0,
+            heart_rate_avg: 0,
+            heart_rate_max: 0,
+            pace_average: "".to_string(),
+            extra: None,
+            tracks: vec![
+                Track { distance_meter: 1000, duration_second: 360, pace_average: "".to_string(), extra: Some(SportExtra::Swimming(Swimming { main_stroke: "freestyle".to_string(), stroke_avg: 18, swolf_avg: 75 })) },
+                Track { distance_meter: 1000, duration_second: 360, pace_average: "".to_string(), extra: Some(SportExtra::Running(Running { speed_avg: 9.5, cadence_avg: 158, stride_length_avg: 95, steps_total: 4800, pace_min: "5'40''".to_string(), pace_max: "6'40''".to_string() })) },
+            ],
+        };
+        let err = sport.validate_type_consistency().expect_err("should mismatch");
+        assert_eq!(err, "tracks[1].extra 与 SportType 不匹配");
+    }
+
+    #[test]
+    fn test_validate_type_consistency_unknown_reject_extra() {
+        let sport = Sport {
+            id: 0,
+            r#type: SportType::Unknown,
+            start_time: 0,
+            calories: 0,
+            distance_meter: 0,
+            duration_second: 0,
+            heart_rate_avg: 0,
+            heart_rate_max: 0,
+            pace_average: "".to_string(),
+            extra: Some(SportExtra::Swimming(Swimming { main_stroke: "freestyle".to_string(), stroke_avg: 18, swolf_avg: 75 })),
+            tracks: vec![],
+        };
+        let err = sport.validate_type_consistency().expect_err("should mismatch");
+        assert_eq!(err, "extra 与 SportType 不匹配");
+    }
+
+    #[test]
     fn test_parse_timestamp_local_full() {
         let s = "2025-11-6 10:22:00";
         let ts = parse_timestamp(s).expect("parse should succeed");
@@ -303,6 +404,31 @@ impl SportType {
             "cycling" => SportType::Cycling,
             _ => SportType::Unknown,
         }
+    }
+}
+// 运行时校验：确保 SportType 与 extra 以及 tracks[].extra 的变体一致
+impl Sport {
+    pub fn validate_type_consistency(&self) -> Result<(), String> {
+        fn matches(ty: SportType, e: &SportExtra) -> bool {
+            match (ty, e) {
+                (SportType::Swimming, SportExtra::Swimming(_)) => true,
+                (SportType::Running, SportExtra::Running(_)) => true,
+                _ => false,
+            }
+        }
+        if let Some(e) = &self.extra {
+            if !matches(self.r#type, e) {
+                return Err("extra 与 SportType 不匹配".to_string());
+            }
+        }
+        for (i, t) in self.tracks.iter().enumerate() {
+            if let Some(e) = &t.extra {
+                if !matches(self.r#type, e) {
+                    return Err(format!("tracks[{}].extra 与 SportType 不匹配", i));
+                }
+            }
+        }
+        Ok(())
     }
 }
 impl SportExtra {
