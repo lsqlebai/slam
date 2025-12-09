@@ -30,7 +30,7 @@ pub struct Track {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Swimming {
     pub main_stroke: String,
     pub stroke_avg: i32,
@@ -67,6 +67,7 @@ impl Swimming {
 
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Running {
     pub speed_avg: f32,
     pub cadence_avg: i32,
