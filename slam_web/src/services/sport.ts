@@ -59,12 +59,6 @@ export function getSportType(typeOrSport: string | Sport | undefined): SportType
   return SportType.Unknown;
 }
 
-export function isSwimmingType(type: string | undefined): boolean {
-  return getSportType(type) === SportType.Swimming;
-}
-export function isRunningType(type: string | undefined): boolean {
-  return getSportType(type) === SportType.Running;
-}
 
 export async function listSports(page = 0, size = 20): Promise<Sport[]> {
   const res = await http.get('/sport/list', {
