@@ -12,7 +12,7 @@
     "prepare": "simple-git-hooks",
     "upgrade": "modern upgrade",
     "android:add": "cap add android",
-    "android:sync": "modern build && cp -f dist/html/main/index.html dist/index.html && cap sync android",
+    "android:sync": "modern build && cp -f dist/html/main/index.html dist/index.html && cap sync android && scripts/bump-android-version.sh",
     "android:open": "cap open android",
     "android:build": "cp -f dist/html/main/index.html dist/index.html && cap sync android && cd android && ./gradlew assembleDebug"
   },
