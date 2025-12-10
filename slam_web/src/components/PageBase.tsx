@@ -1,4 +1,5 @@
 import { Helmet } from '@modern-js/runtime/head';
+import iconWebp from '../assets/ic_launcher_round.webp';
 import { Alert, Snackbar } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -65,6 +66,7 @@ export default function PageBase({ children }: { children: React.ReactNode }) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
+        <link rel="icon" href={iconWebp} type="image/webp" sizes="32x32" />
       </Helmet>
       {children}
       <Snackbar

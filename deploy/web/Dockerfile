@@ -15,7 +15,7 @@ RUN set -eux; \
     tar -xzf web.tar.gz -C /tmp/webdist
 
 FROM nginx:1.25-alpine
-COPY config/nginx.conf /etc/nginx/nginx.conf
+COPY ./config/nginx.conf /etc/nginx/nginx.conf
 RUN mkdir -p /usr/share/nginx/slam_web/dist
 COPY --from=fetcher /tmp/webdist/dist/ /usr/share/nginx/slam_web/dist/
 EXPOSE 80
