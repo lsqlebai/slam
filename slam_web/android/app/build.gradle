@@ -8,7 +8,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 2
-        versionName "1.1.10"
+        versionName "1.1.11"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -20,6 +20,20 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    applicationVariants.all { variant ->
+        // 只针对 release 版本进行修改
+        if (variant.buildType.name == "release") {
+            variant.outputs.all {
+                // 自定义文件名格式，例如：SlamWeb_v1.1.10_20231027.apk
+                def appName = "slam"
+                def version = variant.versionName
+
+                // 设置新的文件名
+                outputFileName = "${appName}_v${version}.apk"
+            }
         }
     }
 }
