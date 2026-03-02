@@ -16,7 +16,7 @@ async fn test_doubao_request() {
         .build()
         .unwrap();
     let body = json!({
-        "model": "doubao-seed-1-6-251015",
+        "model": "doubao-seed-1-8-251228",
         "max_completion_tokens": 65535,
         "messages": [
             {

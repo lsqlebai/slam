@@ -24,7 +24,11 @@ pub struct DbConfig {
 pub struct AiConfig {
     #[serde(default = "default_ai_key")]
     pub key: String,
+    #[serde(default = "default_ai_model")]
+    pub model: String,
 }
+
+
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SecurityConfig {
@@ -55,6 +59,7 @@ fn default_ai_key() -> String { "".to_string() }
 fn default_security_salt() -> String { "slam-server-salt".to_string() }
 fn default_security_key() -> String { "change-me-key".to_string() }
 fn default_jwt_ttl_seconds() -> u64 { 2592000 }
+pub fn default_ai_model() -> String { "doubao-seed-1-6-251015".to_string() }
 
 impl AppConfig {
     pub fn new(cfg_path: &str) -> Self {
@@ -83,7 +88,7 @@ impl Default for DbConfig {
     fn default() -> Self { Self { path: DEFAULT_DB_PATH.to_string() } }
 }
 impl Default for AiConfig {
-    fn default() -> Self { Self { key: "".to_string() } }
+    fn default() -> Self { Self { key: "".to_string(), model: default_ai_model() } }
 }
 impl Default for SecurityConfig {
     fn default() -> Self { Self { salt: default_security_salt(), key: default_security_key(), jwt_ttl_seconds: default_jwt_ttl_seconds() } }

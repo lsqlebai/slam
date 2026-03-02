@@ -171,6 +171,19 @@ impl Doubao {
             url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions".to_string(),
         }
     }
+    pub fn with_model(model: String) -> Self {
+        let client = reqwest::Client::builder()
+            .user_agent("ark-rust-example/0.1")
+            .build()
+            .unwrap();
+        println!("use LLM model: {}", model);
+        Self {
+            client,
+            api_key: get_api_key_from_env().unwrap(),
+            model: model.clone(),
+            url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions".to_string(),
+        }
+    }
 }
 
 #[async_trait]

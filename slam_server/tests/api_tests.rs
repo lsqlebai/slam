@@ -36,6 +36,43 @@ async fn print_response(endpoint_name: &str, response: Response<Body>) -> (Statu
     (status, body.to_vec())
 }
 
+async fn register_and_get_cookie<S>(
+    app: &mut S,
+    prefix: &str,
+    nickname: &str,
+    password: &str,
+) -> String
+where
+    S: Service<Request<Body>, Response = Response<Body>> + Send + Unpin,
+    S::Future: Send + 'static,
+    S::Error: std::fmt::Debug,
+{
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let username = format!("{}_{}", prefix, unique);
+    let register_body = serde_json::json!({
+        "name": username,
+        "password": password,
+        "nickname": nickname
+    });
+    let register_req = Request::builder()
+        .uri(routes::API_USER_REGISTER)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(register_body.to_string()))
+        .unwrap();
+    let register_resp = app.call(register_req).await.unwrap();
+    let register_cookie = register_resp
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("register set-cookie");
+    register_cookie.split(';').next().unwrap().to_string()
+}
+
 // 测试函数 - 获取状态接口
 #[tokio::test]
 async fn test_status_endpoint() {
@@ -177,32 +214,7 @@ async fn test_user_login_wrong_password() {
 async fn test_sport_insert_list_stats() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let username = format!("test_sport_user_{}", unique);
-    let password = "p@ssw0rd";
-
-    let register_body = serde_json::json!({
-        "name": username,
-        "password": password,
-        "nickname": "SportsUser"
-    });
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_sport_user", "SportsUser", "p@ssw0rd").await;
 
     let dt = Utc.with_ymd_and_hms(2025, 11, 17, 0, 0, 0).unwrap();
     let ts = dt.timestamp();
@@ -302,32 +314,7 @@ async fn test_sport_insert_list_stats() {
 async fn test_sport_insert_list_stats_running() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let username = format!("test_sport_run_{}", unique);
-    let password = "p@ssw0rd";
-
-    let register_body = serde_json::json!({
-        "name": username,
-        "password": password,
-        "nickname": "RunnerUser"
-    });
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_sport_run", "RunnerUser", "p@ssw0rd").await;
 
     let dt = Utc.with_ymd_and_hms(2025, 10, 12, 0, 0, 0).unwrap();
     let ts = dt.timestamp();
@@ -421,9 +408,9 @@ async fn test_sport_insert_list_stats_running() {
 // 删除未使用示例函数以避免警告
 
 #[tokio::test]
-#[ignore]
 async fn test_image_endpoint() {
     let mut app = app::create_app(AppConfig::default()).await;
+    let cookie_header = register_and_get_cookie(&mut app, "test_image", "ImageUser", "p@ssw0rd").await;
 
     // Read image data from local test.jpg file
     let image_data = std::fs::read("tests/test_img/test1.jpg").expect("Failed to read test.jpg file");
@@ -456,6 +443,7 @@ async fn test_image_endpoint() {
             "Content-Type",
             format!("multipart/form-data; boundary={}", boundary),
         )
+        .header("Cookie", cookie_header)
         .body(body)
         .unwrap();
 
@@ -475,24 +463,7 @@ async fn test_image_endpoint() {
 async fn test_image_running_recognition() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
-    let username = format!("test_image_running_{}", unique);
-    let password = "p@ssw0rd";
-    let register_body = serde_json::json!({"name": username, "password": password, "nickname": "Runner"});
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_image_running", "Runner", "p@ssw0rd").await;
 
     let image_data = std::fs::read("tests/test_running.jpg").expect("Failed to read test_running.jpg");
     let form = multipart::Form::new().part(
@@ -556,32 +527,7 @@ async fn test_image_endpoint_unauthenticated() {
 async fn test_user_info_endpoint() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let username = format!("test_user_info_{}", unique);
-    let password = "p@ssw0rd";
-
-    let register_body = serde_json::json!({
-        "name": username,
-        "password": password,
-        "nickname": "Tester"
-    });
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_user_info", "Tester", "p@ssw0rd").await;
 
     let info_req = Request::builder()
         .uri(routes::API_USER_INFO)
@@ -601,32 +547,7 @@ async fn test_user_info_endpoint() {
 async fn test_user_logout() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let username = format!("test_logout_{}", unique);
-    let password = "p@ssw0rd";
-
-    let register_body = serde_json::json!({
-        "name": username,
-        "password": password,
-        "nickname": "LogoutUser"
-    });
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_logout", "LogoutUser", "p@ssw0rd").await;
 
     let info_req = Request::builder()
         .uri(routes::API_USER_INFO)
@@ -672,32 +593,7 @@ async fn test_user_logout() {
 async fn test_sport_update() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let username = format!("test_sport_update_{}", unique);
-    let password = "p@ssw0rd";
-
-    let register_body = serde_json::json!({
-        "name": username,
-        "password": password,
-        "nickname": "Updater"
-    });
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_sport_update", "Updater", "p@ssw0rd").await;
 
     let dt = chrono::Utc.with_ymd_and_hms(2025, 11, 18, 0, 0, 0).unwrap();
     let ts = dt.timestamp();
@@ -785,32 +681,7 @@ async fn test_sport_update() {
 async fn test_sport_import_csv() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let username = format!("test_sport_import_{}", unique);
-    let password = "p@ssw0rd";
-
-    let register_body = serde_json::json!({
-        "name": username,
-        "password": password,
-        "nickname": "Importer"
-    });
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_sport_import", "Importer", "p@ssw0rd").await;
 
     let csv = "Uid,Sid,Key,Time,Category,Value,UpdateTime\n49767842,609301467,pool_swimm,1731888000,swimming,{\"anaerobic_train_e\":1},1731888000\n49767842,609301467,pool_swimm,1731889000,swimming,{\"anaerobic_train_e\":1},1731889000";
     let form = multipart::Form::new()
@@ -856,32 +727,7 @@ async fn test_sport_import_csv() {
 async fn test_sport_stats_total() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let username = format!("test_stats_total_{}", unique);
-    let password = "p@ssw0rd";
-
-    let register_body = serde_json::json!({
-        "name": username,
-        "password": password,
-        "nickname": "StatsTotal"
-    });
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_stats_total", "StatsTotal", "p@ssw0rd").await;
 
     let year = 2025;
     let req = Request::builder()
@@ -904,32 +750,7 @@ async fn test_sport_stats_total() {
 #[tokio::test]
 async fn test_user_avatar_upload_and_get() {
     let mut app = app::create_app(AppConfig::default()).await;
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let username = format!("test_avatar_{}", unique);
-    let password = "p@ssw0rd";
-
-    let register_body = serde_json::json!({
-        "name": username,
-        "password": password,
-        "nickname": "AvatarUser"
-    });
-    let register_req = Request::builder()
-        .uri(routes::API_USER_REGISTER)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .body(Body::from(register_body.to_string()))
-        .unwrap();
-    let register_resp = app.call(register_req).await.unwrap();
-    let register_cookie = register_resp
-        .headers()
-        .get("set-cookie")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-        .expect("register set-cookie");
-    let cookie_header = register_cookie.split(';').next().unwrap().to_string();
+    let cookie_header = register_and_get_cookie(&mut app, "test_avatar", "AvatarUser", "p@ssw0rd").await;
 
     let base64 = "data:image/jpeg;base64,ZmFrZQ==";
     let form = multipart::Form::new().text("avatar", base64);
@@ -1058,4 +879,89 @@ async fn test_llm_error_config_maps_500() {
     assert!(result.is_err());
     let err = result.err().unwrap();
     assert_eq!(err.code, 500);
+}
+
+#[tokio::test]
+async fn test_image_endpoint_comparison() {
+    let models = vec![
+        "doubao-seed-1-6-251015",
+        "doubao-seed-1-8-251228",
+        "doubao-seed-2-0-mini-260215",
+        "doubao-seed-2-0-lite-260215",
+    ];
+
+    println!("\n{:<30} | {:<10} | {:<10}", "Model", "Status", "Duration (ms)");
+    println!("{:-<30}-+-{:-<10}-+-{:-<10}", "", "", "");
+
+    for model in models {
+        let mut config = AppConfig::default();
+        config.ai.model = model.to_string();
+
+        let mut app = app::create_app(config).await;
+        
+        let prefix = format!("test_{}", model.replace("-", "_"));
+        let cookie_header = register_and_get_cookie(&mut app, &prefix, "ImageUser", "p@ssw0rd").await;
+
+        let image_data = std::fs::read("tests/test_img/test1.jpg").expect("Failed to read test1.jpg file");
+        let image_data2 = std::fs::read("tests/test_img/test2.jpg").expect("Failed to read test2.jpg file");
+        
+        let form = multipart::Form::new()
+            .part(
+                "image",
+                multipart::Part::bytes(image_data)
+                    .file_name("sport.jpg")
+                    .mime_str("image/jpeg")
+                    .unwrap(),
+            )
+            .part(
+                "image",
+                multipart::Part::bytes(image_data2)
+                    .file_name("track.jpg")
+                    .mime_str("image/jpeg")
+                    .unwrap(),
+            );
+
+        let boundary = form.boundary().to_string();
+        let stream = form.into_stream();
+        let body = Body::from_stream(stream);
+
+        let request = Request::builder()
+            .uri(routes::API_IMAGE_PARSE)
+            .method("POST")
+            .header(
+                "Content-Type",
+                format!("multipart/form-data; boundary={}", boundary),
+            )
+            .header("Cookie", cookie_header)
+            .body(body)
+            .unwrap();
+
+        let start = std::time::Instant::now();
+        let response = app.call(request).await.unwrap();
+        let duration = start.elapsed();
+
+        let status = response.status();
+        let body_bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        
+        let success_status = if status == StatusCode::OK {
+            let response_json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+            if response_json.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
+                "Success"
+            } else {
+                "FailBody"
+            }
+        } else {
+            "FailStatus"
+        };
+
+        println!("{:<30} | {:<10} | {:<10}", 
+            model, 
+            success_status, 
+            duration.as_millis()
+        );
+        
+        if success_status != "Success" {
+             println!("Response for {}: {:?}", model, String::from_utf8_lossy(&body_bytes));
+        }
+    }
 }

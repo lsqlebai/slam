@@ -2,6 +2,7 @@
 //! 提供所有AI能力的统一访问接口
 
 use serde::{Deserialize, Serialize};
+use crate::config::default_ai_model;
 
 // AI服务配置结构
 use utoipa::ToSchema;
@@ -68,6 +69,8 @@ impl ImageParser {
 // AI服务实现
 impl AIService {
     pub fn new() -> Self { Self { llm: Arc::new(Doubao::new()) } }
+    pub fn with_model(model: String) -> Self { Self { llm: Arc::new(Doubao::with_model(model)) } }
+
     pub fn with_llm(llm: Arc<dyn LLM + Send + Sync>) -> Self { Self { llm } }
 
     /// 生成文本内容
@@ -78,7 +81,7 @@ impl AIService {
         // 生成请求ID
         let request_id = common::get_current_timestamp();
         let chat_request = ImageParser::create_chat_completion_request(base64_data);
-        println!("chat_request: {:?}", chat_request);
+        
         let content = self.llm.chat(chat_request).await.map_err(|e| {
             let err_msg = e.to_string();
             if let Ok(llm_err) = e.downcast::<llm::LLMError>() {

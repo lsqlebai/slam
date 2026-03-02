@@ -101,7 +101,7 @@ let sqlite_db = StdArc::new(Repository::new(&config.db.path).await.expect("init 
     let cache_total = StdArc::new(MemoryResultCache::<StatSummary, i32>::new());
     let cache_year = StdArc::new(MemoryResultCache::<StatSummary, String>::new());
     let app = Arc::new(AppState {
-        ai_service: AIService::new(),
+        ai_service: AIService::with_model(config.ai.model.clone()),
         image_service: ImageService::new(),
         user_service: UserService::new(sqlite_db.clone(), config.security.clone()),
         sport_service: SportService::new(sqlite_db.clone(), cache_total.clone(), cache_year.clone()),
