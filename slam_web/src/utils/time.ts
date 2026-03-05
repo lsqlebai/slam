@@ -1,24 +1,37 @@
-export const toInputDateTime = (s: number): string => {
+export const toInputDateTime = (
+  s: number,
+  tz: 'local' | 'UTC' = 'UTC',
+): string => {
   const d = new Date(s * 1000);
   const pad = (n: number) => String(n).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  const ss = pad(d.getSeconds());
+  const yyyy = tz === 'UTC' ? d.getUTCFullYear() : d.getFullYear();
+  const mm = pad((tz === 'UTC' ? d.getUTCMonth() : d.getMonth()) + 1);
+  const dd = pad(tz === 'UTC' ? d.getUTCDate() : d.getDate());
+  const hh = pad(tz === 'UTC' ? d.getUTCHours() : d.getHours());
+  const mi = pad(tz === 'UTC' ? d.getUTCMinutes() : d.getMinutes());
+  const ss = pad(tz === 'UTC' ? d.getUTCSeconds() : d.getSeconds());
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}`;
 };
 
-export const toDisplayDateTime = (s: number): string =>
-  toInputDateTime(s).replace('T', ' ');
+export const toDisplayDateTime = (
+  s: number,
+  tz: 'local' | 'UTC' = 'UTC',
+): string => toInputDateTime(s, tz).replace('T', ' ');
 
-export const fromInputDateTime = (v: string): number => {
+export const fromInputDateTime = (
+  v: string,
+  tz: 'local' | 'UTC' = 'UTC',
+): number => {
   const norm = v.replace(' ', 'T');
   const [date, time] = norm.split('T');
   const [y, m, d] = date.split('-').map(Number);
   const [hh, mm, ss] = time.split(':').map(Number);
-  const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, ss || 0);
+  const dt =
+    tz === 'UTC'
+      ? new Date(
+          Date.UTC(y || 0, (m || 1) - 1, d || 1, hh || 0, mm || 0, ss || 0),
+        )
+      : new Date(y || 0, (m || 1) - 1, d || 1, hh || 0, mm || 0, ss || 0);
   return Math.floor(dt.getTime() / 1000);
 };
 
