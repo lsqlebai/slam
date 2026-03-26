@@ -58,7 +58,7 @@ export default function Sporting({ lang }: { lang: Lang }) {
     const byMonth: Record<string, Sport[]> = {};
     for (const s of items) {
       const d = new Date(s.start_time * 1000);
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const k = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
       if (!byMonth[k]) byMonth[k] = [];
       byMonth[k].push(s);
     }
@@ -76,8 +76,9 @@ export default function Sporting({ lang }: { lang: Lang }) {
   const hasPrevInItems = useMemo(() => {
     for (const it of items) {
       const d = new Date(it.start_time * 1000);
-      if (d.getFullYear() === prevYear && d.getMonth() === prevMonth)
+      if (d.getUTCFullYear() === prevYear && d.getUTCMonth() === prevMonth) {
         return true;
+      }
     }
     return false;
   }, [items, prevYear, prevMonth]);
@@ -98,7 +99,7 @@ export default function Sporting({ lang }: { lang: Lang }) {
       const merged = items.concat(data ?? []);
       const found = merged.some(it => {
         const d = new Date(it.start_time * 1000);
-        return d.getFullYear() === py && d.getMonth() === pm;
+        return d.getUTCFullYear() === py && d.getUTCMonth() === pm;
       });
       if (found) {
         setDisplayYear(py);
@@ -126,8 +127,11 @@ export default function Sporting({ lang }: { lang: Lang }) {
     const s = new Set<number>();
     for (const it of items) {
       const d = new Date(it.start_time * 1000);
-      if (d.getFullYear() === displayYear && d.getMonth() === displayMonth) {
-        s.add(d.getDate());
+      if (
+        d.getUTCFullYear() === displayYear &&
+        d.getUTCMonth() === displayMonth
+      ) {
+        s.add(d.getUTCDate());
       }
     }
     return s;
