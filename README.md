@@ -57,8 +57,8 @@ slam/
 
 1. Backend (Rust):
    - Install the Rust toolchain (stable recommended).
-   - Configure `db.path` and `security.key` in `slam_server/config/app.yml` (default key is a placeholder; replace it).
-   - To enable AI, set env var `AI_API_KEY`.
+   - Configure `db.path` and `security.key` in `slam_server/config/app.yml` (default key is a placeholder; replace it). For machine-local overrides and secrets, create the Git-ignored `slam_server/config/app.local.yml`; when present, it is loaded instead of `app.yml`.
+   - To enable AI, set env var `AI_API_KEY` (highest priority), or set `ai.key` in `app.local.yml` for local development.
    - Run:
      ```bash
      cd slam_server
@@ -107,10 +107,10 @@ slam/
 
 ## Configuration
 
-- Local config file: `slam_server/config/app.yml`
+- Default config file: `slam_server/config/app.yml`; optional machine-local config: `slam_server/config/app.local.yml` (Git-ignored and preferred when present).
   - `server.ip/port`: listen address and port.
   - `db.path`: SQLite file path (e.g., `sport.db`).
-  - `ai.key`: optional; prefer reading from env `AI_API_KEY`.
+  - `ai.key`: optional fallback for local configuration; env `AI_API_KEY` takes priority.
   - `security.salt/key`: derive JWT secrets and (de)encryption; replace the defaults (`change-me-key`).
 - In-container config: `deploy/config/app.container.yml` (`db.path` points to `/data/sport.db`).
 - Nginx: static assets and reverse proxy (`deploy/config/nginx.conf:6`).

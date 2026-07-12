@@ -1,22 +1,29 @@
 use axum::{
-    Router, extract::DefaultBodyLimit, routing::{get, post}
+    Router,
+    extract::DefaultBodyLimit,
+    routing::{get, post},
 };
-use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, DefaultOnFailure};
-use tracing::Level;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::trace::{
+    DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer,
+};
+use tracing::Level;
 // removed unused imports
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 // 导入服务相关模块
-use crate::service::{ai_service::AIService, image_service::ImageService, user_service::UserService, sport_service::SportService};
-use crate::dao::cache::memory::MemoryResultCache;
-use crate::service::sport_service::StatSummary;
-use crate::dao::Repository;
-use std::sync::Arc as StdArc;
 use crate::config::AppConfig;
+use crate::dao::Repository;
+use crate::dao::cache::memory::MemoryResultCache;
 use crate::handlers::jwt::Jwt;
+use crate::service::sport_service::StatSummary;
+use crate::service::{
+    ai_service::AIService, image_service::ImageService, sport_service::SportService,
+    user_service::UserService,
+};
+use std::sync::Arc as StdArc;
 
 // AppConfig 已迁移至 crate::config 模块
 
@@ -78,11 +85,10 @@ pub async fn create_app(config: AppConfig) -> Router {
         )
     )]
     struct ApiDoc;
-    
+
     // 创建Swagger UI并组合路由和CORS
     let swagger_ui = SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi());
-    create_production_router(config).await
-        .merge(swagger_ui)
+    create_production_router(config).await.merge(swagger_ui)
 }
 
 pub struct AppState {
@@ -96,15 +102,23 @@ pub struct AppState {
 async fn create_production_router(config: AppConfig) -> Router {
     // 创建AI服务实例（使用默认配置）
 
-let sqlite_db = StdArc::new(Repository::new(&config.db.path).await.expect("init repository"));
+    let sqlite_db = StdArc::new(
+        Repository::new(&config.db.path)
+            .await
+            .expect("init repository"),
+    );
     let jwt = Jwt::new(config.security.jwt_ttl_seconds, config.security.key.clone());
     let cache_total = StdArc::new(MemoryResultCache::<StatSummary, i32>::new());
     let cache_year = StdArc::new(MemoryResultCache::<StatSummary, String>::new());
     let app = Arc::new(AppState {
-        ai_service: AIService::with_model(config.ai.model.clone()),
+        ai_service: AIService::with_config(config.ai.model.clone(), config.ai.key.clone()),
         image_service: ImageService::new(),
         user_service: UserService::new(sqlite_db.clone(), config.security.clone()),
-        sport_service: SportService::new(sqlite_db.clone(), cache_total.clone(), cache_year.clone()),
+        sport_service: SportService::new(
+            sqlite_db.clone(),
+            cache_total.clone(),
+            cache_year.clone(),
+        ),
         jwt,
     });
     // 导入处理函数
@@ -115,24 +129,62 @@ let sqlite_db = StdArc::new(Repository::new(&config.db.path).await.expect("init 
     Router::new()
         .route("/", get(root))
         .route(routes::API_STATUS, get(get_status))
-        .route(routes::API_IMAGE_PARSE, post(crate::handlers::ai_handler::sports_image_recognition_handler)).layer(DefaultBodyLimit::max(50 * 1024 * 1024))
-        .route(routes::API_USER_REGISTER, post(crate::handlers::user_handler::user_register_handler))
-        .route(routes::API_USER_LOGIN, post(crate::handlers::user_handler::user_login_handler))
-        .route(routes::API_USER_INFO, get(crate::handlers::user_handler::user_info_handler))
-        .route(routes::API_USER_LOGOUT, post(crate::handlers::user_handler::user_logout_handler))
-        .route(routes::API_USER_AVATAR_UPLOAD, post(crate::handlers::user_handler::user_avatar_upload_handler)).layer(DefaultBodyLimit::max(20 * 1024 * 1024))
-        .route(routes::API_SPORT_INSERT, post(crate::handlers::sport_handler::insert_sport_handler))
-        .route(routes::API_SPORT_IMPORT, post(crate::handlers::sport_handler::import_sport_handler))
-        .route(routes::API_SPORT_UPDATE, post(crate::handlers::sport_handler::update_sport_handler))
-        .route(routes::API_SPORT_DELETE, post(crate::handlers::sport_handler::delete_sport_handler))
-        .route(routes::API_SPORT_LIST, get(crate::handlers::sport_handler::list_sport_handler))
-        .route(routes::API_SPORT_STATS, get(crate::handlers::sport_handler::stats_handler))
+        .route(
+            routes::API_IMAGE_PARSE,
+            post(crate::handlers::ai_handler::sports_image_recognition_handler),
+        )
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
+        .route(
+            routes::API_USER_REGISTER,
+            post(crate::handlers::user_handler::user_register_handler),
+        )
+        .route(
+            routes::API_USER_LOGIN,
+            post(crate::handlers::user_handler::user_login_handler),
+        )
+        .route(
+            routes::API_USER_INFO,
+            get(crate::handlers::user_handler::user_info_handler),
+        )
+        .route(
+            routes::API_USER_LOGOUT,
+            post(crate::handlers::user_handler::user_logout_handler),
+        )
+        .route(
+            routes::API_USER_AVATAR_UPLOAD,
+            post(crate::handlers::user_handler::user_avatar_upload_handler),
+        )
+        .layer(DefaultBodyLimit::max(20 * 1024 * 1024))
+        .route(
+            routes::API_SPORT_INSERT,
+            post(crate::handlers::sport_handler::insert_sport_handler),
+        )
+        .route(
+            routes::API_SPORT_IMPORT,
+            post(crate::handlers::sport_handler::import_sport_handler),
+        )
+        .route(
+            routes::API_SPORT_UPDATE,
+            post(crate::handlers::sport_handler::update_sport_handler),
+        )
+        .route(
+            routes::API_SPORT_DELETE,
+            post(crate::handlers::sport_handler::delete_sport_handler),
+        )
+        .route(
+            routes::API_SPORT_LIST,
+            get(crate::handlers::sport_handler::list_sport_handler),
+        )
+        .route(
+            routes::API_SPORT_STATS,
+            get(crate::handlers::sport_handler::stats_handler),
+        )
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO))
-                .on_failure(DefaultOnFailure::new().level(Level::ERROR))
+                .on_failure(DefaultOnFailure::new().level(Level::ERROR)),
         )
         .with_state(app)
 }

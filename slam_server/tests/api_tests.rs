@@ -1,20 +1,20 @@
 // 导入必要的测试依赖
 use axum::{
-    body::{to_bytes, Body},
+    body::{Body, to_bytes},
     http::{Request, Response, StatusCode},
 };
 use reqwest::multipart;
 use tower::Service;
 
 // 导入项目模块
-use slam_server::{app, model::sport::SAMPLE_XML_SWIMMING};
-use slam_server::app::routes;
+use async_trait::async_trait;
+use chrono::{Datelike, TimeZone, Utc};
 use slam_server::app::AppConfig;
-use chrono::{Utc, TimeZone, Datelike};
-use std::sync::{Arc, RwLock};
+use slam_server::app::routes;
 use slam_server::service::ai_service::AIService;
 use slam_server::service::llm::LLM as LlmTrait;
-use async_trait::async_trait;
+use slam_server::{app, model::sport::SAMPLE_XML_SWIMMING};
+use std::sync::{Arc, RwLock};
 
 /// 通用的响应打印函数
 /// 打印指定接口的响应状态和响应体
@@ -207,14 +207,18 @@ async fn test_user_login_wrong_password() {
     let (login_status, login_bytes) = print_response("用户登录(错误密码)", login_resp).await;
     assert_ne!(login_status, StatusCode::OK);
     let err_json: serde_json::Value = serde_json::from_slice(&login_bytes).unwrap();
-    assert_eq!(err_json.get("error").unwrap().as_str().unwrap(), "用户名或密码错误");
+    assert_eq!(
+        err_json.get("error").unwrap().as_str().unwrap(),
+        "用户名或密码错误"
+    );
 }
 
 #[tokio::test]
 async fn test_sport_insert_list_stats() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let cookie_header = register_and_get_cookie(&mut app, "test_sport_user", "SportsUser", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_sport_user", "SportsUser", "p@ssw0rd").await;
 
     let dt = Utc.with_ymd_and_hms(2025, 11, 17, 0, 0, 0).unwrap();
     let ts = dt.timestamp();
@@ -263,7 +267,11 @@ async fn test_sport_insert_list_stats() {
     let week = dt.iso_week().week();
 
     let stats_year_req = Request::builder()
-        .uri(format!("{}?kind=year&year={}", routes::API_SPORT_STATS, year))
+        .uri(format!(
+            "{}?kind=year&year={}",
+            routes::API_SPORT_STATS,
+            year
+        ))
         .method("GET")
         .header("Cookie", cookie_header.clone())
         .body(Body::empty())
@@ -272,23 +280,61 @@ async fn test_sport_insert_list_stats() {
     let (stats_year_status, stats_year_bytes) = print_response("年度统计", stats_year_resp).await;
     assert_eq!(stats_year_status, StatusCode::OK);
     let stats_year_json: serde_json::Value = serde_json::from_slice(&stats_year_bytes).unwrap();
-    assert_eq!(stats_year_json.get("total_count").unwrap().as_i64().unwrap(), 1);
-    assert_eq!(stats_year_json.get("total_calories").unwrap().as_i64().unwrap(), 123);
-    assert_eq!(stats_year_json.get("total_duration_second").unwrap().as_i64().unwrap(), 600);
+    assert_eq!(
+        stats_year_json
+            .get("total_count")
+            .unwrap()
+            .as_i64()
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        stats_year_json
+            .get("total_calories")
+            .unwrap()
+            .as_i64()
+            .unwrap(),
+        123
+    );
+    assert_eq!(
+        stats_year_json
+            .get("total_duration_second")
+            .unwrap()
+            .as_i64()
+            .unwrap(),
+        600
+    );
     assert!(stats_year_json.get("sports").unwrap().is_array());
-    assert_eq!(stats_year_json.get("sports").unwrap().as_array().unwrap().len(), 1);
+    assert_eq!(
+        stats_year_json
+            .get("sports")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     let buckets_year = stats_year_json.get("buckets").unwrap().as_array().unwrap();
     assert_eq!(buckets_year.len(), 1);
-    assert_eq!(buckets_year[0].get("date").unwrap().as_i64().unwrap(), month as i64);
+    assert_eq!(
+        buckets_year[0].get("date").unwrap().as_i64().unwrap(),
+        month as i64
+    );
 
     let stats_month_req = Request::builder()
-        .uri(format!("{}?kind=month&year={}&month={}", routes::API_SPORT_STATS, year, month))
+        .uri(format!(
+            "{}?kind=month&year={}&month={}",
+            routes::API_SPORT_STATS,
+            year,
+            month
+        ))
         .method("GET")
         .header("Cookie", cookie_header.clone())
         .body(Body::empty())
         .unwrap();
     let stats_month_resp = app.call(stats_month_req).await.unwrap();
-    let (stats_month_status, stats_month_bytes) = print_response("月度统计", stats_month_resp).await;
+    let (stats_month_status, stats_month_bytes) =
+        print_response("月度统计", stats_month_resp).await;
     assert_eq!(stats_month_status, StatusCode::OK);
     let stats_month_json: serde_json::Value = serde_json::from_slice(&stats_month_bytes).unwrap();
     let buckets_month = stats_month_json.get("buckets").unwrap().as_array().unwrap();
@@ -296,7 +342,12 @@ async fn test_sport_insert_list_stats() {
     assert_eq!(buckets_month[0].get("date").unwrap().as_i64().unwrap(), 17);
 
     let stats_week_req = Request::builder()
-        .uri(format!("{}?kind=week&year={}&week={}", routes::API_SPORT_STATS, year, week))
+        .uri(format!(
+            "{}?kind=week&year={}&week={}",
+            routes::API_SPORT_STATS,
+            year,
+            week
+        ))
         .method("GET")
         .header("Cookie", cookie_header.clone())
         .body(Body::empty())
@@ -314,7 +365,8 @@ async fn test_sport_insert_list_stats() {
 async fn test_sport_insert_list_stats_running() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let cookie_header = register_and_get_cookie(&mut app, "test_sport_run", "RunnerUser", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_sport_run", "RunnerUser", "p@ssw0rd").await;
 
     let dt = Utc.with_ymd_and_hms(2025, 10, 12, 0, 0, 0).unwrap();
     let ts = dt.timestamp();
@@ -363,42 +415,80 @@ async fn test_sport_insert_list_stats_running() {
     let week = dt.iso_week().week();
 
     let stats_year_req = Request::builder()
-        .uri(format!("{}?kind=year&year={}", routes::API_SPORT_STATS, year))
+        .uri(format!(
+            "{}?kind=year&year={}",
+            routes::API_SPORT_STATS,
+            year
+        ))
         .method("GET")
         .header("Cookie", cookie_header.clone())
         .body(Body::empty())
         .unwrap();
     let stats_year_resp = app.call(stats_year_req).await.unwrap();
-    let (stats_year_status, stats_year_bytes) = print_response("年度统计(跑步)", stats_year_resp).await;
+    let (stats_year_status, stats_year_bytes) =
+        print_response("年度统计(跑步)", stats_year_resp).await;
     assert_eq!(stats_year_status, StatusCode::OK);
     let stats_year_json: serde_json::Value = serde_json::from_slice(&stats_year_bytes).unwrap();
-    assert_eq!(stats_year_json.get("total_count").unwrap().as_i64().unwrap(), 1);
-    assert_eq!(stats_year_json.get("total_calories").unwrap().as_i64().unwrap(), 260);
-    assert_eq!(stats_year_json.get("total_duration_second").unwrap().as_i64().unwrap(), 1800);
+    assert_eq!(
+        stats_year_json
+            .get("total_count")
+            .unwrap()
+            .as_i64()
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        stats_year_json
+            .get("total_calories")
+            .unwrap()
+            .as_i64()
+            .unwrap(),
+        260
+    );
+    assert_eq!(
+        stats_year_json
+            .get("total_duration_second")
+            .unwrap()
+            .as_i64()
+            .unwrap(),
+        1800
+    );
     let buckets_year = stats_year_json.get("buckets").unwrap().as_array().unwrap();
     assert_eq!(buckets_year.len(), 1);
 
     let stats_month_req = Request::builder()
-        .uri(format!("{}?kind=month&year={}&month={}", routes::API_SPORT_STATS, year, month))
+        .uri(format!(
+            "{}?kind=month&year={}&month={}",
+            routes::API_SPORT_STATS,
+            year,
+            month
+        ))
         .method("GET")
         .header("Cookie", cookie_header.clone())
         .body(Body::empty())
         .unwrap();
     let stats_month_resp = app.call(stats_month_req).await.unwrap();
-    let (stats_month_status, stats_month_bytes) = print_response("月度统计(跑步)", stats_month_resp).await;
+    let (stats_month_status, stats_month_bytes) =
+        print_response("月度统计(跑步)", stats_month_resp).await;
     assert_eq!(stats_month_status, StatusCode::OK);
     let stats_month_json: serde_json::Value = serde_json::from_slice(&stats_month_bytes).unwrap();
     let buckets_month = stats_month_json.get("buckets").unwrap().as_array().unwrap();
     assert_eq!(buckets_month.len(), 1);
 
     let stats_week_req = Request::builder()
-        .uri(format!("{}?kind=week&year={}&week={}", routes::API_SPORT_STATS, year, week))
+        .uri(format!(
+            "{}?kind=week&year={}&week={}",
+            routes::API_SPORT_STATS,
+            year,
+            week
+        ))
         .method("GET")
         .header("Cookie", cookie_header.clone())
         .body(Body::empty())
         .unwrap();
     let stats_week_resp = app.call(stats_week_req).await.unwrap();
-    let (stats_week_status, stats_week_bytes) = print_response("周度统计(跑步)", stats_week_resp).await;
+    let (stats_week_status, stats_week_bytes) =
+        print_response("周度统计(跑步)", stats_week_resp).await;
     assert_eq!(stats_week_status, StatusCode::OK);
     let stats_week_json: serde_json::Value = serde_json::from_slice(&stats_week_bytes).unwrap();
     let buckets_week = stats_week_json.get("buckets").unwrap().as_array().unwrap();
@@ -410,12 +500,15 @@ async fn test_sport_insert_list_stats_running() {
 #[tokio::test]
 async fn test_image_endpoint() {
     let mut app = app::create_app(AppConfig::default()).await;
-    let cookie_header = register_and_get_cookie(&mut app, "test_image", "ImageUser", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_image", "ImageUser", "p@ssw0rd").await;
 
     // Read image data from local test.jpg file
-    let image_data = std::fs::read("tests/test_img/test1.jpg").expect("Failed to read test.jpg file");
-// Read image data from local test.jpg file
-    let image_data2 = std::fs::read("tests/test_img/test2.jpg").expect("Failed to read test2.jpg file");
+    let image_data =
+        std::fs::read("tests/test_img/test1.jpg").expect("Failed to read test.jpg file");
+    // Read image data from local test.jpg file
+    let image_data2 =
+        std::fs::read("tests/test_img/test2.jpg").expect("Failed to read test2.jpg file");
     let form = multipart::Form::new()
         .part(
             "image",
@@ -463,9 +556,11 @@ async fn test_image_endpoint() {
 async fn test_image_running_recognition() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let cookie_header = register_and_get_cookie(&mut app, "test_image_running", "Runner", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_image_running", "Runner", "p@ssw0rd").await;
 
-    let image_data = std::fs::read("tests/test_running.jpg").expect("Failed to read test_running.jpg");
+    let image_data =
+        std::fs::read("tests/test_running.jpg").expect("Failed to read test_running.jpg");
     let form = multipart::Form::new().part(
         "image",
         multipart::Part::bytes(image_data)
@@ -480,7 +575,10 @@ async fn test_image_running_recognition() {
     let request = Request::builder()
         .uri(routes::API_IMAGE_PARSE)
         .method("POST")
-        .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+        .header(
+            "Content-Type",
+            format!("multipart/form-data; boundary={}", boundary),
+        )
         .header("Cookie", cookie_header)
         .body(body)
         .unwrap();
@@ -489,9 +587,20 @@ async fn test_image_running_recognition() {
     let (status, body_bytes) = print_response("跑步识别", response).await;
     assert_eq!(status, StatusCode::OK);
     let resp_json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
-    assert!(resp_json.get("success").and_then(|v| v.as_bool()).unwrap_or(false));
-    let data = resp_json.get("data").cloned().unwrap_or(serde_json::json!({}));
-    assert_eq!(data.get("type").and_then(|v| v.as_str()).unwrap_or(""), "Running");
+    assert!(
+        resp_json
+            .get("success")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    );
+    let data = resp_json
+        .get("data")
+        .cloned()
+        .unwrap_or(serde_json::json!({}));
+    assert_eq!(
+        data.get("type").and_then(|v| v.as_str()).unwrap_or(""),
+        "Running"
+    );
     assert!(data.get("tracks").is_some());
 }
 
@@ -522,12 +631,12 @@ async fn test_image_endpoint_unauthenticated() {
     assert_eq!(body_str, "未登录或token无效");
 }
 
-
 #[tokio::test]
 async fn test_user_info_endpoint() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let cookie_header = register_and_get_cookie(&mut app, "test_user_info", "Tester", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_user_info", "Tester", "p@ssw0rd").await;
 
     let info_req = Request::builder()
         .uri(routes::API_USER_INFO)
@@ -539,15 +648,18 @@ async fn test_user_info_endpoint() {
     let (info_status, info_bytes) = print_response("用户信息", info_resp).await;
     assert_eq!(info_status, StatusCode::OK);
     let info_json: serde_json::Value = serde_json::from_slice(&info_bytes).unwrap();
-    assert_eq!(info_json.get("nickname").unwrap().as_str().unwrap(), "Tester");
+    assert_eq!(
+        info_json.get("nickname").unwrap().as_str().unwrap(),
+        "Tester"
+    );
 }
-
 
 #[tokio::test]
 async fn test_user_logout() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let cookie_header = register_and_get_cookie(&mut app, "test_logout", "LogoutUser", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_logout", "LogoutUser", "p@ssw0rd").await;
 
     let info_req = Request::builder()
         .uri(routes::API_USER_INFO)
@@ -588,12 +700,12 @@ async fn test_user_logout() {
     assert!(!body_str2.is_empty());
 }
 
-
 #[tokio::test]
 async fn test_sport_update() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let cookie_header = register_and_get_cookie(&mut app, "test_sport_update", "Updater", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_sport_update", "Updater", "p@ssw0rd").await;
 
     let dt = chrono::Utc.with_ymd_and_hms(2025, 11, 18, 0, 0, 0).unwrap();
     let ts = dt.timestamp();
@@ -675,24 +787,26 @@ async fn test_sport_update() {
     assert_eq!(first2.get("id").unwrap().as_i64().unwrap() as i32, sport_id);
     assert_eq!(first2.get("calories").unwrap().as_i64().unwrap(), 200);
     assert_eq!(first2.get("distance_meter").unwrap().as_i64().unwrap(), 800);
-    assert_eq!(first2.get("duration_second").unwrap().as_i64().unwrap(), 450);
+    assert_eq!(
+        first2.get("duration_second").unwrap().as_i64().unwrap(),
+        450
+    );
 }
 #[tokio::test]
 async fn test_sport_import_csv() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let cookie_header = register_and_get_cookie(&mut app, "test_sport_import", "Importer", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_sport_import", "Importer", "p@ssw0rd").await;
 
     let csv = "Uid,Sid,Key,Time,Category,Value,UpdateTime\n49767842,609301467,pool_swimm,1731888000,swimming,{\"anaerobic_train_e\":1},1731888000\n49767842,609301467,pool_swimm,1731889000,swimming,{\"anaerobic_train_e\":1},1731889000";
-    let form = multipart::Form::new()
-        .text("vendor", "xiaomi")
-        .part(
-            "file",
-            multipart::Part::text(csv)
-                .file_name("sports.csv")
-                .mime_str("text/csv")
-                .unwrap(),
-        );
+    let form = multipart::Form::new().text("vendor", "xiaomi").part(
+        "file",
+        multipart::Part::text(csv)
+            .file_name("sports.csv")
+            .mime_str("text/csv")
+            .unwrap(),
+    );
     let boundary = form.boundary().to_string();
     let stream = form.into_stream();
     let body = Body::from_stream(stream);
@@ -700,7 +814,10 @@ async fn test_sport_import_csv() {
     let import_req = Request::builder()
         .uri(routes::API_SPORT_IMPORT)
         .method("POST")
-        .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+        .header(
+            "Content-Type",
+            format!("multipart/form-data; boundary={}", boundary),
+        )
         .header("Cookie", cookie_header.clone())
         .body(body)
         .unwrap();
@@ -727,11 +844,16 @@ async fn test_sport_import_csv() {
 async fn test_sport_stats_total() {
     let mut app = app::create_app(AppConfig::default()).await;
 
-    let cookie_header = register_and_get_cookie(&mut app, "test_stats_total", "StatsTotal", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_stats_total", "StatsTotal", "p@ssw0rd").await;
 
     let year = 2025;
     let req = Request::builder()
-        .uri(format!("{}?kind=total&year={}", routes::API_SPORT_STATS, year))
+        .uri(format!(
+            "{}?kind=total&year={}",
+            routes::API_SPORT_STATS,
+            year
+        ))
         .method("GET")
         .header("Cookie", cookie_header.clone())
         .body(Body::empty())
@@ -750,7 +872,8 @@ async fn test_sport_stats_total() {
 #[tokio::test]
 async fn test_user_avatar_upload_and_get() {
     let mut app = app::create_app(AppConfig::default()).await;
-    let cookie_header = register_and_get_cookie(&mut app, "test_avatar", "AvatarUser", "p@ssw0rd").await;
+    let cookie_header =
+        register_and_get_cookie(&mut app, "test_avatar", "AvatarUser", "p@ssw0rd").await;
 
     let base64 = "data:image/jpeg;base64,ZmFrZQ==";
     let form = multipart::Form::new().text("avatar", base64);
@@ -761,7 +884,10 @@ async fn test_user_avatar_upload_and_get() {
     let upload_req = Request::builder()
         .uri(routes::API_USER_AVATAR_UPLOAD)
         .method("POST")
-        .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+        .header(
+            "Content-Type",
+            format!("multipart/form-data; boundary={}", boundary),
+        )
         .header("Cookie", cookie_header.clone())
         .body(body)
         .unwrap();
@@ -770,7 +896,14 @@ async fn test_user_avatar_upload_and_get() {
     assert_eq!(upload_status, StatusCode::OK);
     let upload_json: serde_json::Value = serde_json::from_slice(&upload_bytes).unwrap();
     assert!(upload_json.get("success").unwrap().as_bool().unwrap());
-    assert!(upload_json.get("avatar").unwrap().as_str().unwrap().starts_with("data:image/jpeg;base64,"));
+    assert!(
+        upload_json
+            .get("avatar")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .starts_with("data:image/jpeg;base64,")
+    );
 
     let get_req = Request::builder()
         .uri(routes::API_USER_INFO)
@@ -782,21 +915,40 @@ async fn test_user_avatar_upload_and_get() {
     let (get_status, get_bytes) = print_response("头像获取", get_resp).await;
     assert_eq!(get_status, StatusCode::OK);
     let get_json: serde_json::Value = serde_json::from_slice(&get_bytes).unwrap();
-    assert_eq!(get_json.get("nickname").unwrap().as_str().unwrap(), "AvatarUser");
-    assert!(get_json.get("avatar").unwrap().as_str().unwrap().starts_with("data:image/jpeg;base64,"));
+    assert_eq!(
+        get_json.get("nickname").unwrap().as_str().unwrap(),
+        "AvatarUser"
+    );
+    assert!(
+        get_json
+            .get("avatar")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .starts_with("data:image/jpeg;base64,")
+    );
 }
 struct TestMockLLM {
-    result: RwLock<Result<String, slam_server::service::llm::LLMError>>,    
+    result: RwLock<Result<String, slam_server::service::llm::LLMError>>,
 }
 
 impl TestMockLLM {
-    fn new() -> Self { Self { result: RwLock::new(Ok(SAMPLE_XML_SWIMMING.to_string())) } }
-    fn set_result(&self, r: Result<String, slam_server::service::llm::LLMError>) { *self.result.write().unwrap() = r; }
+    fn new() -> Self {
+        Self {
+            result: RwLock::new(Ok(SAMPLE_XML_SWIMMING.to_string())),
+        }
+    }
+    fn set_result(&self, r: Result<String, slam_server::service::llm::LLMError>) {
+        *self.result.write().unwrap() = r;
+    }
 }
 
 #[async_trait]
 impl LlmTrait for TestMockLLM {
-    async fn chat(&self, _request: slam_server::service::llm::ChatCompletionRequest) -> Result<String, Box<dyn std::error::Error>> {
+    async fn chat(
+        &self,
+        _request: slam_server::service::llm::ChatCompletionRequest,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         match self.result.read().unwrap().clone() {
             Ok(s) => Ok(s),
             Err(e) => Err(Box::new(e)),
@@ -819,7 +971,9 @@ async fn test_llm_mock_set_result_controls_response() {
 async fn test_llm_error_timeout_maps_504() {
     let mock = Arc::new(TestMockLLM::new());
     let svc = AIService::with_llm(mock.clone());
-    mock.set_result(Err(slam_server::service::llm::LLMError::TimeoutError("timeout".to_string())));
+    mock.set_result(Err(slam_server::service::llm::LLMError::TimeoutError(
+        "timeout".to_string(),
+    )));
     let result = svc.sports_image_recognition(vec![]).await;
     assert!(result.is_err());
     let err = result.err().unwrap();
@@ -830,7 +984,9 @@ async fn test_llm_error_timeout_maps_504() {
 async fn test_llm_error_api_failure_maps_502() {
     let mock = Arc::new(TestMockLLM::new());
     let svc = AIService::with_llm(mock.clone());
-    mock.set_result(Err(slam_server::service::llm::LLMError::APIFailure("api fail".to_string())));
+    mock.set_result(Err(slam_server::service::llm::LLMError::APIFailure(
+        "api fail".to_string(),
+    )));
     let result = svc.sports_image_recognition(vec![]).await;
     assert!(result.is_err());
     let err = result.err().unwrap();
@@ -841,7 +997,9 @@ async fn test_llm_error_api_failure_maps_502() {
 async fn test_llm_error_auth_maps_502() {
     let mock = Arc::new(TestMockLLM::new());
     let svc = AIService::with_llm(mock.clone());
-    mock.set_result(Err(slam_server::service::llm::LLMError::LLMAuthenticationError("auth".to_string())));
+    mock.set_result(Err(
+        slam_server::service::llm::LLMError::LLMAuthenticationError("auth".to_string()),
+    ));
     let result = svc.sports_image_recognition(vec![]).await;
     assert!(result.is_err());
     let err = result.err().unwrap();
@@ -852,7 +1010,9 @@ async fn test_llm_error_auth_maps_502() {
 async fn test_llm_error_validation_maps_400() {
     let mock = Arc::new(TestMockLLM::new());
     let svc = AIService::with_llm(mock.clone());
-    mock.set_result(Err(slam_server::service::llm::LLMError::ValidationError("validation".to_string())));
+    mock.set_result(Err(slam_server::service::llm::LLMError::ValidationError(
+        "validation".to_string(),
+    )));
     let result = svc.sports_image_recognition(vec![]).await;
     assert!(result.is_err());
     let err = result.err().unwrap();
@@ -863,7 +1023,9 @@ async fn test_llm_error_validation_maps_400() {
 async fn test_llm_error_internal_maps_500() {
     let mock = Arc::new(TestMockLLM::new());
     let svc = AIService::with_llm(mock.clone());
-    mock.set_result(Err(slam_server::service::llm::LLMError::InternalError("internal".to_string())));
+    mock.set_result(Err(slam_server::service::llm::LLMError::InternalError(
+        "internal".to_string(),
+    )));
     let result = svc.sports_image_recognition(vec![]).await;
     assert!(result.is_err());
     let err = result.err().unwrap();
@@ -874,7 +1036,9 @@ async fn test_llm_error_internal_maps_500() {
 async fn test_llm_error_config_maps_500() {
     let mock = Arc::new(TestMockLLM::new());
     let svc = AIService::with_llm(mock.clone());
-    mock.set_result(Err(slam_server::service::llm::LLMError::ConfigurationError("config".to_string())));
+    mock.set_result(Err(
+        slam_server::service::llm::LLMError::ConfigurationError("config".to_string()),
+    ));
     let result = svc.sports_image_recognition(vec![]).await;
     assert!(result.is_err());
     let err = result.err().unwrap();
@@ -890,7 +1054,10 @@ async fn test_image_endpoint_comparison() {
         "doubao-seed-2-0-lite-260215",
     ];
 
-    println!("\n{:<30} | {:<10} | {:<10}", "Model", "Status", "Duration (ms)");
+    println!(
+        "\n{:<30} | {:<10} | {:<10}",
+        "Model", "Status", "Duration (ms)"
+    );
     println!("{:-<30}-+-{:-<10}-+-{:-<10}", "", "", "");
 
     for model in models {
@@ -898,13 +1065,16 @@ async fn test_image_endpoint_comparison() {
         config.ai.model = model.to_string();
 
         let mut app = app::create_app(config).await;
-        
-        let prefix = format!("test_{}", model.replace("-", "_"));
-        let cookie_header = register_and_get_cookie(&mut app, &prefix, "ImageUser", "p@ssw0rd").await;
 
-        let image_data = std::fs::read("tests/test_img/test1.jpg").expect("Failed to read test1.jpg file");
-        let image_data2 = std::fs::read("tests/test_img/test2.jpg").expect("Failed to read test2.jpg file");
-        
+        let prefix = format!("test_{}", model.replace("-", "_"));
+        let cookie_header =
+            register_and_get_cookie(&mut app, &prefix, "ImageUser", "p@ssw0rd").await;
+
+        let image_data =
+            std::fs::read("tests/test_img/test1.jpg").expect("Failed to read test1.jpg file");
+        let image_data2 =
+            std::fs::read("tests/test_img/test2.jpg").expect("Failed to read test2.jpg file");
+
         let form = multipart::Form::new()
             .part(
                 "image",
@@ -942,10 +1112,14 @@ async fn test_image_endpoint_comparison() {
 
         let status = response.status();
         let body_bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
-        
+
         let success_status = if status == StatusCode::OK {
             let response_json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
-            if response_json.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if response_json
+                .get("success")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 "Success"
             } else {
                 "FailBody"
@@ -954,14 +1128,19 @@ async fn test_image_endpoint_comparison() {
             "FailStatus"
         };
 
-        println!("{:<30} | {:<10} | {:<10}", 
-            model, 
-            success_status, 
+        println!(
+            "{:<30} | {:<10} | {:<10}",
+            model,
+            success_status,
             duration.as_millis()
         );
-        
+
         if success_status != "Success" {
-             println!("Response for {}: {:?}", model, String::from_utf8_lossy(&body_bytes));
+            println!(
+                "Response for {}: {:?}",
+                model,
+                String::from_utf8_lossy(&body_bytes)
+            );
         }
     }
 }

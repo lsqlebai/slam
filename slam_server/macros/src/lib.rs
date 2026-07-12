@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, parse2, ItemFn, ImplItemFn, Type};
+use syn::{parse2, parse_macro_input, ImplItemFn, ItemFn, Type};
 
 /// #[inject_ctx]         -> ctx: &Context   (默认类型)
 /// #[inject_ctx(MyCtx)]  -> ctx: &MyCtx    (自定义类型)
@@ -41,10 +41,7 @@ pub fn inject_ctx(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     // 5. 都不是就报错
-    syn::Error::new_spanned(
-        ts2,
-        "#[inject_ctx] 目前只支持自由函数和 impl 方法",
-    )
-    .to_compile_error()
-    .into()
+    syn::Error::new_spanned(ts2, "#[inject_ctx] 目前只支持自由函数和 impl 方法")
+        .to_compile_error()
+        .into()
 }

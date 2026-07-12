@@ -1,5 +1,8 @@
 import { appTools, defineConfig } from '@modern-js/app-tools';
 
+const apiProxyTarget =
+  process.env.MODERN_DEV_PROXY_TARGET || 'http://127.0.0.1:3000';
+
 // https://modernjs.dev/en/configure/app/usage
 export default defineConfig({
   runtime: {
@@ -8,15 +11,16 @@ export default defineConfig({
   plugins: [appTools({ bundler: 'rspack' })],
   dev: {
     proxy: {
-      '/api': 'http://127.0.0.1:3000',
+      '/api': apiProxyTarget,
     },
   },
   tools: {
     devServer: {
       proxy: {
         '/api': {
-          target: 'http://127.0.0.1:3000',
+          target: apiProxyTarget,
           changeOrigin: true,
+          cookieDomainRewrite: 'localhost',
         },
       },
     },

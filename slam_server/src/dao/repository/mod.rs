@@ -7,7 +7,9 @@ pub struct Repository {
 impl Repository {
     pub async fn new(database_path: &str) -> Result<Self, String> {
         let url = format!("sqlite://{}?mode=rwc", database_path);
-        let conn = Database::connect(url).await.map_err(|e| format!("连接数据库失败: {}", e))?;
+        let conn = Database::connect(url)
+            .await
+            .map_err(|e| format!("连接数据库失败: {}", e))?;
         let dao = Self { conn };
         dao.init_schema().await?;
         dao.write_check().await?;
@@ -15,7 +17,7 @@ impl Repository {
     }
 }
 
+mod compat;
 mod schema;
 mod sport;
 mod user;
-mod compat;

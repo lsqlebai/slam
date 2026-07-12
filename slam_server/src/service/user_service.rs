@@ -1,13 +1,13 @@
-use crate::service::common::ServiceError;
+use crate::config::SecurityConfig;
 use crate::dao::idl::UserDao;
 use crate::model::user::{User, UserInfo};
-use std::sync::Arc;
+use crate::service::common::ServiceError;
 use aes::Aes256;
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64_ENGINE};
 use cbc::Encryptor;
-use cipher::{KeyIvInit, BlockEncryptMut, block_padding::Pkcs7};
-use sha2::{Sha256, Digest};
-use base64::{engine::general_purpose::STANDARD as BASE64_ENGINE, Engine};
-use crate::config::SecurityConfig;
+use cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7};
+use sha2::{Digest, Sha256};
+use std::sync::Arc;
 
 pub struct UserService {
     dao: Arc<dyn UserDao + Send + Sync>,
@@ -40,7 +40,9 @@ impl UserService {
         let block_size = 16;
         let pad_len = block_size - (buf.len() % block_size);
         buf.extend(std::iter::repeat_n(0u8, pad_len));
-        let ct = enc.encrypt_padded_mut::<Pkcs7>(&mut buf, pwd.len()).unwrap();
+        let ct = enc
+            .encrypt_padded_mut::<Pkcs7>(&mut buf, pwd.len())
+            .unwrap();
         BASE64_ENGINE.encode(ct)
     }
 
@@ -50,7 +52,10 @@ impl UserService {
         user.id = 0;
         match self.dao.insert(user.clone()).await {
             Ok(uid) => Ok(uid),
-            Err(e) => Err(ServiceError { code: 500, message: e }),
+            Err(e) => Err(ServiceError {
+                code: 500,
+                message: e,
+            }),
         }
     }
 
@@ -58,24 +63,38 @@ impl UserService {
         let encrypted = self.encrypt_password(&password);
         match self.dao.login(&name, &encrypted).await {
             Ok(Some(u)) => Ok(u.id),
-            Ok(None) => Err(ServiceError { code: 401, message: "用户名或密码错误".to_string() }),
-            Err(e) => Err(ServiceError { code: 500, message: e }),
+            Ok(None) => Err(ServiceError {
+                code: 401,
+                message: "用户名或密码错误".to_string(),
+            }),
+            Err(e) => Err(ServiceError {
+                code: 500,
+                message: e,
+            }),
         }
     }
 
     pub async fn get_user(&self, id: i32) -> Result<UserInfo, ServiceError> {
         match self.dao.get_by_id(id).await {
             Ok(Some(u)) => Ok(u),
-            Ok(None) => Err(ServiceError { code: 404, message: "用户不存在".to_string() }),
-            Err(e) => Err(ServiceError { code: 500, message: e }),
+            Ok(None) => Err(ServiceError {
+                code: 404,
+                message: "用户不存在".to_string(),
+            }),
+            Err(e) => Err(ServiceError {
+                code: 500,
+                message: e,
+            }),
         }
     }
 
     pub async fn set_avatar(&self, uid: i32, base64: String) -> Result<(), ServiceError> {
         match self.dao.set_avatar(uid, base64).await {
             Ok(()) => Ok(()),
-            Err(e) => Err(ServiceError { code: 500, message: e }),
+            Err(e) => Err(ServiceError {
+                code: 500,
+                message: e,
+            }),
         }
     }
-
 }

@@ -1,9 +1,19 @@
-import { Pool, DirectionsRun, HelpOutline } from '@mui/icons-material';
+import { DirectionsRun, HelpOutline, Pool } from '@mui/icons-material';
 import { MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { TEXTS } from '../../i18n';
-import type { Sport, Swimming, Running, SportExtra } from '../../services/sport';
-import { getSportType, SportType } from '../../services/sport';
-import { getExtraConfigByType, groupByLayout, type FieldConfig, type LayoutConfig } from './ExtraConfig';
+import type {
+  Running,
+  Sport,
+  SportExtra,
+  Swimming,
+} from '../../services/sport';
+import { SportType, getSportType } from '../../services/sport';
+import {
+  type FieldConfig,
+  type LayoutConfig,
+  getExtraConfigByType,
+  groupByLayout,
+} from './ExtraConfig';
 
 export default function SportExtraInfo({
   lang,
@@ -58,9 +68,12 @@ export default function SportExtraInfo({
                 {row.map(cfg => {
                   const rawVal = extra?.[cfg.key];
                   const baseVal = rawVal ?? cfg.default;
-                  const value = cfg.kind === 'number'
-                    ? (baseVal === 0 ? '' : baseVal)
-                    : (baseVal ?? '');
+                  const value =
+                    cfg.kind === 'number'
+                      ? baseVal === 0
+                        ? ''
+                        : baseVal
+                      : (baseVal ?? '');
                   if (cfg.kind === 'select') {
                     return (
                       <TextField
@@ -69,7 +82,9 @@ export default function SportExtraInfo({
                         select
                         label={cfg.label}
                         value={value}
-                        onChange={e => updateExtra({ [cfg.key]: e.target.value } as any)}
+                        onChange={e =>
+                          updateExtra({ [cfg.key]: e.target.value } as any)
+                        }
                         disabled={readonly}
                         sx={{
                           '& .MuiInputBase-input.Mui-disabled': {
@@ -99,9 +114,12 @@ export default function SportExtraInfo({
                       type={type}
                       value={value}
                       onChange={e => {
-                        const parsed = cfg.kind === 'number'
-                          ? (cfg.parse ? cfg.parse(e.target.value) : Number.parseInt(e.target.value || '0'))
-                          : e.target.value;
+                        const parsed =
+                          cfg.kind === 'number'
+                            ? cfg.parse
+                              ? cfg.parse(e.target.value)
+                              : Number.parseInt(e.target.value || '0')
+                            : e.target.value;
                         updateExtra({ [cfg.key]: parsed } as any);
                       }}
                       InputProps={{ readOnly: readonly }}

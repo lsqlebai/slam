@@ -1,5 +1,4 @@
 import { Helmet } from '@modern-js/runtime/head';
-import iconWebp from '../assets/ic_launcher_round.webp';
 import { Alert, Snackbar } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -9,6 +8,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import iconWebp from '../assets/ic_launcher_round.webp';
 import { onError } from '../utils/notify';
 
 type Severity = 'success' | 'error' | 'info' | 'warning';

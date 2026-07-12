@@ -1,8 +1,8 @@
+pub use crate::model::sport_xml::{SAMPLE_XML_RUNNING, SAMPLE_XML_SWIMMING};
+use crate::model::sport_xml::{SportXML, XMLSportExtra, parse_timestamp};
 use quick_xml::de as xml_de;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-pub use crate::model::sport_xml::{SAMPLE_XML_SWIMMING, SAMPLE_XML_RUNNING};
-use crate::model::sport_xml::{SportXML, XMLSportExtra, parse_timestamp};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(default, rename = "sport")]
@@ -35,12 +35,16 @@ pub struct Swimming {
     pub main_stroke: String,
     pub stroke_avg: i32,
     pub swolf_avg: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lane_length_meter: Option<i32>,
 }
 
 impl Swimming {
     pub fn new(main_stroke: String, stroke_avg: i32, swolf_avg: i32) -> Self {
         let main_stroke_lower = main_stroke.trim().to_lowercase();
-        let main_stroke_normalized = if main_stroke_lower.contains("mix") || main_stroke_lower.contains("混合") {
+        let main_stroke_normalized = if main_stroke_lower.contains("mix")
+            || main_stroke_lower.contains("混合")
+        {
             "medley"
         } else if main_stroke_lower.contains("free") || main_stroke_lower.contains("自由") {
             "freestyle"
@@ -54,17 +58,17 @@ impl Swimming {
             "unknown"
         } else {
             "unknown" // Default to unknown for any invalid values
-        }.to_string();
-        
+        }
+        .to_string();
+
         Self {
             main_stroke: main_stroke_normalized,
             stroke_avg,
             swolf_avg,
+            lane_length_meter: None,
         }
     }
 }
-
-
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Default, Clone)]
 #[serde(deny_unknown_fields)]
@@ -84,7 +88,6 @@ pub enum SportExtra {
     Running(Running),
 }
 
-
 impl Sport {
     pub fn parse_from_xml(xml: &str) -> Result<Sport, String> {
         let data: SportXML = xml_de::from_str(xml).map_err(|e| format!("XML解析失败: {}", e))?;
@@ -99,7 +102,9 @@ impl Sport {
                 distance_meter: t.distance_meter,
                 duration_second: t.duration_second,
                 pace_average: t.pace_average,
-                extra: t.extra.and_then(|raw| SportExtra::from_raw(data.r#type, raw)),
+                extra: t
+                    .extra
+                    .and_then(|raw| SportExtra::from_raw(data.r#type, raw)),
             })
             .collect::<Vec<_>>();
         Ok(Sport {
@@ -118,7 +123,6 @@ impl Sport {
     }
 }
 
-
 // #[derive(Debug, Serialize, Deserialize, ToSchema)]
 // pub struct Running {
 // }
@@ -126,15 +130,20 @@ impl Sport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{NaiveDateTime, Local, TimeZone};
+    use chrono::{Local, NaiveDateTime, TimeZone};
     #[test]
     fn test_parse_sample_swim() {
         let sport = crate::model::sport::Sport::parse_from_xml(SAMPLE_XML_SWIMMING)
             .expect("parse_sample_swim 应该成功");
 
         assert_eq!(sport.r#type, SportType::Swimming);
-        let ndt = chrono::NaiveDateTime::parse_from_str("2025-11-05 20:02:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let expected = chrono::Local.from_local_datetime(&ndt).earliest().unwrap().timestamp();
+        let ndt = chrono::NaiveDateTime::parse_from_str("2025-11-05 20:02:00", "%Y-%m-%d %H:%M:%S")
+            .unwrap();
+        let expected = chrono::Local
+            .from_local_datetime(&ndt)
+            .earliest()
+            .unwrap()
+            .timestamp();
         assert_eq!(sport.start_time, expected);
         assert_eq!(sport.calories, 200);
         assert_eq!(sport.distance_meter, 1000);
@@ -142,9 +151,13 @@ mod tests {
         assert_eq!(sport.heart_rate_avg, 120);
         assert_eq!(sport.heart_rate_max, 150);
 
-        let swim = match sport.extra { Some(SportExtra::Swimming(s)) => s, _ => panic!("extra 类型错误") };
+        let swim = match sport.extra {
+            Some(SportExtra::Swimming(s)) => s,
+            _ => panic!("extra 类型错误"),
+        };
         assert_eq!(swim.stroke_avg, 20);
         assert_eq!(swim.swolf_avg, 80);
+        assert_eq!(swim.lane_length_meter, None);
 
         assert_eq!(sport.id, 0);
 
@@ -154,7 +167,10 @@ mod tests {
         assert_eq!(t1.distance_meter, 25);
         assert_eq!(t1.duration_second, 30);
         assert_eq!(t1.pace_average, "4'00''");
-        let t1e = match &t1.extra { Some(SportExtra::Swimming(s)) => s, _ => panic!("track extra 类型错误") };
+        let t1e = match &t1.extra {
+            Some(SportExtra::Swimming(s)) => s,
+            _ => panic!("track extra 类型错误"),
+        };
         assert_eq!(t1e.main_stroke, "freestyle");
         assert_eq!(t1e.stroke_avg, 20);
         assert_eq!(t1e.swolf_avg, 80);
@@ -163,10 +179,29 @@ mod tests {
         assert_eq!(t2.distance_meter, 25);
         assert_eq!(t2.duration_second, 40);
         assert_eq!(t2.pace_average, "4'00''");
-        let t2e = match &t2.extra { Some(SportExtra::Swimming(s)) => s, _ => panic!("track extra 类型错误") };
+        let t2e = match &t2.extra {
+            Some(SportExtra::Swimming(s)) => s,
+            _ => panic!("track extra 类型错误"),
+        };
         assert_eq!(t2e.main_stroke, "freestyle");
         assert_eq!(t2e.stroke_avg, 20);
         assert_eq!(t2e.swolf_avg, 80);
+    }
+
+    #[test]
+    fn test_swimming_lane_length_json_is_backward_compatible() {
+        let legacy = r#"{"main_stroke":"freestyle","stroke_avg":20,"swolf_avg":80}"#;
+        let legacy_swimming: Swimming = serde_json::from_str(legacy).unwrap();
+        assert_eq!(legacy_swimming.lane_length_meter, None);
+
+        let swimming = Swimming {
+            main_stroke: "freestyle".to_string(),
+            stroke_avg: 20,
+            swolf_avg: 80,
+            lane_length_meter: Some(25),
+        };
+        let json = serde_json::to_string(&swimming).unwrap();
+        assert!(json.contains("\"lane_length_meter\":25"));
     }
 
     #[test]
@@ -176,7 +211,10 @@ mod tests {
         assert_eq!(sport.r#type, SportType::Running);
         assert_eq!(sport.distance_meter, 4820);
         assert_eq!(sport.duration_second, 1872);
-        let run = match sport.extra { Some(SportExtra::Running(r)) => r, _ => panic!("extra 类型错误") };
+        let run = match sport.extra {
+            Some(SportExtra::Running(r)) => r,
+            _ => panic!("extra 类型错误"),
+        };
         assert_eq!(run.cadence_avg, 164);
         assert_eq!(run.steps_total, 5122);
         assert_eq!(sport.tracks.len(), 5);
@@ -202,6 +240,7 @@ mod tests {
                 main_stroke: "freestyle".to_string(),
                 stroke_avg: 20,
                 swolf_avg: 80,
+                lane_length_meter: None,
             })),
             tracks: vec![
                 Track {
@@ -212,6 +251,7 @@ mod tests {
                         main_stroke: "freestyle".to_string(),
                         stroke_avg: 20,
                         swolf_avg: 80,
+                        lane_length_meter: None,
                     })),
                 },
                 Track {
@@ -222,6 +262,7 @@ mod tests {
                         main_stroke: "freestyle".to_string(),
                         stroke_avg: 20,
                         swolf_avg: 80,
+                        lane_length_meter: None,
                     })),
                 },
             ],
@@ -253,9 +294,12 @@ mod tests {
                 pace_min: "6'08''".to_string(),
                 pace_max: "6'22''".to_string(),
             })),
-            tracks: vec![
-                Track { distance_meter: 1000, duration_second: 377, pace_average: "6'17''".to_string(), extra: None },
-            ],
+            tracks: vec![Track {
+                distance_meter: 1000,
+                duration_second: 377,
+                pace_average: "6'17''".to_string(),
+                extra: None,
+            }],
         };
         let xml = xml_se::to_string(&sport).expect("serialize running to xml");
         assert!(!xml.is_empty());
@@ -273,10 +317,30 @@ mod tests {
             heart_rate_avg: 0,
             heart_rate_max: 0,
             pace_average: "".to_string(),
-            extra: Some(SportExtra::Swimming(Swimming { main_stroke: "freestyle".to_string(), stroke_avg: 20, swolf_avg: 80 })),
+            extra: Some(SportExtra::Swimming(Swimming {
+                main_stroke: "freestyle".to_string(),
+                stroke_avg: 20,
+                swolf_avg: 80,
+                lane_length_meter: None,
+            })),
             tracks: vec![
-                Track { distance_meter: 25, duration_second: 30, pace_average: "".to_string(), extra: Some(SportExtra::Swimming(Swimming { main_stroke: "freestyle".to_string(), stroke_avg: 18, swolf_avg: 75 })) },
-                Track { distance_meter: 25, duration_second: 30, pace_average: "".to_string(), extra: None },
+                Track {
+                    distance_meter: 25,
+                    duration_second: 30,
+                    pace_average: "".to_string(),
+                    extra: Some(SportExtra::Swimming(Swimming {
+                        main_stroke: "freestyle".to_string(),
+                        stroke_avg: 18,
+                        swolf_avg: 75,
+                        lane_length_meter: None,
+                    })),
+                },
+                Track {
+                    distance_meter: 25,
+                    duration_second: 30,
+                    pace_average: "".to_string(),
+                    extra: None,
+                },
             ],
         };
         assert!(sport.validate_type_consistency().is_ok());
@@ -294,10 +358,20 @@ mod tests {
             heart_rate_avg: 0,
             heart_rate_max: 0,
             pace_average: "".to_string(),
-            extra: Some(SportExtra::Running(Running { speed_avg: 10.0, cadence_avg: 160, stride_length_avg: 100, steps_total: 5000, pace_min: "5'30''".to_string(), pace_max: "6'30''".to_string() })),
-            tracks: vec![
-                Track { distance_meter: 1000, duration_second: 360, pace_average: "".to_string(), extra: None },
-            ],
+            extra: Some(SportExtra::Running(Running {
+                speed_avg: 10.0,
+                cadence_avg: 160,
+                stride_length_avg: 100,
+                steps_total: 5000,
+                pace_min: "5'30''".to_string(),
+                pace_max: "6'30''".to_string(),
+            })),
+            tracks: vec![Track {
+                distance_meter: 1000,
+                duration_second: 360,
+                pace_average: "".to_string(),
+                extra: None,
+            }],
         };
         assert!(sport.validate_type_consistency().is_ok());
     }
@@ -314,10 +388,19 @@ mod tests {
             heart_rate_avg: 0,
             heart_rate_max: 0,
             pace_average: "".to_string(),
-            extra: Some(SportExtra::Running(Running { speed_avg: 10.0, cadence_avg: 160, stride_length_avg: 100, steps_total: 5000, pace_min: "5'30''".to_string(), pace_max: "6'30''".to_string() })),
+            extra: Some(SportExtra::Running(Running {
+                speed_avg: 10.0,
+                cadence_avg: 160,
+                stride_length_avg: 100,
+                steps_total: 5000,
+                pace_min: "5'30''".to_string(),
+                pace_max: "6'30''".to_string(),
+            })),
             tracks: vec![],
         };
-        let err = sport.validate_type_consistency().expect_err("should mismatch");
+        let err = sport
+            .validate_type_consistency()
+            .expect_err("should mismatch");
         assert_eq!(err, "extra 与 SportType 不匹配");
     }
 
@@ -335,11 +418,35 @@ mod tests {
             pace_average: "".to_string(),
             extra: None,
             tracks: vec![
-                Track { distance_meter: 1000, duration_second: 360, pace_average: "".to_string(), extra: Some(SportExtra::Swimming(Swimming { main_stroke: "freestyle".to_string(), stroke_avg: 18, swolf_avg: 75 })) },
-                Track { distance_meter: 1000, duration_second: 360, pace_average: "".to_string(), extra: Some(SportExtra::Running(Running { speed_avg: 9.5, cadence_avg: 158, stride_length_avg: 95, steps_total: 4800, pace_min: "5'40''".to_string(), pace_max: "6'40''".to_string() })) },
+                Track {
+                    distance_meter: 1000,
+                    duration_second: 360,
+                    pace_average: "".to_string(),
+                    extra: Some(SportExtra::Swimming(Swimming {
+                        main_stroke: "freestyle".to_string(),
+                        stroke_avg: 18,
+                        swolf_avg: 75,
+                        lane_length_meter: None,
+                    })),
+                },
+                Track {
+                    distance_meter: 1000,
+                    duration_second: 360,
+                    pace_average: "".to_string(),
+                    extra: Some(SportExtra::Running(Running {
+                        speed_avg: 9.5,
+                        cadence_avg: 158,
+                        stride_length_avg: 95,
+                        steps_total: 4800,
+                        pace_min: "5'40''".to_string(),
+                        pace_max: "6'40''".to_string(),
+                    })),
+                },
             ],
         };
-        let err = sport.validate_type_consistency().expect_err("should mismatch");
+        let err = sport
+            .validate_type_consistency()
+            .expect_err("should mismatch");
         assert_eq!(err, "tracks[1].extra 与 SportType 不匹配");
     }
 
@@ -355,10 +462,17 @@ mod tests {
             heart_rate_avg: 0,
             heart_rate_max: 0,
             pace_average: "".to_string(),
-            extra: Some(SportExtra::Swimming(Swimming { main_stroke: "freestyle".to_string(), stroke_avg: 18, swolf_avg: 75 })),
+            extra: Some(SportExtra::Swimming(Swimming {
+                main_stroke: "freestyle".to_string(),
+                stroke_avg: 18,
+                swolf_avg: 75,
+                lane_length_meter: None,
+            })),
             tracks: vec![],
         };
-        let err = sport.validate_type_consistency().expect_err("should mismatch");
+        let err = sport
+            .validate_type_consistency()
+            .expect_err("should mismatch");
         assert_eq!(err, "extra 与 SportType 不匹配");
     }
 
@@ -438,7 +552,11 @@ impl SportExtra {
                 let main_stroke = raw.main_stroke.unwrap_or_default();
                 let stroke_avg = raw.stroke_avg.unwrap_or(0);
                 let swolf_avg = raw.swolf_avg.unwrap_or(0);
-                Some(SportExtra::Swimming(Swimming::new(main_stroke, stroke_avg, swolf_avg)))
+                Some(SportExtra::Swimming(Swimming::new(
+                    main_stroke,
+                    stroke_avg,
+                    swolf_avg,
+                )))
             }
             SportType::Running => {
                 let speed_avg = raw.speed_avg.unwrap_or(0.0);
@@ -447,7 +565,14 @@ impl SportExtra {
                 let steps_total = raw.steps_total.unwrap_or(0);
                 let pace_min = raw.pace_min.unwrap_or_default();
                 let pace_max = raw.pace_max.unwrap_or_default();
-                Some(SportExtra::Running(Running { speed_avg, cadence_avg, stride_length_avg, steps_total, pace_min, pace_max }))
+                Some(SportExtra::Running(Running {
+                    speed_avg,
+                    cadence_avg,
+                    stride_length_avg,
+                    steps_total,
+                    pace_min,
+                    pace_max,
+                }))
             }
             _ => None,
         }

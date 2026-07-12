@@ -1,13 +1,13 @@
 use axum::extract::{Json, State};
-use axum::response::IntoResponse;
 use axum::http::{HeaderValue, header::SET_COOKIE};
+use axum::response::IntoResponse;
 // no request extractor here for OpenAPI, router closures will decide browser detection
-use std::sync::Arc;
-use utoipa::ToSchema;
+use super::response::HandlerResponse;
 use crate::app::{AppState, routes};
 use crate::handlers::jwt::Context;
-use super::response::HandlerResponse;
 use axum_extra::extract::Multipart;
+use std::sync::Arc;
+use utoipa::ToSchema;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct UserRegisterRequest {
@@ -24,8 +24,12 @@ pub struct UserActionResponse {
 pub fn token_response(app: &AppState, uid: i32) -> axum::response::Response {
     match app.jwt.create_token(uid) {
         Ok(token) => {
-            let mut resp = HandlerResponse::Success(UserActionResponse { success: true }).into_response();
-            if let Ok(val) = HeaderValue::from_str(&format!("slam={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000", token)) {
+            let mut resp =
+                HandlerResponse::Success(UserActionResponse { success: true }).into_response();
+            if let Ok(val) = HeaderValue::from_str(&format!(
+                "slam={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000",
+                token
+            )) {
                 resp.headers_mut().append(SET_COOKIE, val);
             }
             resp
@@ -64,7 +68,12 @@ pub async fn user_register_handler(
     State(app): State<Arc<AppState>>,
     Json(req): Json<UserRegisterRequest>,
 ) -> axum::response::Response {
-    let user = crate::model::user::User { id: 0, name: req.name, password: req.password, nickname: req.nickname };
+    let user = crate::model::user::User {
+        id: 0,
+        name: req.name,
+        password: req.password,
+        nickname: req.nickname,
+    };
     match app.user_service.register(user).await {
         Ok(uid) => token_response(app.as_ref(), uid),
         Err(e) => HandlerResponse::<UserActionResponse>::Error(e.message).into_response(),
@@ -72,7 +81,10 @@ pub async fn user_register_handler(
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct UserInfoResponse { pub nickname: String, pub avatar: String }
+pub struct UserInfoResponse {
+    pub nickname: String,
+    pub avatar: String,
+}
 
 #[utoipa::path(
     get,
@@ -87,7 +99,11 @@ pub async fn user_info_handler(
     ctx: Context,
 ) -> axum::response::Response {
     match app.user_service.get_user(ctx.uid).await {
-        Ok(u) => HandlerResponse::<UserInfoResponse>::Success(UserInfoResponse { nickname: u.nickname, avatar: u.avatar }).into_response(),
+        Ok(u) => HandlerResponse::<UserInfoResponse>::Success(UserInfoResponse {
+            nickname: u.nickname,
+            avatar: u.avatar,
+        })
+        .into_response(),
         Err(e) => HandlerResponse::<UserInfoResponse>::Error(e.message).into_response(),
     }
 }
@@ -117,8 +133,10 @@ pub struct UserLoginRequest {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct AvatarUploadResponse { pub success: bool, pub avatar: String }
-
+pub struct AvatarUploadResponse {
+    pub success: bool,
+    pub avatar: String,
+}
 
 #[utoipa::path(
     post,
@@ -150,8 +168,16 @@ pub async fn user_avatar_upload_handler(
             Ok(resp) => {
                 let b64 = resp.base64_data.into_iter().next().unwrap_or_default();
                 match app.user_service.set_avatar(ctx.uid, b64.clone()).await {
-                    Ok(()) => HandlerResponse::<AvatarUploadResponse>::Success(AvatarUploadResponse { success: true, avatar: b64 }).into_response(),
-                    Err(e) => HandlerResponse::<AvatarUploadResponse>::Error(e.message).into_response(),
+                    Ok(()) => {
+                        HandlerResponse::<AvatarUploadResponse>::Success(AvatarUploadResponse {
+                            success: true,
+                            avatar: b64,
+                        })
+                        .into_response()
+                    }
+                    Err(e) => {
+                        HandlerResponse::<AvatarUploadResponse>::Error(e.message).into_response()
+                    }
                 }
             }
             Err(e) => HandlerResponse::<AvatarUploadResponse>::Error(e.message).into_response(),
@@ -159,10 +185,15 @@ pub async fn user_avatar_upload_handler(
     } else if let Some(txt) = b64_text {
         let b64 = txt;
         match app.user_service.set_avatar(ctx.uid, b64.clone()).await {
-            Ok(()) => HandlerResponse::<AvatarUploadResponse>::Success(AvatarUploadResponse { success: true, avatar: b64 }).into_response(),
+            Ok(()) => HandlerResponse::<AvatarUploadResponse>::Success(AvatarUploadResponse {
+                success: true,
+                avatar: b64,
+            })
+            .into_response(),
             Err(e) => HandlerResponse::<AvatarUploadResponse>::Error(e.message).into_response(),
         }
     } else {
-        HandlerResponse::<AvatarUploadResponse>::Error("缺少文件或base64参数".to_string()).into_response()
+        HandlerResponse::<AvatarUploadResponse>::Error("缺少文件或base64参数".to_string())
+            .into_response()
     }
 }

@@ -8,4 +8,3 @@ pub trait ResultCache<T: Clone + Send + Sync + 'static, K: Clone + Send + Sync +
 }
 
 pub mod memory;
-

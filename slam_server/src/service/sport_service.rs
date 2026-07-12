@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
-use crate::dao::idl::SportDao;
 use crate::dao::cache::ResultCache;
+use crate::dao::idl::SportDao;
 use crate::handlers::jwt::Context;
-use crate::model::sport::{Sport, SportType, SportExtra};
+use crate::model::sport::{Sport, SportExtra, SportType};
 use crate::service::common::ServiceError;
 
 pub struct SportService {
@@ -18,23 +18,29 @@ pub struct SportService {
 
 impl SportService {
     pub fn new(
-        dao: Arc<dyn SportDao + Send + Sync>, 
+        dao: Arc<dyn SportDao + Send + Sync>,
         cache_total: Arc<dyn ResultCache<StatSummary, i32> + Send + Sync>,
         cache_year: Arc<dyn ResultCache<StatSummary, String> + Send + Sync>,
     ) -> Self {
-        Self { dao, cache_total, cache_year }
+        Self {
+            dao,
+            cache_total,
+            cache_year,
+        }
     }
 
     #[inject_ctx]
     pub async fn insert(&self, sport: Sport) -> Result<(), ServiceError> {
         let y = DateTime::from_timestamp(sport.start_time, 0).map(|dt| dt.year());
-        self
-            .dao
+        self.dao
             .insert(ctx.uid, sport)
             .await
-            .map_err(|e| ServiceError { code: 500, message: e })?;
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })?;
         self.cache_total.invalidate(ctx.uid).await;
-        if let Some(year) = y { 
+        if let Some(year) = y {
             let key = format!("{}@{}", ctx.uid, year);
             self.cache_year.invalidate(key).await;
         }
@@ -53,22 +59,31 @@ impl SportService {
     }
     #[inject_ctx]
     pub async fn update(&self, sport: Sport) -> Result<(), ServiceError> {
-        let old = self.dao.get_by_id(ctx.uid, sport.id).await.map_err(|e| ServiceError { code: 500, message: e })?;
-        let ny = DateTime::from_timestamp(sport.start_time, 0).map(|dt| dt.year());
-        self
+        let old = self
             .dao
+            .get_by_id(ctx.uid, sport.id)
+            .await
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })?;
+        let ny = DateTime::from_timestamp(sport.start_time, 0).map(|dt| dt.year());
+        self.dao
             .update(ctx.uid, sport)
             .await
-            .map_err(|e| ServiceError { code: 500, message: e })?;
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })?;
         self.cache_total.invalidate(ctx.uid).await;
-        if let Some(o) = old { 
+        if let Some(o) = old {
             let oy = DateTime::from_timestamp(o.start_time, 0).map(|dt| dt.year());
-            if let Some(oyr) = oy { 
+            if let Some(oyr) = oy {
                 let key = format!("{}@{}", ctx.uid, oyr);
                 self.cache_year.invalidate(key).await;
             }
         }
-        if let Some(nyr) = ny { 
+        if let Some(nyr) = ny {
             let key = format!("{}@{}", ctx.uid, nyr);
             self.cache_year.invalidate(key).await;
         }
@@ -92,20 +107,28 @@ impl SportService {
         // 校验类型一致性，发现不一致直接报错（避免错误数据入库）
         for (i, s) in sports.iter().enumerate() {
             if let Err(e) = s.validate_type_consistency() {
-                return Err(ServiceError { code: 400, message: format!("row {}: {}", i, e) });
+                return Err(ServiceError {
+                    code: 400,
+                    message: format!("row {}: {}", i, e),
+                });
             }
         }
         let mut years: std::collections::HashSet<i32> = std::collections::HashSet::new();
-        for s in &sports { 
-            if let Some(y) = DateTime::from_timestamp(s.start_time, 0).map(|dt| dt.year()) { years.insert(y); }
+        for s in &sports {
+            if let Some(y) = DateTime::from_timestamp(s.start_time, 0).map(|dt| dt.year()) {
+                years.insert(y);
+            }
         }
         let inserted = self
             .dao
             .insert_many(ctx.uid, sports)
             .await
-            .map_err(|e| ServiceError { code: 500, message: e })?;
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })?;
         self.cache_total.invalidate(ctx.uid).await;
-        for y in years { 
+        for y in years {
             let key = format!("{}@{}", ctx.uid, y);
             self.cache_year.invalidate(key).await;
         }
@@ -114,15 +137,24 @@ impl SportService {
 
     #[inject_ctx]
     pub async fn delete(&self, id: i32) -> Result<(), ServiceError> {
-        let old = self.dao.get_by_id(ctx.uid, id).await.map_err(|e| ServiceError { code: 500, message: e })?;
-        self
+        let old = self
             .dao
+            .get_by_id(ctx.uid, id)
+            .await
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })?;
+        self.dao
             .remove(ctx.uid, id)
             .await
-            .map_err(|e| ServiceError { code: 500, message: e })?;
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: e,
+            })?;
         self.cache_total.invalidate(ctx.uid).await;
-        if let Some(o) = old { 
-            if let Some(y) = DateTime::from_timestamp(o.start_time, 0).map(|dt| dt.year()) { 
+        if let Some(o) = old {
+            if let Some(y) = DateTime::from_timestamp(o.start_time, 0).map(|dt| dt.year()) {
                 let key = format!("{}@{}", ctx.uid, y);
                 self.cache_year.invalidate(key).await;
             }
@@ -440,10 +472,11 @@ impl VendorFileParser for XiaomiParser {
                 heart_rate_avg: 0,
                 heart_rate_max: 0,
                 pace_average: String::new(),
-                extra: Some(SportExtra::Swimming(crate::model::sport::Swimming { 
+                extra: Some(SportExtra::Swimming(crate::model::sport::Swimming {
                     main_stroke: main_stroke.to_string(),
                     stroke_avg,
                     swolf_avg,
+                    lane_length_meter: None,
                 })),
                 tracks: vec![],
             };

@@ -1,6 +1,6 @@
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ServiceError {
@@ -34,4 +34,3 @@ pub fn generate_request_id() -> String {
     let timestamp = get_current_timestamp();
     format!("req_{}_{:x}", timestamp, random_part)
 }
-

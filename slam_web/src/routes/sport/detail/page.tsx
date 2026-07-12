@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from 'react';
 import PageBase, { useToast } from '../../../components/PageBase';
 import PageHeader from '../../../components/common/PageHeader';
+import { getDefaultExtraByType } from '../../../components/sport/ExtraConfig';
 import SportBasicInfo from '../../../components/sport/SportBasicInfo';
 import SportExtraInfo from '../../../components/sport/SportExtraInfo';
 import SportTracks from '../../../components/sport/SportTracks';
@@ -21,12 +22,16 @@ import {
   type SportExtra,
   type Track,
   deleteSport,
+  getSportType,
   insertSport,
   updateSport,
-  getSportType,
 } from '../../../services/sport';
-import { getDefaultExtraByType } from '../../../components/sport/ExtraConfig';
 import { useLangStore } from '../../../stores/lang';
+import {
+  getSwimmingLaneLength,
+  initializeSwimmingSport,
+  withSwimmingLaneLength,
+} from '../../../utils/swimming';
 // time utils are used inside child components
 
 function SubmitInner() {
@@ -44,8 +49,12 @@ function SubmitInner() {
     'readonly' in
     ((location.state as unknown as Record<string, unknown>) || {});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [sport, setSport] = useState<Sport>(
-    () =>
+  const [pendingLaneChange, setPendingLaneChange] = useState<{
+    newLength: number;
+    tracks?: Track[];
+  } | null>(null);
+  const [sport, setSport] = useState<Sport>(() =>
+    initializeSwimmingSport(
       initial ?? {
         id: 0,
         type: 'Unknown',
@@ -59,7 +68,14 @@ function SubmitInner() {
         extra: undefined,
         tracks: [] as Track[],
       },
+    ),
   );
+  const laneLength = getSwimmingLaneLength(sport);
+  const [laneLengthInput, setLaneLengthInput] = useState(String(laneLength));
+
+  useEffect(() => {
+    setLaneLengthInput(String(laneLength));
+  }, [laneLength]);
 
   useEffect(() => {
     const st = (location.state as Record<string, unknown>) || {};
@@ -88,6 +104,32 @@ function SubmitInner() {
     if (!defaultExtra) return; // Unknown/Cycling 不设置 extra
     const base = { ...defaultExtra, ...(sport.extra as any) } as SportExtra;
     update({ extra: { ...(base as SportExtra), ...(patch as SportExtra) } });
+  };
+
+  const requestLaneLengthChange = (newLength: number, tracks?: Track[]) => {
+    if (!Number.isFinite(newLength) || newLength <= 0) {
+      setLaneLengthInput(String(laneLength));
+      return;
+    }
+    const normalizedLength = Math.trunc(newLength);
+    if (normalizedLength === laneLength) {
+      setLaneLengthInput(String(laneLength));
+      return;
+    }
+    setPendingLaneChange({ newLength: normalizedLength, tracks });
+  };
+
+  const confirmLaneLengthChange = () => {
+    if (!pendingLaneChange) return;
+    setSport(prev =>
+      withSwimmingLaneLength(
+        prev,
+        pendingLaneChange.newLength,
+        pendingLaneChange.tracks ?? prev.tracks,
+      ),
+    );
+    setLaneLengthInput(String(pendingLaneChange.newLength));
+    setPendingLaneChange(null);
   };
 
   const handleSubmit = async () => {
@@ -171,6 +213,11 @@ function SubmitInner() {
             sport={sport}
             readonly={readonly}
             update={update}
+            laneLengthInput={laneLengthInput}
+            onLaneLengthInputChange={setLaneLengthInput}
+            onLaneLengthCommit={() =>
+              requestLaneLengthChange(Number.parseInt(laneLengthInput, 10))
+            }
           />
 
           <SportExtraInfo
@@ -187,6 +234,8 @@ function SubmitInner() {
             sport={sport}
             readonly={readonly}
             update={update}
+            laneLength={laneLength}
+            onRequestLaneLengthChange={requestLaneLengthChange}
           />
         </Box>
       </Container>
@@ -249,6 +298,60 @@ function SubmitInner() {
           </Box>
         )}
       </Box>
+
+      <Dialog
+        open={Boolean(pendingLaneChange)}
+        onClose={() => {
+          setLaneLengthInput(String(laneLength));
+          setPendingLaneChange(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>
+          {TEXTS[lang].addsports.laneLengthConfirmTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            {TEXTS[lang].addsports.laneLengthConfirmMessage}
+          </Typography>
+          <Typography>
+            {TEXTS[lang].addsports.laneLengthOldValue}: {laneLength} m
+          </Typography>
+          <Typography>
+            {TEXTS[lang].addsports.laneLengthNewValue}:{' '}
+            {pendingLaneChange?.newLength ?? laneLength} m
+          </Typography>
+          <Typography>
+            {TEXTS[lang].addsports.laneLengthAffectedTracks}:{' '}
+            {pendingLaneChange?.tracks?.length ?? sport.tracks.length}
+          </Typography>
+          <Typography>
+            {TEXTS[lang].addsports.laneLengthOldDistance}:{' '}
+            {sport.distance_meter} m
+          </Typography>
+          <Typography>
+            {TEXTS[lang].addsports.laneLengthNewDistance}:{' '}
+            {(pendingLaneChange?.newLength ?? laneLength) *
+              (pendingLaneChange?.tracks?.length ?? sport.tracks.length)}{' '}
+            m
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setLaneLengthInput(String(laneLength));
+              setPendingLaneChange(null);
+            }}
+          >
+            {TEXTS[lang].register.cancel}
+          </Button>
+          <Button variant="contained" onClick={confirmLaneLengthChange}>
+            {TEXTS[lang].addsports.detailConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={deleteDialogOpen}

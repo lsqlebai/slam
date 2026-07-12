@@ -6,6 +6,7 @@ export type Swimming = {
   main_stroke: string;
   stroke_avg: number;
   swolf_avg: number;
+  lane_length_meter?: number;
 };
 
 // 参考后端 `Running` 结构定义
@@ -50,7 +51,9 @@ export enum SportType {
   Cycling = 'Cycling',
 }
 
-export function getSportType(typeOrSport: string | Sport | undefined): SportType {
+export function getSportType(
+  typeOrSport: string | Sport | undefined,
+): SportType {
   const raw = typeof typeOrSport === 'string' ? typeOrSport : typeOrSport?.type;
   const key = String(raw || '').toLowerCase();
   if (key.includes('swim')) return SportType.Swimming;
@@ -58,7 +61,6 @@ export function getSportType(typeOrSport: string | Sport | undefined): SportType
   if (key.includes('cycle') || key.includes('bike')) return SportType.Cycling;
   return SportType.Unknown;
 }
-
 
 export async function listSports(page = 0, size = 20): Promise<Sport[]> {
   const res = await http.get('/sport/list', {

@@ -1,6 +1,6 @@
 import { TEXTS } from '../../i18n';
 import { SportType } from '../../services/sport';
-import type { Swimming, Running, Track } from '../../services/sport';
+import type { Running, Swimming, Track } from '../../services/sport';
 
 export type FieldKind = 'select' | 'number' | 'text';
 export type FieldOption = { value: string; label: string };
@@ -19,7 +19,10 @@ export type LayoutConfig = {
 };
 
 // 根据布局配置将一维字段列表分组成行
-export function groupByLayout(fields: FieldConfig[], layout: LayoutConfig): FieldConfig[][] {
+export function groupByLayout(
+  fields: FieldConfig[],
+  layout: LayoutConfig,
+): FieldConfig[][] {
   const rows: FieldConfig[][] = [];
   let idx = 0;
   for (const count of layout.rowFieldCounts) {
@@ -60,7 +63,10 @@ function buildSwimmingConfig(lang: 'zh' | 'en'): FieldConfig[] {
         { label: TEXTS[lang].addsports.strokeUnknown, value: 'unknown' },
         { label: TEXTS[lang].addsports.strokeFreestyle, value: 'freestyle' },
         { label: TEXTS[lang].addsports.strokeButterfly, value: 'butterfly' },
-        { label: TEXTS[lang].addsports.strokeBreaststroke, value: 'breaststroke' },
+        {
+          label: TEXTS[lang].addsports.strokeBreaststroke,
+          value: 'breaststroke',
+        },
         { label: TEXTS[lang].addsports.strokeBackstroke, value: 'backstroke' },
         { label: TEXTS[lang].addsports.strokeMedley, value: 'medley' },
       ],
@@ -116,27 +122,40 @@ function buildRunningConfig(lang: 'zh' | 'en'): FieldConfig[] {
       key: 'pace_min',
       label: TEXTS[lang].addsports.runPaceMinLabel,
       kind: 'text',
-      default: '0\'00\'\'',
+      default: "0'00''",
     },
     {
       key: 'pace_max',
       label: TEXTS[lang].addsports.runPaceMaxLabel,
       kind: 'text',
-      default: '0\'00\'\'',
+      default: "0'00''",
     },
   ];
 }
 
-export const EXTRA_CONFIG_BUILDERS: Record<SportType, (lang: 'zh' | 'en') => FieldConfig[]> = {
+export const EXTRA_CONFIG_BUILDERS: Record<
+  SportType,
+  (lang: 'zh' | 'en') => FieldConfig[]
+> = {
   [SportType.Swimming]: buildSwimmingConfig,
   [SportType.Running]: buildRunningConfig,
   [SportType.Cycling]: () => [],
   [SportType.Unknown]: () => [],
 };
 
-export function getExtraConfigByType(lang: 'zh' | 'en', sportType: SportType): FieldConfig[] {
+export function getExtraConfigByType(
+  lang: 'zh' | 'en',
+  sportType: SportType,
+): FieldConfig[] {
   const builder = EXTRA_CONFIG_BUILDERS[sportType] || (() => []);
   return builder(lang);
+}
+
+export function getTrackExtraConfigByType(
+  lang: 'zh' | 'en',
+  sportType: SportType,
+): FieldConfig[] {
+  return getExtraConfigByType(lang, sportType);
 }
 
 // 默认专项数据（用于构建表单模型及重置）
@@ -144,6 +163,7 @@ export const DEFAULT_SWIMMING_EXTRA: Swimming = {
   main_stroke: 'unknown',
   stroke_avg: 0,
   swolf_avg: 0,
+  lane_length_meter: 25,
 };
 
 export const DEFAULT_RUNNING_EXTRA: Running = {
@@ -151,11 +171,13 @@ export const DEFAULT_RUNNING_EXTRA: Running = {
   cadence_avg: 0,
   stride_length_avg: 0,
   steps_total: 0,
-  pace_min: '0\'00\'\'',
-  pace_max: '0\'00\'\'',
+  pace_min: "0'00''",
+  pace_max: "0'00''",
 };
 
-export function getDefaultExtraByType(sportType: SportType): Swimming | Running | null {
+export function getDefaultExtraByType(
+  sportType: SportType,
+): Swimming | Running | null {
   switch (sportType) {
     case SportType.Swimming:
       return DEFAULT_SWIMMING_EXTRA;
@@ -166,13 +188,24 @@ export function getDefaultExtraByType(sportType: SportType): Swimming | Running 
   }
 }
 
+export function getDefaultTrackExtraByType(
+  sportType: SportType,
+): Swimming | Running | null {
+  const extra = getDefaultExtraByType(sportType);
+  if (sportType === SportType.Swimming && extra) {
+    const { lane_length_meter: _laneLength, ...trackExtra } = extra as Swimming;
+    return trackExtra as Swimming;
+  }
+  return extra;
+}
+
 // Track 默认值，结合专项默认 extra
 export function getDefaultTrackByType(sportType: SportType): Track {
-  const extra = getDefaultExtraByType(sportType);
+  const trackExtra = getDefaultTrackExtraByType(sportType);
   return {
     distance_meter: 0,
     duration_second: 0,
     pace_average: '0',
-    extra: extra ?? undefined,
+    extra: trackExtra ?? undefined,
   } as Track;
 }

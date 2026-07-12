@@ -65,8 +65,8 @@ slam/
 
 1. 后端（Rust）：
    - 安装 Rust toolchain（推荐稳定版）。
-   - 配置 `slam_server/config/app.yml` 中的 `db.path` 与 `security.key`（默认 key 为占位，需手动替换）。
-   - 如需启用 AI，设置环境变量 `AI_API_KEY`。
+   - 配置 `slam_server/config/app.yml` 中的 `db.path` 与 `security.key`（默认 key 为占位，需手动替换）。本机覆盖和密钥可放入 Git 已忽略的 `slam_server/config/app.local.yml`；该文件存在时优先于 `app.yml` 加载。
+   - 如需启用 AI，设置最高优先级的环境变量 `AI_API_KEY`，或在本地开发时设置 `app.local.yml` 的 `ai.key`。
    - 启动：
      ```bash
      cd slam_server
@@ -115,10 +115,10 @@ slam/
 
 ## 配置说明
 
-- 本地配置文件：`slam_server/config/app.yml`
+- 默认配置文件：`slam_server/config/app.yml`；可选本机配置：`slam_server/config/app.local.yml`（Git 已忽略，存在时优先）。
   - `server.ip/port`：监听地址与端口。
   - `db.path`：SQLite 文件路径（本地示例 `sport.db`）。
-  - `ai.key`：可留空，优先从环境变量 `AI_API_KEY` 读取。
+  - `ai.key`：可留空，作为本机配置回退值；环境变量 `AI_API_KEY` 优先。
   - `security.salt/key`：用于派生 JWT 密钥与加解密，务必更换默认值（`change-me-key`）。
 - 容器内配置：`deploy/config/app.container.yml`（`db.path` 已指向 `/data/sport.db`）。
 - Nginx：静态资源与反代（`deploy/config/nginx.conf:6`）。

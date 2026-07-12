@@ -2,6 +2,7 @@ import { Info } from '@mui/icons-material';
 import { MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { TEXTS } from '../../i18n';
 import type { Sport } from '../../services/sport';
+import { SportType, getSportType } from '../../services/sport';
 import {
   fromHMS,
   fromInputDateTime,
@@ -15,12 +16,19 @@ export default function SportBasicInfo({
   sport,
   readonly,
   update,
+  laneLengthInput,
+  onLaneLengthInputChange,
+  onLaneLengthCommit,
 }: {
   lang: 'zh' | 'en';
   sport: Sport;
   readonly: boolean;
   update: (patch: Partial<Sport>) => void;
+  laneLengthInput: string;
+  onLaneLengthInputChange: (value: string) => void;
+  onLaneLengthCommit: () => void;
 }) {
+  const isSwimming = getSportType(sport.type) === SportType.Swimming;
   return (
     <Stack spacing={1} sx={{ mt: 0, maxWidth: 500, width: '100%' }}>
       <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 1 }}>
@@ -78,6 +86,22 @@ export default function SportBasicInfo({
               fullWidth
             />
           </Stack>
+          {isSwimming ? (
+            <TextField
+              variant="standard"
+              label={TEXTS[lang].addsports.laneLengthLabel}
+              type="number"
+              value={laneLengthInput}
+              onChange={e => onLaneLengthInputChange(e.target.value)}
+              onBlur={onLaneLengthCommit}
+              onKeyDown={e => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+              inputProps={{ min: 1, step: 1 }}
+              InputProps={{ readOnly: readonly }}
+              fullWidth
+            />
+          ) : null}
           <Stack direction="row" spacing={2}>
             <TextField
               variant="standard"
@@ -95,12 +119,14 @@ export default function SportBasicInfo({
               label={TEXTS[lang].addsports.submitDistanceLabel}
               type="number"
               value={sport.distance_meter === 0 ? '' : sport.distance_meter}
-              onChange={e =>
-                update({
-                  distance_meter: Number.parseInt(e.target.value || '0'),
-                })
-              }
-              InputProps={{ readOnly: readonly }}
+              onChange={e => {
+                if (!isSwimming) {
+                  update({
+                    distance_meter: Number.parseInt(e.target.value || '0'),
+                  });
+                }
+              }}
+              InputProps={{ readOnly: readonly || isSwimming }}
               fullWidth
             />
           </Stack>

@@ -1,5 +1,5 @@
-pub mod setup;
 pub mod routes;
+pub mod setup;
 
-pub use setup::*;
 pub use crate::config::AppConfig;
+pub use setup::*;

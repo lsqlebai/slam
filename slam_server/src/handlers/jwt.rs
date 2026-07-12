@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
-use std::time::{SystemTime, UNIX_EPOCH};
-use axum::http::{HeaderMap, StatusCode};
-use axum::extract::FromRequestParts;
-use async_trait::async_trait;
-use std::sync::Arc;
 use crate::app::AppState;
+use async_trait::async_trait;
+use axum::extract::FromRequestParts;
+use axum::http::{HeaderMap, StatusCode};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
@@ -20,28 +20,53 @@ pub struct Jwt {
 }
 
 impl Jwt {
-    pub fn new(ttl_seconds: u64, secret: String) -> Self { Self { ttl_seconds, secret } }
+    pub fn new(ttl_seconds: u64, secret: String) -> Self {
+        Self {
+            ttl_seconds,
+            secret,
+        }
+    }
 
     pub fn create_token(&self, uid: i32) -> Result<String, String> {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_secs() as usize;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_secs() as usize;
         let exp = now + self.ttl_seconds as usize;
         let claims = Claims { uid, iat: now, exp };
         let header = Header::new(Algorithm::HS256);
-        encode(&header, &claims, &EncodingKey::from_secret(self.secret.as_bytes())).map_err(|e| e.to_string())
+        encode(
+            &header,
+            &claims,
+            &EncodingKey::from_secret(self.secret.as_bytes()),
+        )
+        .map_err(|e| e.to_string())
     }
 
     pub fn verify_token(&self, token: &str) -> Result<Claims, String> {
         let mut validation = Validation::new(Algorithm::HS256);
         validation.validate_exp = false;
-        let data = decode::<Claims>(token, &DecodingKey::from_secret(self.secret.as_bytes()), &validation)
-            .map_err(|e| e.to_string())?;
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_secs() as usize;
-        if data.claims.exp <= now { return Err("token已过期".to_string()); }
+        let data = decode::<Claims>(
+            token,
+            &DecodingKey::from_secret(self.secret.as_bytes()),
+            &validation,
+        )
+        .map_err(|e| e.to_string())?;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_secs() as usize;
+        if data.claims.exp <= now {
+            return Err("token已过期".to_string());
+        }
         Ok(data.claims)
     }
 
     pub fn create_context_from_cookie(&self, headers: &HeaderMap) -> Result<Context, String> {
-        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+        let cookie_header = headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
         let token = cookie_header
             .split(';')
             .map(|s| s.trim())
@@ -61,7 +86,10 @@ pub struct Context {
 #[async_trait]
 impl FromRequestParts<Arc<AppState>> for Context {
     type Rejection = (StatusCode, String);
-    async fn from_request_parts(parts: &mut axum::http::request::Parts, state: &Arc<AppState>) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &Arc<AppState>,
+    ) -> Result<Self, Self::Rejection> {
         match state.jwt.create_context_from_cookie(&parts.headers) {
             Ok(ctx) => Ok(ctx),
             Err(e) => Err((StatusCode::UNAUTHORIZED, e)),

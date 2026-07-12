@@ -1,6 +1,6 @@
-use std::env;
-use serde_json::{json};
 use reqwest::header;
+use serde_json::json;
+use std::env;
 
 #[tokio::test]
 async fn test_get_api_key_from_env() {
@@ -45,32 +45,37 @@ async fn test_doubao_request() {
 
 #[tokio::test]
 async fn test_sqlite_insert_and_query_sport_from_sample_xml() {
-use slam_server::dao::Repository;
+    use slam_server::dao::Repository;
     use slam_server::dao::idl::SportDao;
-use slam_server::model::sport::Sport;
-use slam_server::model::sport::SAMPLE_XML_SWIMMING;
+    use slam_server::model::sport::SAMPLE_XML_SWIMMING;
+    use slam_server::model::sport::Sport;
     use std::path::Path;
     let db_path = "tests/test.db";
     if Path::new(db_path).exists() {
         let _ = std::fs::remove_file(db_path);
     }
     let sport = Sport::parse_from_xml(SAMPLE_XML_SWIMMING).expect("parse xml");
-let dao = Repository::new(db_path).await.expect("dao new");
+    let dao = Repository::new(db_path).await.expect("dao new");
     dao.insert(0, sport.clone()).await.expect("dao insert");
     let default_page = 0;
     let default_size = 20;
-    let all = dao.list(0, default_page, default_size).await.expect("dao list");
+    let all = dao
+        .list(0, default_page, default_size)
+        .await
+        .expect("dao list");
     assert_eq!(all.len(), 1);
 }
 
 #[tokio::test]
 async fn test_sqlite_insert_and_query_running_from_sample_xml() {
-    use std::path::Path;
     use slam_server::dao::Repository;
     use slam_server::dao::idl::SportDao;
-    use slam_server::model::sport::{Sport, SAMPLE_XML_RUNNING, SportType, SportExtra};
+    use slam_server::model::sport::{SAMPLE_XML_RUNNING, Sport, SportExtra, SportType};
+    use std::path::Path;
     let db_path = "tests/test.db";
-    if Path::new(db_path).exists() { let _ = std::fs::remove_file(db_path); }
+    if Path::new(db_path).exists() {
+        let _ = std::fs::remove_file(db_path);
+    }
     let sport = Sport::parse_from_xml(SAMPLE_XML_RUNNING).expect("parse xml");
     assert_eq!(sport.r#type, SportType::Running);
     let dao = Repository::new(db_path).await.expect("dao new");
@@ -81,10 +86,13 @@ async fn test_sqlite_insert_and_query_running_from_sample_xml() {
     assert_eq!(got.r#type, SportType::Running);
     assert_eq!(got.distance_meter, 4820);
     assert_eq!(got.duration_second, 1872);
-    match &got.extra { Some(SportExtra::Running(r)) => {
-        assert_eq!(r.cadence_avg, 164);
-        assert_eq!(r.steps_total, 5122);
-    }, _ => panic!("extra 类型错误") }
+    match &got.extra {
+        Some(SportExtra::Running(r)) => {
+            assert_eq!(r.cadence_avg, 164);
+            assert_eq!(r.steps_total, 5122);
+        }
+        _ => panic!("extra 类型错误"),
+    }
     assert_eq!(got.tracks.len(), 5);
     assert_eq!(got.tracks[0].distance_meter, 1000);
     assert_eq!(got.tracks[0].duration_second, 377);
@@ -92,12 +100,17 @@ async fn test_sqlite_insert_and_query_running_from_sample_xml() {
 
 #[test]
 fn test_app_config_default_uses_yaml_or_default() {
-    use std::path::Path;
+    use slam_server::config::AppConfig as Cfg;
     use std::fs;
-use slam_server::config::AppConfig as Cfg;
+    use std::path::Path;
     let cfg = Cfg::default();
     assert!(!cfg.db.path.trim().is_empty());
-    let cfg_path = Path::new("config/app.yml");
+    let local_path = Path::new("config/app.local.yml");
+    let cfg_path = if local_path.exists() {
+        local_path
+    } else {
+        Path::new("config/app.yml")
+    };
     if cfg_path.exists() {
         let file = fs::File::open(cfg_path).unwrap();
         let expected: Cfg = serde_yaml::from_reader(file).unwrap();
@@ -115,10 +128,10 @@ use slam_server::config::AppConfig as Cfg;
 
 #[test]
 fn test_xiaomi_parser_parse_from_csv_file() {
-    use std::fs::File;
     use csv::ReaderBuilder;
-    use slam_server::service::sport_service::parse_sports_from_csv;
     use slam_server::model::sport::SportType;
+    use slam_server::service::sport_service::parse_sports_from_csv;
+    use std::fs::File;
 
     let file = File::open("tests/test.csv").expect("tests/test.csv should exist");
     let mut reader = ReaderBuilder::new().has_headers(true).from_reader(file);
@@ -130,7 +143,10 @@ fn test_xiaomi_parser_parse_from_csv_file() {
         assert!(s.calories >= 0);
         assert!(s.distance_meter >= 0);
         assert!(s.duration_second >= 0);
-        let swim = match &s.extra { Some(slam_server::model::sport::SportExtra::Swimming(x)) => x, _ => panic!("extra 类型错误") };
+        let swim = match &s.extra {
+            Some(slam_server::model::sport::SportExtra::Swimming(x)) => x,
+            _ => panic!("extra 类型错误"),
+        };
         assert!(swim.swolf_avg >= 0);
     }
 
@@ -140,18 +156,40 @@ fn test_xiaomi_parser_parse_from_csv_file() {
     for rec in reader2.records() {
         let rec = rec.expect("csv record");
         let category = rec.get(4).unwrap_or("");
-        if category.to_lowercase() != "swimming" { continue; }
+        if category.to_lowercase() != "swimming" {
+            continue;
+        }
         let time_str = rec.get(3).unwrap_or("0");
         let mut start_time: i64 = time_str.parse().unwrap_or(0);
-        if start_time > 1_000_000_000_000 { start_time /= 1000; }
+        if start_time > 1_000_000_000_000 {
+            start_time /= 1000;
+        }
         let val_str = rec.get(5).unwrap_or("{}");
         let val: serde_json::Value = serde_json::from_str(val_str).unwrap_or(serde_json::json!({}));
-        let calories = val.get("calories").and_then(|v| v.as_i64()).or_else(|| val.get("total_cal").and_then(|v| v.as_i64())).unwrap_or(0) as i32;
+        let calories = val
+            .get("calories")
+            .and_then(|v| v.as_i64())
+            .or_else(|| val.get("total_cal").and_then(|v| v.as_i64()))
+            .unwrap_or(0) as i32;
         let distance_meter = val.get("distance").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-        let duration_second = val.get("valid_duration").and_then(|v| v.as_i64()).or_else(|| val.get("duration").and_then(|v| v.as_i64())).unwrap_or(0) as i32;
+        let duration_second = val
+            .get("valid_duration")
+            .and_then(|v| v.as_i64())
+            .or_else(|| val.get("duration").and_then(|v| v.as_i64()))
+            .unwrap_or(0) as i32;
         let swolf_avg = val.get("avg_swolf").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-        let stroke_avg = val.get("max_stroke_freq").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-        expected.push((start_time, calories, distance_meter, duration_second, swolf_avg, stroke_avg));
+        let stroke_avg = val
+            .get("max_stroke_freq")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as i32;
+        expected.push((
+            start_time,
+            calories,
+            distance_meter,
+            duration_second,
+            swolf_avg,
+            stroke_avg,
+        ));
     }
     assert_eq!(sports.len(), expected.len());
     for (i, s) in sports.iter().enumerate() {
@@ -160,7 +198,10 @@ fn test_xiaomi_parser_parse_from_csv_file() {
         assert_eq!(s.calories, ec);
         assert_eq!(s.distance_meter, ed);
         assert_eq!(s.duration_second, edur);
-        let swim = match &s.extra { Some(slam_server::model::sport::SportExtra::Swimming(x)) => x, _ => panic!("extra 类型错误") };
+        let swim = match &s.extra {
+            Some(slam_server::model::sport::SportExtra::Swimming(x)) => x,
+            _ => panic!("extra 类型错误"),
+        };
         assert_eq!(swim.swolf_avg, eswolf);
         assert_eq!(swim.stroke_avg, estroke);
     }
@@ -183,26 +224,26 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
 //     use slam_server::dao::Repository;
 //     use slam_server::dao::idl::SportDao;
 //     use slam_server::config::AppConfig;
-    
+
 //     // Use the default database path from config
 //     let db_path = "./sport.db";
-    
+
 //     // Check if database file exists
 //     if !std::path::Path::new(db_path).exists() {
 //         println!("Database file {} does not exist, skipping test", db_path);
 //         return;
 //     }
-    
+
 //     let dao = Repository::new(db_path).await expect("Failed to create DAO");
 //     let batch_size = 100;
 //     let mut page = 0;
 //     let mut total_sports = 0;
 //     let mut updated_sports = 0;
 //     const EIGHT_HOURS_IN_SECONDS: i64 = 8 * 3600; // 8 hours = 28800 seconds
-    
+
 //     println!("Reading sports data from {} in batches of {}", db_path, batch_size);
 //     println!("Will add 8 hours ({} seconds) to each sport's start_time and update database", EIGHT_HOURS_IN_SECONDS);
-    
+
 //     loop {
 //         // Read one batch of sports data (user ID 1 for testing)
 //         match dao.list(1, page, batch_size).await {
@@ -212,15 +253,15 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
 //                     println!("No more data available at page {}", page);
 //                     break;
 //                 }
-                
+
 //                 total_sports += batch_count;
 //                 println!("Batch {}: {} sports (total so far: {})", page + 1, batch_count, total_sports);
-                
+
 //                 // Process each sport in the batch
 //                 for (i, mut sport) in sports.into_iter().enumerate() {
 //                     let original_time = sport.start_time;
 //                     sport.start_time -= EIGHT_HOURS_IN_SECONDS;
-                    
+
 //                     println!("  Sport {}: ID={}, Type={}, Start Time={} -> {} (added 8 hours), Calories={}, Distance={}m, Duration={}s",
 //                         i + 1,
 //                         sport.id,
@@ -231,7 +272,7 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
 //                         sport.distance_meter,
 //                         sport.duration_second
 //                     );
-                    
+
 //                     // Update the sport in the database
 //                     let id = sport.id;
 //                     match dao.update(1, sport).await {
@@ -245,13 +286,13 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
 //                         }
 //                     }
 //                 }
-                
+
 //                 // If we got less than batch_size, we've reached the end
 //                 if batch_count < batch_size as usize {
 //                     println!("Reached end of data (got {} < batch_size {})", batch_count, batch_size);
 //                     break;
 //                 }
-                
+
 //                 page += 1;
 //             }
 //             Err(e) => {
@@ -260,7 +301,7 @@ fn test_app_config_new_with_missing_file_returns_defaults() {
 //             }
 //         }
 //     }
-    
+
 //     println!("Total sports read: {}", total_sports);
 //     println!("Total sports updated: {}", updated_sports);
 //     assert!(total_sports >= 0, "Should have read some sports data");

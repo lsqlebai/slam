@@ -2,17 +2,16 @@
 //! 提供所有AI能力的统一访问接口
 
 use serde::{Deserialize, Serialize};
-use crate::config::default_ai_model;
 
 // AI服务配置结构
 use utoipa::ToSchema;
 
+use crate::model::sport::Sport;
+use crate::model::sport::{SAMPLE_XML_RUNNING, SAMPLE_XML_SWIMMING};
 use crate::service::common;
 use crate::service::llm;
 use crate::service::llm::ChatCompletionRequest;
-use crate::service::llm::{LLM, Doubao};
-use crate::model::sport::Sport;
-use crate::model::sport::{SAMPLE_XML_SWIMMING, SAMPLE_XML_RUNNING};
+use crate::service::llm::{Doubao, LLM};
 use std::sync::Arc;
 // AI服务核心结构
 pub struct AIService {
@@ -21,7 +20,6 @@ pub struct AIService {
 
 struct ImageParser {}
 impl ImageParser {
-
     fn system_prompt() -> llm::Message {
         llm::Message {
             role: "system".to_string(),
@@ -29,8 +27,7 @@ impl ImageParser {
                 r#type: "text".to_string(),
                 text: format!(
                     "你是图片文字识别员,根据图片内容输出XML。不同运动类型请输出对应的extra字段。示例(请根据实际类型选择其一):\n游泳示例:\n{}\n跑步示例:\n{}\n要求: 1) 按示例字段命名 2) tracks为分段数组 3) 缺失字段请忽略",
-                    SAMPLE_XML_SWIMMING,
-                    SAMPLE_XML_RUNNING,
+                    SAMPLE_XML_SWIMMING, SAMPLE_XML_RUNNING,
                 ),
             })],
         }
@@ -63,15 +60,29 @@ impl ImageParser {
             ],
         }
     }
-
 }
 
 // AI服务实现
 impl AIService {
-    pub fn new() -> Self { Self { llm: Arc::new(Doubao::new()) } }
-    pub fn with_model(model: String) -> Self { Self { llm: Arc::new(Doubao::with_model(model)) } }
+    pub fn new() -> Self {
+        Self {
+            llm: Arc::new(Doubao::new()),
+        }
+    }
+    pub fn with_model(model: String) -> Self {
+        Self {
+            llm: Arc::new(Doubao::with_model(model)),
+        }
+    }
+    pub fn with_config(model: String, api_key: String) -> Self {
+        Self {
+            llm: Arc::new(Doubao::with_config(model, api_key)),
+        }
+    }
 
-    pub fn with_llm(llm: Arc<dyn LLM + Send + Sync>) -> Self { Self { llm } }
+    pub fn with_llm(llm: Arc<dyn LLM + Send + Sync>) -> Self {
+        Self { llm }
+    }
 
     /// 生成文本内容
     pub async fn sports_image_recognition(
@@ -81,27 +92,49 @@ impl AIService {
         // 生成请求ID
         let request_id = common::get_current_timestamp();
         let chat_request = ImageParser::create_chat_completion_request(base64_data);
-        
+
         let content = self.llm.chat(chat_request).await.map_err(|e| {
             let err_msg = e.to_string();
             if let Ok(llm_err) = e.downcast::<llm::LLMError>() {
                 match *llm_err {
-                    llm::LLMError::LLMAuthenticationError(msg) => common::ServiceError { code: 502, message: msg },
-                    llm::LLMError::TimeoutError(msg) => common::ServiceError { code: 504, message: msg },
-                    llm::LLMError::ValidationError(msg) => common::ServiceError { code: 400, message: msg },
-                    llm::LLMError::APIFailure(msg) => common::ServiceError { code: 502, message: msg },
-                    llm::LLMError::InternalError(msg) => common::ServiceError { code: 500, message: msg },
-                    llm::LLMError::ConfigurationError(msg) => common::ServiceError { code: 500, message: msg },
+                    llm::LLMError::LLMAuthenticationError(msg) => common::ServiceError {
+                        code: 502,
+                        message: msg,
+                    },
+                    llm::LLMError::TimeoutError(msg) => common::ServiceError {
+                        code: 504,
+                        message: msg,
+                    },
+                    llm::LLMError::ValidationError(msg) => common::ServiceError {
+                        code: 400,
+                        message: msg,
+                    },
+                    llm::LLMError::APIFailure(msg) => common::ServiceError {
+                        code: 502,
+                        message: msg,
+                    },
+                    llm::LLMError::InternalError(msg) => common::ServiceError {
+                        code: 500,
+                        message: msg,
+                    },
+                    llm::LLMError::ConfigurationError(msg) => common::ServiceError {
+                        code: 500,
+                        message: msg,
+                    },
                 }
             } else {
-                common::ServiceError { code: 500, message: err_msg }
+                common::ServiceError {
+                    code: 500,
+                    message: err_msg,
+                }
             }
         })?;
         println!("content: {:?}", content);
 
-
-        let sport = Sport::parse_from_xml(&content)
-            .map_err(|e| common::ServiceError { code: 422, message: e.to_string() })?;            
+        let sport = Sport::parse_from_xml(&content).map_err(|e| common::ServiceError {
+            code: 422,
+            message: e.to_string(),
+        })?;
         // 返回成功响应
         Ok(AIResponse {
             success: true,
@@ -110,11 +143,12 @@ impl AIService {
             request_id: request_id.to_string(),
         })
     }
-
 }
 
 impl Default for AIService {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // 错误响应结构

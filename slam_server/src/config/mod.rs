@@ -5,6 +5,8 @@ use std::path::Path;
 const DEFAULT_DB_PATH: &str = "sport.db";
 const DEFAULT_SERVER_IP: &str = "127.0.0.1";
 const DEFAULT_SERVER_PORT: u16 = 3000;
+const LOCAL_CONFIG_PATH: &str = "config/app.local.yml";
+const DEFAULT_CONFIG_PATH: &str = "config/app.yml";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfig {
@@ -28,8 +30,6 @@ pub struct AiConfig {
     pub model: String,
 }
 
-
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct SecurityConfig {
     #[serde(default = "default_security_salt")]
@@ -52,14 +52,30 @@ pub struct AppConfig {
     pub security: SecurityConfig,
 }
 
-fn default_db_path() -> String { DEFAULT_DB_PATH.to_string() }
-fn default_server_ip() -> String { DEFAULT_SERVER_IP.to_string() }
-fn default_server_port() -> u16 { DEFAULT_SERVER_PORT }
-fn default_ai_key() -> String { "".to_string() }
-fn default_security_salt() -> String { "slam-server-salt".to_string() }
-fn default_security_key() -> String { "change-me-key".to_string() }
-fn default_jwt_ttl_seconds() -> u64 { 2592000 }
-pub fn default_ai_model() -> String { "doubao-seed-1-6-251015".to_string() }
+fn default_db_path() -> String {
+    DEFAULT_DB_PATH.to_string()
+}
+fn default_server_ip() -> String {
+    DEFAULT_SERVER_IP.to_string()
+}
+fn default_server_port() -> u16 {
+    DEFAULT_SERVER_PORT
+}
+fn default_ai_key() -> String {
+    "".to_string()
+}
+fn default_security_salt() -> String {
+    "slam-server-salt".to_string()
+}
+fn default_security_key() -> String {
+    "change-me-key".to_string()
+}
+fn default_jwt_ttl_seconds() -> u64 {
+    2592000
+}
+pub fn default_ai_model() -> String {
+    "doubao-seed-1-6-251015".to_string()
+}
 
 impl AppConfig {
     pub fn new(cfg_path: &str) -> Self {
@@ -77,19 +93,43 @@ impl AppConfig {
 
 impl Default for AppConfig {
     fn default() -> Self {
-        Self::new("config/app.yml")
+        if Path::new(LOCAL_CONFIG_PATH).exists() {
+            Self::new(LOCAL_CONFIG_PATH)
+        } else {
+            Self::new(DEFAULT_CONFIG_PATH)
+        }
     }
 }
 
 impl Default for ServerConfig {
-    fn default() -> Self { Self { ip: DEFAULT_SERVER_IP.to_string(), port: DEFAULT_SERVER_PORT } }
+    fn default() -> Self {
+        Self {
+            ip: DEFAULT_SERVER_IP.to_string(),
+            port: DEFAULT_SERVER_PORT,
+        }
+    }
 }
 impl Default for DbConfig {
-    fn default() -> Self { Self { path: DEFAULT_DB_PATH.to_string() } }
+    fn default() -> Self {
+        Self {
+            path: DEFAULT_DB_PATH.to_string(),
+        }
+    }
 }
 impl Default for AiConfig {
-    fn default() -> Self { Self { key: "".to_string(), model: default_ai_model() } }
+    fn default() -> Self {
+        Self {
+            key: "".to_string(),
+            model: default_ai_model(),
+        }
+    }
 }
 impl Default for SecurityConfig {
-    fn default() -> Self { Self { salt: default_security_salt(), key: default_security_key(), jwt_ttl_seconds: default_jwt_ttl_seconds() } }
+    fn default() -> Self {
+        Self {
+            salt: default_security_salt(),
+            key: default_security_key(),
+            jwt_ttl_seconds: default_jwt_ttl_seconds(),
+        }
+    }
 }

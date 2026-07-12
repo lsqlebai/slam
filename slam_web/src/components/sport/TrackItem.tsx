@@ -12,7 +12,12 @@ import { useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Track as TrackType } from '../../services/sport';
 import { getSportType } from '../../services/sport';
-import { getExtraConfigByType, groupByLayout, makeUniformLayout, type FieldConfig } from './ExtraConfig';
+import {
+  type FieldConfig,
+  getTrackExtraConfigByType,
+  groupByLayout,
+  makeUniformLayout,
+} from './ExtraConfig';
 
 export default function TrackItem({
   lang,
@@ -33,7 +38,7 @@ export default function TrackItem({
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const sportTypeEnum = getSportType(sportType);
-  const fields: FieldConfig[] = getExtraConfigByType(lang, sportTypeEnum);
+  const fields: FieldConfig[] = getTrackExtraConfigByType(lang, sportTypeEnum);
   const layout = makeUniformLayout(fields.length, 4);
   const rows = groupByLayout(fields, layout);
 
@@ -113,26 +118,24 @@ export default function TrackItem({
             </Typography>
           </Box>
           {rows.length > 0 && t.extra
-            ? rows
-                .flat()
-                .map(cfg => {
-                  const raw = (t.extra as any)?.[cfg.key];
-                  const value = raw ?? cfg.default;
-                  const display =
-                    cfg.kind === 'select' && cfg.options
-                      ? (cfg.options.find(o => o.value === value)?.label ?? value)
-                      : value;
-                  return (
-                    <Box key={`extra-${cfg.key}`} sx={{ minWidth: 0 }}>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {cfg.label}
-                      </Typography>
-                      <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
-                        {String(display)}
-                      </Typography>
-                    </Box>
-                  );
-                })
+            ? rows.flat().map(cfg => {
+                const raw = (t.extra as any)?.[cfg.key];
+                const value = raw ?? cfg.default;
+                const display =
+                  cfg.kind === 'select' && cfg.options
+                    ? (cfg.options.find(o => o.value === value)?.label ?? value)
+                    : value;
+                return (
+                  <Box key={`extra-${cfg.key}`} sx={{ minWidth: 0 }}>
+                    <Typography variant="caption" color="text.secondary" noWrap>
+                      {cfg.label}
+                    </Typography>
+                    <Typography variant="body1" noWrap sx={{ fontWeight: 600 }}>
+                      {String(display)}
+                    </Typography>
+                  </Box>
+                );
+              })
             : null}
           <Box
             sx={{

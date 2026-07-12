@@ -1,9 +1,9 @@
-use async_trait::async_trait;
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, Set, Statement, DbBackend, ConnectionTrait};
-use crate::dao::entities::{avatars, users};
-use crate::model::user::{User, UserInfo};
-use crate::dao::idl::UserDao;
 use super::Repository;
+use crate::dao::entities::{avatars, users};
+use crate::dao::idl::UserDao;
+use crate::model::user::{User, UserInfo};
+use async_trait::async_trait;
+use sea_orm::{ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, QueryFilter, Set, Statement};
 
 #[async_trait]
 impl UserDao for Repository {
@@ -25,14 +25,19 @@ impl UserDao for Repository {
             .one(&self.conn)
             .await
             .map_err(|e| format!("查询用户失败: {}", e))?;
-        let Some(user) = user else { return Ok(None); };
+        let Some(user) = user else {
+            return Ok(None);
+        };
         let avatar = avatars::Entity::find()
             .filter(avatars::Column::Uid.eq(id))
             .one(&self.conn)
             .await
             .map_err(|e| format!("查询头像失败: {}", e))?;
         let avatar_data = avatar.map(|a| a.data).unwrap_or_else(|| user.avatar);
-        Ok(Some(UserInfo { nickname: user.nickname, avatar: avatar_data }))
+        Ok(Some(UserInfo {
+            nickname: user.nickname,
+            avatar: avatar_data,
+        }))
     }
 
     async fn login(&self, name: &str, password: &str) -> Result<Option<User>, String> {
@@ -42,7 +47,12 @@ impl UserDao for Repository {
             .one(&self.conn)
             .await
             .map_err(|e| format!("查询用户失败: {}", e))?;
-        Ok(user.map(|u| User { id: u.id, name: u.name, password: u.password, nickname: u.nickname }))
+        Ok(user.map(|u| User {
+            id: u.id,
+            name: u.name,
+            password: u.password,
+            nickname: u.nickname,
+        }))
     }
 
     async fn set_avatar(&self, uid: i32, base64: String) -> Result<(), String> {

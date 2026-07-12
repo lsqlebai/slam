@@ -1,7 +1,7 @@
+use crate::model::sport::{Running, SportExtra, Swimming, Track};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use crate::model::sport::{Track, SportExtra, Swimming, Running};
 
 // sports table entity
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]

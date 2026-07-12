@@ -1,13 +1,13 @@
 use axum::extract::Json;
 
+use crate::app::routes;
 use serde::Serialize;
 use utoipa::ToSchema;
-use crate::app::routes;
-pub mod response;
-pub mod jwt;
-pub mod user_handler;
 pub mod ai_handler;
+pub mod jwt;
+pub mod response;
 pub mod sport_handler;
+pub mod user_handler;
 
 // 定义响应数据结构
 #[derive(Serialize, ToSchema)]
@@ -28,7 +28,6 @@ pub struct ApiResponse {
 pub async fn root() -> &'static str {
     "Hello, World!"
 }
-
 
 // 获取服务状态的API
 #[utoipa::path(

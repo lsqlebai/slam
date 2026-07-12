@@ -1,6 +1,6 @@
 {
   "name": "slam_web",
-  "version": "0.5.1",
+  "version": "0.6.1",
   "scripts": {
     "reset": "npx rimraf node_modules ./**/node_modules",
     "dev": "modern dev",
@@ -12,9 +12,10 @@
     "prepare": "simple-git-hooks",
     "upgrade": "modern upgrade",
     "android:add": "cap add android",
-    "android:sync": "modern build && cp -f dist/html/main/index.html dist/index.html && cap sync android && scripts/bump-android-version.sh",
+    "android:build:web": "node --env-file=android/.env node_modules/@modern-js/app-tools/bin/modern.js build",
+    "android:sync": "pnpm android:build:web && node -e \"require('fs').copyFileSync('dist/html/main/index.html', 'dist/index.html')\" && cap sync android",
     "android:open": "cap open android",
-    "android:build": "cp -f dist/html/main/index.html dist/index.html && cap sync android && cd android && ./gradlew assembleDebug"
+    "android:build": "pnpm android:sync && cd android && ./gradlew assembleDebug"
   },
   "engines": {
     "node": ">=16.18.1"

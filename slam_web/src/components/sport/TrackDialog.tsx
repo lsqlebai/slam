@@ -1,18 +1,24 @@
 import {
+  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Button,
+  MenuItem,
   Stack,
   TextField,
-  MenuItem,
 } from '@mui/material';
 import { TEXTS } from '../../i18n';
 import type { Track } from '../../services/sport';
 import { SportType } from '../../services/sport';
 import { fromHMS, toHMS } from '../../utils/time';
-import { getExtraConfigByType, groupByLayout, type FieldConfig, type LayoutConfig, getDefaultExtraByType } from './ExtraConfig';
+import {
+  type FieldConfig,
+  type LayoutConfig,
+  getDefaultTrackExtraByType,
+  getTrackExtraConfigByType,
+  groupByLayout,
+} from './ExtraConfig';
 
 export default function TrackDialog({
   lang,
@@ -31,14 +37,16 @@ export default function TrackDialog({
   onCancel: () => void;
   onSubmit: () => void;
 }) {
-  const fields: FieldConfig[] = getExtraConfigByType(lang, sportType);
+  const fields: FieldConfig[] = getTrackExtraConfigByType(lang, sportType);
   const EXTRA_LAYOUT_BY_TYPE: Record<SportType, number[]> = {
     [SportType.Swimming]: [3],
     [SportType.Running]: [2, 2, 2],
     [SportType.Cycling]: [],
     [SportType.Unknown]: [],
   };
-  const layout: LayoutConfig = { rowFieldCounts: EXTRA_LAYOUT_BY_TYPE[sportType] ?? [] };
+  const layout: LayoutConfig = {
+    rowFieldCounts: EXTRA_LAYOUT_BY_TYPE[sportType] ?? [],
+  };
   const rows = groupByLayout(fields, layout);
   return (
     <Dialog
@@ -54,7 +62,9 @@ export default function TrackDialog({
             variant="standard"
             label={TEXTS[lang].addsports.submitDistanceLabel}
             type="number"
-            value={trackDraft.distance_meter === 0 ? '' : trackDraft.distance_meter}
+            value={
+              trackDraft.distance_meter === 0 ? '' : trackDraft.distance_meter
+            }
             onChange={e =>
               onChange({
                 distance_meter: Number.parseInt(e.target.value || '0'),
@@ -68,7 +78,9 @@ export default function TrackDialog({
             type="time"
             value={toHMS(trackDraft.duration_second)}
             slotProps={{ htmlInput: { step: 1 } }}
-            onChange={e => onChange({ duration_second: fromHMS(e.target.value) })}
+            onChange={e =>
+              onChange({ duration_second: fromHMS(e.target.value) })
+            }
             fullWidth
           />
           <TextField
@@ -85,7 +97,12 @@ export default function TrackDialog({
                   {row.map(cfg => {
                     const rawVal = (trackDraft.extra as any)?.[cfg.key];
                     const baseVal = rawVal ?? cfg.default;
-                    const value = cfg.kind === 'number' ? (baseVal === 0 ? '' : baseVal) : (baseVal ?? '');
+                    const value =
+                      cfg.kind === 'number'
+                        ? baseVal === 0
+                          ? ''
+                          : baseVal
+                        : (baseVal ?? '');
                     if (cfg.kind === 'select') {
                       return (
                         <TextField
@@ -95,8 +112,12 @@ export default function TrackDialog({
                           label={cfg.label}
                           value={value}
                           onChange={e => {
-                            const base = (trackDraft.extra ?? getDefaultExtraByType(sportType) ?? {}) as any;
-                            onChange({ extra: { ...base, [cfg.key]: e.target.value } });
+                            const base = (trackDraft.extra ??
+                              getDefaultTrackExtraByType(sportType) ??
+                              {}) as any;
+                            onChange({
+                              extra: { ...base, [cfg.key]: e.target.value },
+                            });
                           }}
                           fullWidth
                         >
@@ -117,10 +138,15 @@ export default function TrackDialog({
                         type={type}
                         value={value}
                         onChange={e => {
-                          const parsed = cfg.kind === 'number'
-                            ? (cfg.parse ? cfg.parse(e.target.value) : Number.parseInt(e.target.value || '0'))
-                            : e.target.value;
-                          const base = (trackDraft.extra ?? getDefaultExtraByType(sportType) ?? {}) as any;
+                          const parsed =
+                            cfg.kind === 'number'
+                              ? cfg.parse
+                                ? cfg.parse(e.target.value)
+                                : Number.parseInt(e.target.value || '0')
+                              : e.target.value;
+                          const base = (trackDraft.extra ??
+                            getDefaultTrackExtraByType(sportType) ??
+                            {}) as any;
                           onChange({ extra: { ...base, [cfg.key]: parsed } });
                         }}
                         fullWidth

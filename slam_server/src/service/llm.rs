@@ -1,14 +1,17 @@
 use std::env;
 
 use async_trait::async_trait;
-use reqwest::{header, Client};
+use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use utoipa::ToSchema;
 
 #[async_trait]
 pub trait LLM: Send + Sync {
-    async fn chat(&self, request: ChatCompletionRequest) -> Result<String, Box<dyn std::error::Error>>;
+    async fn chat(
+        &self,
+        request: ChatCompletionRequest,
+    ) -> Result<String, Box<dyn std::error::Error>>;
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +56,6 @@ pub struct TextContent {
     pub text: String,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(untagged)]
 pub enum ContentPart {
@@ -91,8 +93,12 @@ impl std::fmt::Debug for ImageUrl {
 }
 
 fn probable_base64(s: &str) -> bool {
-    if s.len() < 64 { return false; }
-    s.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '-' || c == '_')
+    if s.len() < 64 {
+        return false;
+    }
+    s.chars().all(|c| {
+        c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '-' || c == '_'
+    })
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -106,7 +112,6 @@ pub struct Message {
     pub role: String,
     pub content: Vec<ContentPart>,
 }
-
 
 pub fn get_api_key_from_env() -> Option<String> {
     if let Ok(api_key) = env::var("AI_API_KEY") {
@@ -166,7 +171,7 @@ impl Doubao {
             .unwrap();
         Self {
             client,
-            api_key: get_api_key_from_env().unwrap(),
+            api_key: get_api_key_from_env().unwrap_or_default(),
             model: "doubao-seed-1-6-251015".to_string(),
             url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions".to_string(),
         }
@@ -179,8 +184,22 @@ impl Doubao {
         println!("use LLM model: {}", model);
         Self {
             client,
-            api_key: get_api_key_from_env().unwrap(),
+            api_key: get_api_key_from_env().unwrap_or_default(),
             model: model.clone(),
+            url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions".to_string(),
+        }
+    }
+
+    pub fn with_config(model: String, configured_api_key: String) -> Self {
+        let client = reqwest::Client::builder()
+            .user_agent("ark-rust-example/0.1")
+            .build()
+            .unwrap();
+        println!("use LLM model: {}", model);
+        Self {
+            client,
+            api_key: get_api_key_from_env().unwrap_or(configured_api_key),
+            model,
             url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions".to_string(),
         }
     }
@@ -188,7 +207,15 @@ impl Doubao {
 
 #[async_trait]
 impl LLM for Doubao {
-    async fn chat(&self, request: ChatCompletionRequest) -> Result<String, Box<dyn std::error::Error>> {
+    async fn chat(
+        &self,
+        request: ChatCompletionRequest,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        if self.api_key.trim().is_empty() {
+            return Err(Box::new(LLMError::ConfigurationError(
+                "AI API key is not configured".to_string(),
+            )));
+        }
         let body = json!({
             "model": self.model.clone(),
             "max_completion_tokens": 65535,
@@ -211,10 +238,15 @@ impl LLM for Doubao {
         if !status.is_success() {
             let code = status.as_u16();
             if code == 401 || code == 403 {
-                return Err(Box::new(LLMError::LLMAuthenticationError("鉴权失败: API Key 无效或权限不足".to_string())));
+                return Err(Box::new(LLMError::LLMAuthenticationError(
+                    "鉴权失败: API Key 无效或权限不足".to_string(),
+                )));
             }
             println!("Request failed: {}\n{}", status, text);
-            return Err(Box::new(LLMError::APIFailure(format!("Request failed: {}\n{}", status, text))));
+            return Err(Box::new(LLMError::APIFailure(format!(
+                "Request failed: {}\n{}",
+                status, text
+            ))));
         }
 
         let v: Value = serde_json::from_str(&text).unwrap();
@@ -223,7 +255,9 @@ impl LLM for Doubao {
         if let Some(extracted) = extract_text_from_response(&v) {
             Ok(extracted)
         } else {
-            Err(Box::new(LLMError::InternalError("\n(No recognizable message text field found; see full JSON above.)\n".to_string())))
+            Err(Box::new(LLMError::InternalError(
+                "\n(No recognizable message text field found; see full JSON above.)\n".to_string(),
+            )))
         }
     }
 }

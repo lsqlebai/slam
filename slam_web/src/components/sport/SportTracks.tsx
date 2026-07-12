@@ -3,30 +3,38 @@ import { Box, Fab, Paper, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Sport, Track } from '../../services/sport';
-import { getSportType, SportType } from '../../services/sport';
+import { SportType, getSportType } from '../../services/sport';
 import { updateSport } from '../../services/sport';
+import { withSwimmingTracks } from '../../utils/swimming';
 import { fromHMS, toHMS } from '../../utils/time';
 import { useToast } from '../PageBase';
-import TrackItem from './TrackItem';
-import TrackDialog from './TrackDialog';
 import { getDefaultTrackByType } from './ExtraConfig';
+import TrackDialog from './TrackDialog';
+import TrackItem from './TrackItem';
 
 export default function SportTracks({
   lang,
   sport,
   readonly,
   update,
+  laneLength,
+  onRequestLaneLengthChange,
 }: {
   lang: 'zh' | 'en';
   sport: Sport;
   readonly: boolean;
   update: (patch: Partial<Sport>) => void;
+  laneLength: number;
+  onRequestLaneLengthChange: (newLength: number, tracks?: Track[]) => void;
 }) {
   const { showSuccess } = useToast();
   const addsports = TEXTS[lang].addsports as (typeof TEXTS)['zh']['addsports'];
   const noTracksText = addsports.noTracksData;
   const sportTypeEnum = getSportType(sport.type);
-  const defaultTrack: Track = getDefaultTrackByType(sportTypeEnum);
+  const defaultTrack: Track = {
+    ...getDefaultTrackByType(sportTypeEnum),
+    distance_meter: sportTypeEnum === SportType.Swimming ? laneLength : 0,
+  };
   const [trackDialogOpen, setTrackDialogOpen] = useState(false);
   const [trackDraft, setTrackDraft] = useState<Track>(defaultTrack);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -98,15 +106,23 @@ export default function SportTracks({
                   const nextTracks = sport.tracks.filter(
                     (_, i) => i !== delIdx,
                   );
-                  const nextSport = { ...sport, tracks: nextTracks } as Sport;
+                  const nextSport = withSwimmingTracks(sport, nextTracks);
                   if (nextSport.id && nextSport.id > 0) {
                     const ok = await updateSport(nextSport);
                     if (ok) {
-                      update({ tracks: nextTracks });
+                      update({
+                        tracks: nextSport.tracks,
+                        distance_meter: nextSport.distance_meter,
+                        extra: nextSport.extra,
+                      });
                       showSuccess(TEXTS[lang].addsports.deleteSuccess);
                     }
                   } else {
-                    update({ tracks: nextTracks });
+                    update({
+                      tracks: nextSport.tracks,
+                      distance_meter: nextSport.distance_meter,
+                      extra: nextSport.extra,
+                    });
                     showSuccess(TEXTS[lang].addsports.deleteSuccess);
                   }
                 }}
@@ -126,12 +142,25 @@ export default function SportTracks({
           setEditingIndex(null);
         }}
         onSubmit={() => {
+          let next: Track[];
           if (editingIndex !== null) {
-            const next = sport.tracks.slice();
+            next = sport.tracks.slice();
             next[editingIndex] = trackDraft;
-            update({ tracks: next });
           } else {
-            update({ tracks: [...sport.tracks, trackDraft] });
+            next = [...sport.tracks, trackDraft];
+          }
+          if (
+            sportTypeEnum === SportType.Swimming &&
+            trackDraft.distance_meter !== laneLength
+          ) {
+            onRequestLaneLengthChange(trackDraft.distance_meter, next);
+          } else {
+            const nextSport = withSwimmingTracks(sport, next);
+            update({
+              tracks: nextSport.tracks,
+              distance_meter: nextSport.distance_meter,
+              extra: nextSport.extra,
+            });
           }
           setTrackDialogOpen(false);
           setTrackDraft(defaultTrack);
