@@ -2,4 +2,5 @@
 .vscode
 tests/test.db
 sport.db
+ai-jobs/
 compressed_*.jpeg

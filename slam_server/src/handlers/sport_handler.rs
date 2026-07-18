@@ -11,12 +11,22 @@ use crate::app::{AppState, routes};
 use crate::model::sport::Sport;
 use crate::service::sport_service::{StatKind, StatSummary, StatsParam};
 use axum::extract::Query;
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Deserialize;
 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ActionResponse {
     pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<i32>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct InsertSportRequest {
+    #[serde(flatten)]
+    pub sport: Sport,
+    pub ai_job_id: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -33,7 +43,7 @@ pub struct DeleteRequest {
 #[utoipa::path(
     post,
     path = routes::API_SPORT_INSERT,
-    request_body = Sport,
+    request_body = InsertSportRequest,
     responses(
         (status = 200, description = "Insert sport", body = ActionResponse),
         (status = 401, description = "Unauthorized", body = String),
@@ -44,15 +54,34 @@ pub struct DeleteRequest {
 pub async fn insert_sport_handler(
     State(app): State<Arc<AppState>>,
     ctx: Context,
-    Json(sport): Json<Sport>,
+    Json(req): Json<InsertSportRequest>,
 ) -> axum::response::Response {
+    let sport = req.sport;
     if let Err(e) = sport.validate_type_consistency() {
         return HandlerResponse::<ActionResponse>::Error(e).into_response();
     }
-    match app.sport_service.insert(sport, &ctx).await {
-        Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse { success: true })
-            .into_response(),
-        Err(e) => HandlerResponse::<ActionResponse>::Error(e.message).into_response(),
+    match app
+        .sport_service
+        .insert_with_ai_job(sport, req.ai_job_id, &ctx)
+        .await
+    {
+        Ok(id) => HandlerResponse::<ActionResponse>::Success(ActionResponse {
+            success: true,
+            id: (id > 0).then_some(id),
+        })
+        .into_response(),
+        Err(e) => {
+            let status =
+                StatusCode::from_u16(e.code as u16).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            (
+                status,
+                Json(serde_json::json!({
+                    "error": e.message,
+                    "request_id": crate::service::common::generate_request_id()
+                })),
+            )
+                .into_response()
+        }
     }
 }
 
@@ -158,8 +187,11 @@ pub async fn update_sport_handler(
         return HandlerResponse::<ActionResponse>::Error(e).into_response();
     }
     match app.sport_service.update(sport, &ctx).await {
-        Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse { success: true })
-            .into_response(),
+        Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse {
+            success: true,
+            id: None,
+        })
+        .into_response(),
         Err(e) => HandlerResponse::<ActionResponse>::Error(e.message).into_response(),
     }
 }
@@ -235,8 +267,11 @@ pub async fn delete_sport_handler(
         return HandlerResponse::<ActionResponse>::Error("invalid id".to_string()).into_response();
     }
     match app.sport_service.delete(req.id, &ctx).await {
-        Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse { success: true })
-            .into_response(),
+        Ok(_) => HandlerResponse::<ActionResponse>::Success(ActionResponse {
+            success: true,
+            id: None,
+        })
+        .into_response(),
         Err(e) => HandlerResponse::<ActionResponse>::Error(e.message).into_response(),
     }
 }

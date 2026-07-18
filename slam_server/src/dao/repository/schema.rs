@@ -53,6 +53,39 @@ impl Repository {
             updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_avatars_uid ON avatars(uid);
+
+        CREATE TABLE IF NOT EXISTS ai_jobs (
+            id TEXT PRIMARY KEY,
+            uid INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            result_json TEXT,
+            error_code TEXT,
+            error_message TEXT,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            next_attempt_at INTEGER,
+            lease_until INTEGER,
+            submitted_sport_id INTEGER,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            started_at INTEGER,
+            finished_at INTEGER,
+            submitted_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_ai_jobs_uid_created ON ai_jobs(uid, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ai_jobs_queue ON ai_jobs(status, next_attempt_at, created_at);
+
+        CREATE TABLE IF NOT EXISTS ai_job_assets (
+            id TEXT PRIMARY KEY,
+            uid INTEGER NOT NULL,
+            job_id TEXT NOT NULL,
+            original_path TEXT NOT NULL,
+            thumbnail_path TEXT NOT NULL,
+            mime TEXT NOT NULL,
+            position INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            deleted_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_ai_job_assets_job ON ai_job_assets(job_id, position);
         "#;
         self.exec_batch(create_sql).await?;
         // 兼容历史列添加

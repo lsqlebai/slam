@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from '@modern-js/runtime/router';
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
   Dialog,
   DialogActions,
@@ -11,12 +12,14 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import PageBase, { useToast } from '../../../components/PageBase';
+import AIJobImageStrip from '../../../components/ai/AIJobImageStrip';
 import PageHeader from '../../../components/common/PageHeader';
 import { getDefaultExtraByType } from '../../../components/sport/ExtraConfig';
 import SportBasicInfo from '../../../components/sport/SportBasicInfo';
 import SportExtraInfo from '../../../components/sport/SportExtraInfo';
 import SportTracks from '../../../components/sport/SportTracks';
 import { TEXTS } from '../../../i18n';
+import { type AIJobAsset, getAIJob } from '../../../services/aiJob';
 import {
   type Sport,
   type SportExtra,
@@ -39,16 +42,20 @@ function SubmitInner() {
   const navigate = useNavigate();
   const { showError, showSuccess } = useToast();
   const location = useLocation();
+  const aiJobId = new URLSearchParams(location.search).get('ai_job_id');
   type LocationState = { sport?: Sport; readonly?: boolean } | null;
   const initial: Sport | null =
     (location.state as LocationState)?.sport ?? null;
-  const readonly: boolean = Boolean(
+  const readonlyFromState: boolean = Boolean(
     (location.state as LocationState)?.readonly,
   );
+  const readonly = aiJobId ? false : readonlyFromState;
   const fromDetail =
     'readonly' in
     ((location.state as unknown as Record<string, unknown>) || {});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [aiAssets, setAIAssets] = useState<AIJobAsset[]>([]);
+  const [jobLoading, setJobLoading] = useState(Boolean(aiJobId));
   const [pendingLaneChange, setPendingLaneChange] = useState<{
     newLength: number;
     tracks?: Track[];
@@ -86,6 +93,36 @@ function SubmitInner() {
     }
   }, [location.state, showSuccess, navigate, sport]);
 
+  useEffect(() => {
+    if (!aiJobId) return;
+    let active = true;
+    setJobLoading(true);
+    getAIJob(aiJobId)
+      .then(job => {
+        if (!active) return;
+        if (job.status !== 'ready' || !job.result) {
+          showError(TEXTS[lang].aiJobs.status[job.status]);
+          navigate('/?tab=ai', { replace: true });
+          return;
+        }
+        setSport(initializeSwimmingSport(job.result));
+        setAIAssets(job.assets);
+      })
+      .catch(error => {
+        if (!active) return;
+        showError(
+          error instanceof Error ? error.message : TEXTS[lang].addsports.aiFail,
+        );
+        navigate('/?tab=ai', { replace: true });
+      })
+      .finally(() => {
+        if (active) setJobLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [aiJobId, lang, navigate, showError]);
+
   const update = (patch: Partial<Sport>) =>
     setSport(prev => {
       const next = { ...prev, ...patch } as Sport;
@@ -102,7 +139,7 @@ function SubmitInner() {
     const sportType = getSportType(sport.type);
     const defaultExtra = getDefaultExtraByType(sportType);
     if (!defaultExtra) return; // Unknown/Cycling 不设置 extra
-    const base = { ...defaultExtra, ...(sport.extra as any) } as SportExtra;
+    const base = { ...defaultExtra, ...(sport.extra ?? {}) } as SportExtra;
     update({ extra: { ...(base as SportExtra), ...(patch as SportExtra) } });
   };
 
@@ -134,7 +171,9 @@ function SubmitInner() {
 
   const handleSubmit = async () => {
     const ok =
-      sport.id > 0 ? await updateSport(sport) : await insertSport(sport);
+      sport.id > 0
+        ? await updateSport(sport)
+        : await insertSport(sport, aiJobId ?? undefined);
     if (ok) {
       showSuccess(TEXTS[lang].addsports.submitSuccess);
       navigate('/');
@@ -142,6 +181,10 @@ function SubmitInner() {
   };
 
   const handleCancel = () => {
+    if (aiJobId) {
+      navigate('/?tab=ai');
+      return;
+    }
     if (fromDetail) {
       navigate('.', { state: { sport, readonly: true }, replace: true });
     } else {
@@ -169,6 +212,20 @@ function SubmitInner() {
     }
   };
 
+  if (jobLoading) {
+    return (
+      <Box sx={{ minHeight: '100dvh', bgcolor: 'grey.100' }}>
+        <PageHeader
+          headTitle={TEXTS[lang].addsports.headTitle}
+          title={TEXTS[lang].addsports.title}
+        />
+        <Box sx={{ display: 'grid', placeItems: 'center', py: 10 }}>
+          <CircularProgress />
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box
       className="submit-wrapper"
@@ -183,6 +240,16 @@ function SubmitInner() {
         headTitle={TEXTS[lang].addsports.headTitle}
         title={TEXTS[lang].addsports.title}
       />
+      {aiAssets.length > 0 && (
+        <Box sx={{ bgcolor: 'background.paper' }}>
+          <Container maxWidth="md" sx={{ px: { xs: 2, sm: 3 }, pt: 1 }}>
+            <Typography variant="subtitle2">
+              {TEXTS[lang].addsports.imagesTitle}
+            </Typography>
+            <AIJobImageStrip assets={aiAssets} />
+          </Container>
+        </Box>
+      )}
       <Container
         maxWidth="md"
         sx={{

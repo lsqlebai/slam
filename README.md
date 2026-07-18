@@ -111,6 +111,10 @@ slam/
   - `server.ip/port`: listen address and port.
   - `db.path`: SQLite file path (e.g., `sport.db`).
   - `ai.key`: optional fallback for local configuration; env `AI_API_KEY` takes priority.
+  - `ai.job_dir`: persistent directory for original AI job images and thumbnails.
+  - `ai.worker_concurrency`: background AI worker count; defaults to `1`.
+  - `ai.max_attempts`: maximum attempts including the first request; defaults to `3`.
+  - `ai.retry_delays_seconds`: retry backoff sequence; defaults to `[15, 60]`.
   - `security.salt/key`: derive JWT secrets and (de)encryption; replace the defaults (`change-me-key`).
 - In-container config: `deploy/config/app.container.yml` (`db.path` points to `/data/sport.db`).
 - Nginx: static assets and reverse proxy (`deploy/config/nginx.conf:6`).
@@ -129,6 +133,11 @@ slam/
 - Route constants: `slam_server/src/app/routes.rs`
   - Status: `GET /api/status`
   - AI image parse: `POST /api/ai/image-parse`
+  - Create async AI job: `POST /api/ai/jobs`
+  - List async AI jobs: `GET /api/ai/jobs?page=0&size=50`
+  - AI job detail: `GET /api/ai/jobs/{id}`
+  - Retry a failed AI job: `POST /api/ai/jobs/{id}/retry`
+  - AI job image: `GET /api/ai/assets/{id}/content` or `/thumbnail`
   - User register: `POST /api/user/register`
   - User login: `POST /api/user/login`
   - User info: `GET /api/user/info`
@@ -139,6 +148,12 @@ slam/
   - Stats: `GET /api/sport/stats?kind=year|month|week|total&year=2025[&month=11][&week=47]`
   - Update: `POST /api/sport/update`
   - Delete: `POST /api/sport/delete`
+
+Async AI jobs persist their input images and recognition result in server-owned storage. Only
+`ready` jobs can be submitted. Submit the edited sport through the existing sport insert endpoint
+with an optional top-level `ai_job_id`; the server atomically inserts the sport, marks the job as
+submitted, and schedules its images for deletion. Temporary upstream failures are retried in the
+background, while failed jobs can be retried explicitly through the job API.
 
 ### Example: Register, Login, and Insert Sport
 

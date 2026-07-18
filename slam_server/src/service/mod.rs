@@ -1,3 +1,5 @@
+pub mod ai_job_service;
+pub mod ai_job_worker;
 pub mod ai_service;
 pub mod common;
 pub mod image_service;

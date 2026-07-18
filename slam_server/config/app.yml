@@ -8,6 +8,10 @@ db:
 ai:
   key: ""
   model: "doubao-seed-2-0-mini-260215"
+  job_dir: "ai-jobs"
+  worker_concurrency: 1
+  max_attempts: 3
+  retry_delays_seconds: [15, 60]
 
 security:
   salt: "slam-server-salt"

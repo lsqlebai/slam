@@ -100,8 +100,12 @@ export async function recognizeImages(
   return res.data as AIResponse<Sport>;
 }
 
-export async function insertSport(sport: Sport): Promise<boolean> {
-  const res = await http.post('/sport/insert', sport);
+export async function insertSport(
+  sport: Sport,
+  aiJobId?: string,
+): Promise<boolean> {
+  const body = aiJobId ? { ...sport, ai_job_id: aiJobId } : sport;
+  const res = await http.post('/sport/insert', body);
   const data = res.data as { success?: boolean; error?: string };
   if (data?.success) return true;
   const msg = String(data?.error || '提交失败');

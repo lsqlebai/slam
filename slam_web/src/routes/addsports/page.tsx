@@ -16,16 +16,16 @@ import ImagePickerCard from '../../components/common/ImagePickerCard';
 import ImagePreviewDialog from '../../components/common/ImagePreviewDialog';
 import PageHeader from '../../components/common/PageHeader';
 import { TEXTS } from '../../i18n';
-import { recognizeImages } from '../../services/sport';
+import { createAIJob } from '../../services/aiJob';
 import { useLangStore } from '../../stores/lang';
 
 function AddSportsInner() {
   const { lang } = useLangStore();
   const [images, setImages] = useState<{ file: File; url: string }[]>([]);
-  const [recognizing, setRecognizing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
 
   const handleFilesSelected = (fs: FileList | null) => {
     if (!fs || fs.length === 0) return;
@@ -42,35 +42,18 @@ function AddSportsInner() {
       showError('请先选择图片');
       return;
     }
-    setRecognizing(true);
+    setSubmitting(true);
     try {
       const fd = new FormData();
       for (const { file } of images) {
         fd.append('image', file);
       }
-      const resp = await recognizeImages(fd);
-      if (!resp.success || !resp.data) {
-        const em = String(resp.error?.message || '');
-        const isTimeout =
-          /timeout|超时/i.test(em) || resp.error?.code === 'TIMEOUT';
-        showError(
-          isTimeout
-            ? TEXTS[lang].addsports.aiTimeoutBusy
-            : em || TEXTS[lang].addsports.aiFail,
-        );
-        return;
-      }
-      const calories = resp.data.calories || 0;
-      const segments = Array.isArray(resp.data.tracks)
-        ? resp.data.tracks.length
-        : 0;
-      const aiToast =
-        lang === 'zh'
-          ? `AI识别成功，运动总消耗 ${calories} Kcal，有${segments}段分段数据`
-          : `AI recognition succeeded. Total calories ${calories} Kcal, with ${segments} segments.`;
-      navigate('/sport/detail', { state: { sport: resp.data, aiToast } });
+      await createAIJob(fd);
+      for (const image of images) URL.revokeObjectURL(image.url);
+      showSuccess(TEXTS[lang].aiJobs.submitted);
+      navigate('/?tab=ai');
     } finally {
-      setRecognizing(false);
+      setSubmitting(false);
     }
   };
 
@@ -203,7 +186,7 @@ function AddSportsInner() {
           <Button
             variant="contained"
             startIcon={<Psychology />}
-            disabled={images.length === 0 || recognizing}
+            disabled={images.length === 0 || submitting}
             onClick={handleRecognize}
             fullWidth
           >
@@ -211,12 +194,12 @@ function AddSportsInner() {
           </Button>
         </Box>
       </Box>
-      <Dialog open={recognizing} maxWidth="xs" fullWidth>
+      <Dialog open={submitting} maxWidth="xs" fullWidth>
         <DialogContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
             <CircularProgress size={20} />
             <Typography variant="body2">
-              {TEXTS[lang].addsports.aiLoading}
+              {TEXTS[lang].aiJobs.uploading}
             </Typography>
           </Box>
         </DialogContent>

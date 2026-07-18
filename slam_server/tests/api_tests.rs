@@ -498,6 +498,7 @@ async fn test_sport_insert_list_stats_running() {
 // 删除未使用示例函数以避免警告
 
 #[tokio::test]
+#[ignore = "requires real LLM credentials"]
 async fn test_image_endpoint() {
     let mut app = app::create_app(AppConfig::default()).await;
     let cookie_header =
@@ -1046,6 +1047,7 @@ async fn test_llm_error_config_maps_500() {
 }
 
 #[tokio::test]
+#[ignore = "requires real LLM credentials"]
 async fn test_image_endpoint_comparison() {
     let models = vec![
         "doubao-seed-1-6-251015",

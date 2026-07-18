@@ -28,6 +28,14 @@ pub struct AiConfig {
     pub key: String,
     #[serde(default = "default_ai_model")]
     pub model: String,
+    #[serde(default = "default_ai_job_dir")]
+    pub job_dir: String,
+    #[serde(default = "default_ai_worker_concurrency")]
+    pub worker_concurrency: usize,
+    #[serde(default = "default_ai_max_attempts")]
+    pub max_attempts: i32,
+    #[serde(default = "default_ai_retry_delays_seconds")]
+    pub retry_delays_seconds: Vec<u64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -76,6 +84,18 @@ fn default_jwt_ttl_seconds() -> u64 {
 pub fn default_ai_model() -> String {
     "doubao-seed-1-6-251015".to_string()
 }
+fn default_ai_job_dir() -> String {
+    "ai-jobs".to_string()
+}
+fn default_ai_worker_concurrency() -> usize {
+    1
+}
+fn default_ai_max_attempts() -> i32 {
+    3
+}
+fn default_ai_retry_delays_seconds() -> Vec<u64> {
+    vec![15, 60]
+}
 
 impl AppConfig {
     pub fn new(cfg_path: &str) -> Self {
@@ -121,6 +141,10 @@ impl Default for AiConfig {
         Self {
             key: "".to_string(),
             model: default_ai_model(),
+            job_dir: default_ai_job_dir(),
+            worker_concurrency: default_ai_worker_concurrency(),
+            max_attempts: default_ai_max_attempts(),
+            retry_delays_seconds: default_ai_retry_delays_seconds(),
         }
     }
 }

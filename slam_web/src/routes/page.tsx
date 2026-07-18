@@ -1,13 +1,21 @@
 import { Helmet } from '@modern-js/runtime/head';
-import { BarChart, DirectionsRun, Settings } from '@mui/icons-material';
+import { useLocation, useNavigate } from '@modern-js/runtime/router';
 import {
+  BarChart,
+  DirectionsRun,
+  Psychology,
+  Settings,
+} from '@mui/icons-material';
+import {
+  Badge,
   BottomNavigation,
   BottomNavigationAction,
   Box,
   List,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import PageBase from '../components/PageBase';
+import AIJobList from '../components/ai/AIJobList';
 import HomeHeader from '../components/home/HomeHeader';
 import SettingsPage from '../components/home/Settings';
 import SidebarNavItem from '../components/home/SidebarNavItem';
@@ -15,13 +23,27 @@ import Sporting from '../components/home/Sporting';
 import Stats from '../components/stats/Stats';
 import useAndroidDoubleBackExit from '../hooks/useAndroidDoubleBackExit';
 import { TEXTS } from '../i18n';
+import { type AIJob, listAIJobs } from '../services/aiJob';
 import { useLangStore } from '../stores/lang';
 import { useUserStore } from '../stores/user';
 import './home.css';
 
+const HOME_TABS = ['motion', 'stats', 'ai', 'settings'] as const;
+
+function getTabFromSearch(search: string) {
+  const requested = new URLSearchParams(search).get('tab');
+  const index = HOME_TABS.findIndex(tab => tab === requested);
+  return index >= 0 ? index : 0;
+}
+
 function HomeInner() {
   const { lang } = useLangStore();
-  const [activeTab, setActiveTab] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(() =>
+    getTabFromSearch(location.search),
+  );
+  const [hasPendingAIJob, setHasPendingAIJob] = useState(false);
   const { user, refresh } = useUserStore();
   useAndroidDoubleBackExit(TEXTS[lang].home.pressAgainExit);
 
@@ -32,6 +54,38 @@ function HomeInner() {
       } catch {}
     })();
   }, [refresh]);
+
+  useEffect(() => {
+    setActiveTab(getTabFromSearch(location.search));
+  }, [location.search]);
+
+  const updatePendingIndicator = useCallback((jobs: AIJob[]) => {
+    setHasPendingAIJob(
+      jobs.some(job => job.status === 'queued' || job.status === 'running'),
+    );
+  }, []);
+
+  const refreshPendingIndicator = useCallback(async () => {
+    updatePendingIndicator(await listAIJobs());
+  }, [updatePendingIndicator]);
+
+  useEffect(() => {
+    refreshPendingIndicator().catch(() => {});
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshPendingIndicator().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshPendingIndicator]);
+
+  const selectTab = (index: number) => {
+    setActiveTab(index);
+    navigate(`/?tab=${HOME_TABS[index]}`, { replace: true });
+  };
 
   const hour = new Date().getHours();
   const gKey = (() => {
@@ -48,6 +102,7 @@ function HomeInner() {
   const title = (() => {
     if (activeTab === 0) return TEXTS[lang].home.motion;
     if (activeTab === 1) return TEXTS[lang].home.stats;
+    if (activeTab === 2) return TEXTS[lang].aiJobs.title;
     return TEXTS[lang].home.settings;
   })();
 
@@ -58,7 +113,7 @@ function HomeInner() {
         px: 2,
         pb: {
           xs: 'env(safe-area-inset-bottom)',
-          sm: activeTab === 2 ? 10 : 2,
+          sm: activeTab === 3 ? 10 : 2,
         },
         flex: 1,
         minHeight: 0,
@@ -67,7 +122,10 @@ function HomeInner() {
     >
       {activeTab === 0 && <Sporting lang={lang} />}
       {activeTab === 1 && <Stats lang={lang} />}
-      {activeTab === 2 && <SettingsPage lang={lang} />}
+      {activeTab === 2 && (
+        <AIJobList lang={lang} embedded onJobsChange={updatePendingIndicator} />
+      )}
+      {activeTab === 3 && <SettingsPage lang={lang} />}
     </Box>
   );
 
@@ -115,19 +173,34 @@ function HomeInner() {
           <List disablePadding>
             <SidebarNavItem
               selected={activeTab === 0}
-              onClick={() => setActiveTab(0)}
+              onClick={() => selectTab(0)}
               icon={<DirectionsRun />}
               label={TEXTS[lang].home.motion}
             />
             <SidebarNavItem
               selected={activeTab === 1}
-              onClick={() => setActiveTab(1)}
+              onClick={() => selectTab(1)}
               icon={<BarChart />}
               label={TEXTS[lang].home.stats}
             />
             <SidebarNavItem
               selected={activeTab === 2}
-              onClick={() => setActiveTab(2)}
+              onClick={() => selectTab(2)}
+              icon={
+                <Badge
+                  color="error"
+                  variant="dot"
+                  overlap="circular"
+                  invisible={!hasPendingAIJob}
+                >
+                  <Psychology />
+                </Badge>
+              }
+              label={TEXTS[lang].aiJobs.tabLabel}
+            />
+            <SidebarNavItem
+              selected={activeTab === 3}
+              onClick={() => selectTab(3)}
               icon={<Settings />}
               label={TEXTS[lang].home.settings}
             />
@@ -163,7 +236,7 @@ function HomeInner() {
       >
         <BottomNavigation
           value={activeTab}
-          onChange={(_, newValue) => setActiveTab(newValue)}
+          onChange={(_, newValue) => selectTab(newValue)}
           showLabels
           sx={{ height: 64 }}
         >
@@ -174,6 +247,19 @@ function HomeInner() {
           <BottomNavigationAction
             label={TEXTS[lang].home.stats}
             icon={<BarChart />}
+          />
+          <BottomNavigationAction
+            label={TEXTS[lang].aiJobs.tabLabel}
+            icon={
+              <Badge
+                color="error"
+                variant="dot"
+                overlap="circular"
+                invisible={!hasPendingAIJob}
+              >
+                <Psychology />
+              </Badge>
+            }
           />
           <BottomNavigationAction
             label={TEXTS[lang].home.settings}

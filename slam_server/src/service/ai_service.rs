@@ -129,8 +129,6 @@ impl AIService {
                 }
             }
         })?;
-        println!("content: {:?}", content);
-
         let sport = Sport::parse_from_xml(&content).map_err(|e| common::ServiceError {
             code: 422,
             message: e.to_string(),

@@ -7,6 +7,10 @@ db:
 
 ai:
   key: ""
+  job_dir: "/data/ai-jobs"
+  worker_concurrency: 1
+  max_attempts: 3
+  retry_delays_seconds: [15, 60]
 
 security:
   salt: "slam-server-salt"

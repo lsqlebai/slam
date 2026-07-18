@@ -8,6 +8,7 @@ use crate::dao::cache::ResultCache;
 use crate::dao::idl::SportDao;
 use crate::handlers::jwt::Context;
 use crate::model::sport::{Sport, SportExtra, SportType};
+use crate::service::ai_job_service::AIJobService;
 use crate::service::common::ServiceError;
 
 pub struct SportService {
@@ -45,6 +46,49 @@ impl SportService {
             self.cache_year.invalidate(key).await;
         }
         Ok(())
+    }
+
+    #[inject_ctx]
+    pub async fn insert_with_ai_job(
+        &self,
+        sport: Sport,
+        ai_job_id: Option<String>,
+    ) -> Result<i32, ServiceError> {
+        let y = DateTime::from_timestamp(sport.start_time, 0).map(|dt| dt.year());
+        let sport_id = if let Some(job_id) = ai_job_id {
+            let submission = self
+                .dao
+                .insert_from_ai_job(ctx.uid, sport, &job_id)
+                .await
+                .map_err(|e| ServiceError {
+                    code: if e.contains("不存在") {
+                        404
+                    } else if e.contains("不能提交") {
+                        409
+                    } else {
+                        500
+                    },
+                    message: e,
+                })?;
+            AIJobService::cleanup_paths(submission.asset_paths);
+            submission.sport_id
+        } else {
+            self.dao
+                .insert(ctx.uid, sport)
+                .await
+                .map_err(|e| ServiceError {
+                    code: 500,
+                    message: e,
+                })?;
+            0
+        };
+        self.cache_total.invalidate(ctx.uid).await;
+        if let Some(year) = y {
+            self.cache_year
+                .invalidate(format!("{}@{}", ctx.uid, year))
+                .await;
+        }
+        Ok(sport_id)
     }
 
     #[inject_ctx]

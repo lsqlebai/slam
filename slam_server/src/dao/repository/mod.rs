@@ -17,6 +17,7 @@ impl Repository {
     }
 }
 
+mod ai_job;
 mod compat;
 mod schema;
 mod sport;

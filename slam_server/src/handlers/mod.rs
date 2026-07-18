@@ -4,6 +4,7 @@ use crate::app::routes;
 use serde::Serialize;
 use utoipa::ToSchema;
 pub mod ai_handler;
+pub mod ai_job_handler;
 pub mod jwt;
 pub mod response;
 pub mod sport_handler;

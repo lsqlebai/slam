@@ -9,6 +9,7 @@ async fn test_get_api_key_from_env() {
 }
 
 #[tokio::test]
+#[ignore = "requires real LLM credentials"]
 async fn test_doubao_request() {
     let api_key = env::var("AI_API_KEY").expect("has keys");
     let client = reqwest::Client::builder()
@@ -49,13 +50,12 @@ async fn test_sqlite_insert_and_query_sport_from_sample_xml() {
     use slam_server::dao::idl::SportDao;
     use slam_server::model::sport::SAMPLE_XML_SWIMMING;
     use slam_server::model::sport::Sport;
-    use std::path::Path;
-    let db_path = "tests/test.db";
-    if Path::new(db_path).exists() {
-        let _ = std::fs::remove_file(db_path);
-    }
+    let temp_dir = tempfile::TempDir::new().expect("temporary directory");
+    let db_path = temp_dir.path().join("sport.db");
     let sport = Sport::parse_from_xml(SAMPLE_XML_SWIMMING).expect("parse xml");
-    let dao = Repository::new(db_path).await.expect("dao new");
+    let dao = Repository::new(db_path.to_str().expect("temporary database path"))
+        .await
+        .expect("dao new");
     dao.insert(0, sport.clone()).await.expect("dao insert");
     let default_page = 0;
     let default_size = 20;
@@ -71,14 +71,13 @@ async fn test_sqlite_insert_and_query_running_from_sample_xml() {
     use slam_server::dao::Repository;
     use slam_server::dao::idl::SportDao;
     use slam_server::model::sport::{SAMPLE_XML_RUNNING, Sport, SportExtra, SportType};
-    use std::path::Path;
-    let db_path = "tests/test.db";
-    if Path::new(db_path).exists() {
-        let _ = std::fs::remove_file(db_path);
-    }
+    let temp_dir = tempfile::TempDir::new().expect("temporary directory");
+    let db_path = temp_dir.path().join("sport.db");
     let sport = Sport::parse_from_xml(SAMPLE_XML_RUNNING).expect("parse xml");
     assert_eq!(sport.r#type, SportType::Running);
-    let dao = Repository::new(db_path).await.expect("dao new");
+    let dao = Repository::new(db_path.to_str().expect("temporary database path"))
+        .await
+        .expect("dao new");
     dao.insert(0, sport.clone()).await.expect("dao insert");
     let all = dao.list(0, 0, 20).await.expect("dao list");
     assert_eq!(all.len(), 1);

@@ -3,11 +3,12 @@ use super::compat::{parse_extra_compat, parse_tracks_compat};
 use crate::dao::entities::{self};
 use crate::dao::entities::{DbSportExtra, DbSportTrack};
 use crate::dao::idl::SportDao;
+use crate::model::ai_job::{AiJobSubmission, JOB_READY, JOB_SUBMITTED};
 use crate::model::sport::{Sport, SportExtra, SportType, Track};
 use async_trait::async_trait;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
-    TransactionTrait,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, PaginatorTrait,
+    QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
 };
 
 #[async_trait]
@@ -263,5 +264,108 @@ impl SportDao for Repository {
                 tracks,
             }
         }))
+    }
+
+    async fn insert_from_ai_job(
+        &self,
+        uid: i32,
+        sport: Sport,
+        job_id: &str,
+    ) -> Result<AiJobSubmission, String> {
+        let job_id = job_id.to_string();
+        self.conn
+            .transaction(|txn| {
+                Box::pin(async move {
+                    let job = txn
+                        .query_one(Statement::from_sql_and_values(
+                            DbBackend::Sqlite,
+                            "SELECT status, submitted_sport_id FROM ai_jobs WHERE uid = ? AND id = ?",
+                            vec![uid.into(), job_id.clone().into()],
+                        ))
+                        .await?
+                        .ok_or_else(|| sea_orm::DbErr::Custom("AI任务不存在".to_string()))?;
+                    let status: String = job.try_get("", "status")?;
+                    let submitted_sport_id: Option<i32> =
+                        job.try_get("", "submitted_sport_id")?;
+                    if status == JOB_SUBMITTED {
+                        let sport_id = submitted_sport_id.ok_or_else(|| {
+                            sea_orm::DbErr::Custom("AI任务提交状态异常".to_string())
+                        })?;
+                        return Ok(AiJobSubmission {
+                            sport_id,
+                            asset_paths: Vec::new(),
+                        });
+                    }
+                    if status != JOB_READY {
+                        return Err(sea_orm::DbErr::Custom(
+                            "AI任务尚未识别完成，不能提交".to_string(),
+                        ));
+                    }
+
+                    let extra_tagged = sport.extra.clone().map(DbSportExtra::from);
+                    let extra_json = serde_json::to_string(&extra_tagged)
+                        .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+                    let db_tracks: Vec<DbSportTrack> = sport
+                        .tracks
+                        .clone()
+                        .into_iter()
+                        .map(DbSportTrack::from)
+                        .collect();
+                    let tracks_json = serde_json::to_string(&db_tracks)
+                        .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+                    let mut am: entities::ActiveModel = Default::default();
+                    am.uid = Set(uid);
+                    am.type_ = Set(sport.r#type.as_str().to_string());
+                    am.start_time = Set(sport.start_time);
+                    am.calories = Set(sport.calories);
+                    am.distance_meter = Set(sport.distance_meter);
+                    am.duration_second = Set(sport.duration_second);
+                    am.heart_rate_avg = Set(sport.heart_rate_avg);
+                    am.heart_rate_max = Set(sport.heart_rate_max);
+                    am.pace_average = Set(sport.pace_average);
+                    am.extra = Set(extra_json);
+                    am.tracks = Set(tracks_json);
+                    let inserted = am.insert(txn).await?;
+                    let now = chrono::Utc::now().timestamp();
+                    let updated = txn
+                        .execute(Statement::from_sql_and_values(
+                            DbBackend::Sqlite,
+                            "UPDATE ai_jobs SET status = ?, submitted_sport_id = ?, submitted_at = ?, updated_at = ? WHERE uid = ? AND id = ? AND status = ?",
+                            vec![
+                                JOB_SUBMITTED.into(),
+                                inserted.id.into(),
+                                now.into(),
+                                now.into(),
+                                uid.into(),
+                                job_id.clone().into(),
+                                JOB_READY.into(),
+                            ],
+                        ))
+                        .await?;
+                    if updated.rows_affected() != 1 {
+                        return Err(sea_orm::DbErr::Custom(
+                            "AI任务状态已变化，请刷新后重试".to_string(),
+                        ));
+                    }
+                    let paths = txn
+                        .query_all(Statement::from_sql_and_values(
+                            DbBackend::Sqlite,
+                            "SELECT original_path, thumbnail_path FROM ai_job_assets WHERE uid = ? AND job_id = ? AND deleted_at IS NULL",
+                            vec![uid.into(), job_id.into()],
+                        ))
+                        .await?;
+                    let mut asset_paths = Vec::new();
+                    for row in paths {
+                        asset_paths.push(row.try_get("", "original_path")?);
+                        asset_paths.push(row.try_get("", "thumbnail_path")?);
+                    }
+                    Ok(AiJobSubmission {
+                        sport_id: inserted.id,
+                        asset_paths,
+                    })
+                })
+            })
+            .await
+            .map_err(|e| format!("提交AI识别结果失败: {e}"))
     }
 }

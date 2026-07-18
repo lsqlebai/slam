@@ -75,15 +75,6 @@ impl ImageService {
         let compressed_img = self.compress_image(img, 256);
 
         let split_imgs = self.split_image(compressed_img, 1024);
-        #[cfg(debug_assertions)]
-        for (i, img) in split_imgs.iter().enumerate() {
-            img.save_with_format(format!("./compressed_{}.jpeg", i), image::ImageFormat::Jpeg)
-                .map_err(|e| ServiceError {
-                    code: 500,
-                    message: format!("无法保存压缩图片: {}", e),
-                })?;
-        }
-
         let base64_data: Vec<String> = split_imgs
             .iter()
             .map(|img| self.image_to_base64(img.clone()))
@@ -98,6 +89,23 @@ impl ImageService {
                 message: "无法切割图片".to_string(),
             })
         }
+    }
+
+    /// 校验图片并生成用于任务列表展示的 JPEG 缩略图。
+    pub fn create_thumbnail(&self, image_data: &[u8]) -> Result<Vec<u8>, ServiceError> {
+        let img = image::load_from_memory(image_data).map_err(|e| ServiceError {
+            code: 400,
+            message: format!("无法解码图片: {e}"),
+        })?;
+        let thumbnail = img.thumbnail(480, 480);
+        let mut buffer = Cursor::new(Vec::new());
+        thumbnail
+            .write_to(&mut buffer, ImageOutputFormat::Jpeg(80))
+            .map_err(|e| ServiceError {
+                code: 500,
+                message: format!("无法生成缩略图: {e}"),
+            })?;
+        Ok(buffer.into_inner())
     }
 
     /// 等比例压缩图片到长和宽其中之一小于指定阈值

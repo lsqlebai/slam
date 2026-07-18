@@ -164,26 +164,27 @@ pub struct Doubao {
 }
 
 impl Doubao {
-    pub fn new() -> Self {
-        let client = reqwest::Client::builder()
+    fn client() -> Client {
+        reqwest::Client::builder()
             .user_agent("ark-rust-example/0.1")
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .timeout(std::time::Duration::from_secs(300))
             .build()
-            .unwrap();
+            .expect("build reqwest client")
+    }
+
+    pub fn new() -> Self {
         Self {
-            client,
+            client: Self::client(),
             api_key: get_api_key_from_env().unwrap_or_default(),
             model: "doubao-seed-1-6-251015".to_string(),
             url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions".to_string(),
         }
     }
     pub fn with_model(model: String) -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent("ark-rust-example/0.1")
-            .build()
-            .unwrap();
         println!("use LLM model: {}", model);
         Self {
-            client,
+            client: Self::client(),
             api_key: get_api_key_from_env().unwrap_or_default(),
             model: model.clone(),
             url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions".to_string(),
@@ -191,13 +192,9 @@ impl Doubao {
     }
 
     pub fn with_config(model: String, configured_api_key: String) -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent("ark-rust-example/0.1")
-            .build()
-            .unwrap();
         println!("use LLM model: {}", model);
         Self {
-            client,
+            client: Self::client(),
             api_key: get_api_key_from_env().unwrap_or(configured_api_key),
             model,
             url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions".to_string(),
@@ -231,10 +228,21 @@ impl LLM for Doubao {
             .json(&body)
             .send()
             .await
-            .unwrap();
+            .map_err(|error| {
+                if error.is_timeout() {
+                    Box::new(LLMError::TimeoutError("上游AI请求超时".to_string()))
+                        as Box<dyn std::error::Error>
+                } else {
+                    Box::new(LLMError::APIFailure(format!("上游AI请求失败: {error}")))
+                        as Box<dyn std::error::Error>
+                }
+            })?;
 
         let status = resp.status();
-        let text = resp.text().await.unwrap();
+        let text = resp.text().await.map_err(|error| {
+            Box::new(LLMError::APIFailure(format!("读取上游AI响应失败: {error}")))
+                as Box<dyn std::error::Error>
+        })?;
         if !status.is_success() {
             let code = status.as_u16();
             if code == 401 || code == 403 {
@@ -242,14 +250,16 @@ impl LLM for Doubao {
                     "鉴权失败: API Key 无效或权限不足".to_string(),
                 )));
             }
-            println!("Request failed: {}\n{}", status, text);
             return Err(Box::new(LLMError::APIFailure(format!(
-                "Request failed: {}\n{}",
-                status, text
+                "上游AI请求失败: {status}"
             ))));
         }
 
-        let v: Value = serde_json::from_str(&text).unwrap();
+        let v: Value = serde_json::from_str(&text).map_err(|error| {
+            Box::new(LLMError::InternalError(format!(
+                "无法解析上游AI响应: {error}"
+            ))) as Box<dyn std::error::Error>
+        })?;
 
         // 7) Try to extract the assistant's message text (best-effort across common shapes)
         if let Some(extracted) = extract_text_from_response(&v) {

@@ -20,8 +20,8 @@ use crate::dao::cache::memory::MemoryResultCache;
 use crate::handlers::jwt::Jwt;
 use crate::service::sport_service::StatSummary;
 use crate::service::{
-    ai_service::AIService, image_service::ImageService, sport_service::SportService,
-    user_service::UserService,
+    ai_job_service::AIJobService, ai_job_worker::start_workers, ai_service::AIService,
+    image_service::ImageService, llm::LLM, sport_service::SportService, user_service::UserService,
 };
 use std::sync::Arc as StdArc;
 
@@ -42,11 +42,25 @@ pub async fn run() {
 
 /// 创建应用实例的通用函数
 pub async fn create_app(config: AppConfig) -> Router {
+    create_app_inner(config, None).await
+}
+
+pub async fn create_app_with_llm(config: AppConfig, llm: Arc<dyn LLM + Send + Sync>) -> Router {
+    create_app_inner(config, Some(llm)).await
+}
+
+async fn create_app_inner(config: AppConfig, llm: Option<Arc<dyn LLM + Send + Sync>>) -> Router {
     #[derive(OpenApi)]
     #[openapi(
         paths(
             crate::handlers::get_status,
             crate::handlers::ai_handler::sports_image_recognition_handler,
+            crate::handlers::ai_job_handler::create_ai_job_handler,
+            crate::handlers::ai_job_handler::list_ai_jobs_handler,
+            crate::handlers::ai_job_handler::get_ai_job_handler,
+            crate::handlers::ai_job_handler::retry_ai_job_handler,
+            crate::handlers::ai_job_handler::get_ai_asset_handler,
+            crate::handlers::ai_job_handler::get_ai_asset_thumbnail_handler,
             crate::handlers::root,
             crate::handlers::user_handler::user_register_handler,
             crate::handlers::user_handler::user_login_handler,
@@ -67,6 +81,8 @@ pub async fn create_app(config: AppConfig) -> Router {
                 crate::service::ai_service::TokenUsage,
                 crate::service::ai_service::ErrorResponse,
                 crate::model::sport::Sport,
+                crate::model::ai_job::AiJobView,
+                crate::model::ai_job::AiJobAsset,
                 crate::handlers::ai_handler::AIResponseText,
                 crate::handlers::user_handler::UserRegisterRequest,
                 crate::handlers::user_handler::UserLoginRequest,
@@ -76,6 +92,7 @@ pub async fn create_app(config: AppConfig) -> Router {
                 crate::service::sport_service::TypeBucket,
                 crate::service::sport_service::StatSummary,
                 crate::handlers::sport_handler::ActionResponse,
+                crate::handlers::sport_handler::InsertSportRequest,
                 crate::handlers::sport_handler::ImportResponse,
                 crate::handlers::sport_handler::DeleteRequest
             )
@@ -88,18 +105,24 @@ pub async fn create_app(config: AppConfig) -> Router {
 
     // 创建Swagger UI并组合路由和CORS
     let swagger_ui = SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi());
-    create_production_router(config).await.merge(swagger_ui)
+    create_production_router(config, llm)
+        .await
+        .merge(swagger_ui)
 }
 
 pub struct AppState {
-    pub ai_service: AIService,
-    pub image_service: ImageService,
+    pub ai_service: Arc<AIService>,
+    pub image_service: Arc<ImageService>,
+    pub ai_job_service: Arc<AIJobService>,
     pub user_service: UserService,
     pub sport_service: SportService,
     pub jwt: Jwt,
 }
 /// 创建生产环境的路由
-async fn create_production_router(config: AppConfig) -> Router {
+async fn create_production_router(
+    config: AppConfig,
+    llm: Option<Arc<dyn LLM + Send + Sync>>,
+) -> Router {
     // 创建AI服务实例（使用默认配置）
 
     let sqlite_db = StdArc::new(
@@ -110,9 +133,30 @@ async fn create_production_router(config: AppConfig) -> Router {
     let jwt = Jwt::new(config.security.jwt_ttl_seconds, config.security.key.clone());
     let cache_total = StdArc::new(MemoryResultCache::<StatSummary, i32>::new());
     let cache_year = StdArc::new(MemoryResultCache::<StatSummary, String>::new());
+    let ai_service = Arc::new(match llm {
+        Some(llm) => AIService::with_llm(llm),
+        None => AIService::with_config(config.ai.model.clone(), config.ai.key.clone()),
+    });
+    let image_service = Arc::new(ImageService::new());
+    let notify = Arc::new(tokio::sync::Notify::new());
+    let ai_job_service = Arc::new(AIJobService::new(
+        sqlite_db.clone(),
+        image_service.clone(),
+        config.ai.job_dir.clone(),
+        notify,
+    ));
+    start_workers(
+        config.ai.worker_concurrency,
+        config.ai.max_attempts,
+        config.ai.retry_delays_seconds.clone(),
+        ai_job_service.clone(),
+        ai_service.clone(),
+        image_service.clone(),
+    );
     let app = Arc::new(AppState {
-        ai_service: AIService::with_config(config.ai.model.clone(), config.ai.key.clone()),
-        image_service: ImageService::new(),
+        ai_service,
+        image_service,
+        ai_job_service,
         user_service: UserService::new(sqlite_db.clone(), config.security.clone()),
         sport_service: SportService::new(
             sqlite_db.clone(),
@@ -131,9 +175,31 @@ async fn create_production_router(config: AppConfig) -> Router {
         .route(routes::API_STATUS, get(get_status))
         .route(
             routes::API_IMAGE_PARSE,
-            post(crate::handlers::ai_handler::sports_image_recognition_handler),
+            post(crate::handlers::ai_handler::sports_image_recognition_handler)
+                .layer(DefaultBodyLimit::max(50 * 1024 * 1024)),
         )
-        .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
+        .route(
+            routes::API_AI_JOBS,
+            post(crate::handlers::ai_job_handler::create_ai_job_handler)
+                .get(crate::handlers::ai_job_handler::list_ai_jobs_handler)
+                .layer(DefaultBodyLimit::max(50 * 1024 * 1024)),
+        )
+        .route(
+            routes::API_AI_JOB,
+            get(crate::handlers::ai_job_handler::get_ai_job_handler),
+        )
+        .route(
+            routes::API_AI_JOB_RETRY,
+            post(crate::handlers::ai_job_handler::retry_ai_job_handler),
+        )
+        .route(
+            routes::API_AI_ASSET,
+            get(crate::handlers::ai_job_handler::get_ai_asset_handler),
+        )
+        .route(
+            routes::API_AI_ASSET_THUMBNAIL,
+            get(crate::handlers::ai_job_handler::get_ai_asset_thumbnail_handler),
+        )
         .route(
             routes::API_USER_REGISTER,
             post(crate::handlers::user_handler::user_register_handler),
@@ -152,9 +218,9 @@ async fn create_production_router(config: AppConfig) -> Router {
         )
         .route(
             routes::API_USER_AVATAR_UPLOAD,
-            post(crate::handlers::user_handler::user_avatar_upload_handler),
+            post(crate::handlers::user_handler::user_avatar_upload_handler)
+                .layer(DefaultBodyLimit::max(20 * 1024 * 1024)),
         )
-        .layer(DefaultBodyLimit::max(20 * 1024 * 1024))
         .route(
             routes::API_SPORT_INSERT,
             post(crate::handlers::sport_handler::insert_sport_handler),

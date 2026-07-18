@@ -119,6 +119,10 @@ slam/
   - `server.ip/port`：监听地址与端口。
   - `db.path`：SQLite 文件路径（本地示例 `sport.db`）。
   - `ai.key`：可留空，作为本机配置回退值；环境变量 `AI_API_KEY` 优先。
+  - `ai.job_dir`：AI 任务原图和缩略图的持久化目录。
+  - `ai.worker_concurrency`：后台 AI Worker 数量，默认 `1`。
+  - `ai.max_attempts`：包含首次执行在内的最大尝试次数，默认 `3`。
+  - `ai.retry_delays_seconds`：自动重试退避秒数，默认 `[15, 60]`。
   - `security.salt/key`：用于派生 JWT 密钥与加解密，务必更换默认值（`change-me-key`）。
 - 容器内配置：`deploy/config/app.container.yml`（`db.path` 已指向 `/data/sport.db`）。
 - Nginx：静态资源与反代（`deploy/config/nginx.conf:6`）。
@@ -137,6 +141,11 @@ slam/
 - 路由常量见：`slam_server/src/app/routes.rs`
   - 状态：`GET /api/status`
   - AI 图片识别：`POST /api/ai/image-parse`
+  - 创建异步 AI 任务：`POST /api/ai/jobs`
+  - 查询异步 AI 任务：`GET /api/ai/jobs?page=0&size=50`
+  - AI 任务详情：`GET /api/ai/jobs/{id}`
+  - 重试失败任务：`POST /api/ai/jobs/{id}/retry`
+  - AI 任务图片：`GET /api/ai/assets/{id}/content` 或 `/thumbnail`
   - 用户注册：`POST /api/user/register`
   - 用户登录：`POST /api/user/login`
   - 用户信息：`GET /api/user/info`
@@ -147,6 +156,11 @@ slam/
   - 统计：`GET /api/sport/stats?kind=year|month|week|total&year=2025[&month=11][&week=47]`
   - 更新：`POST /api/sport/update`
   - 删除：`POST /api/sport/delete`
+
+异步 AI 任务会在服务端持久化原始图片、缩略图和识别结果。只有 `ready` 任务可以提交；
+用户编辑后的运动数据仍通过现有运动新增接口提交，并在顶层附带可选的 `ai_job_id`。
+后端会在事务中插入运动、标记任务已提交，并安排删除关联图片。临时上游错误由后台自动
+重试，最终失败的任务可通过任务重试接口重新排队。
 
 ### 示例：注册登录与新增运动
 

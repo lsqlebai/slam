@@ -1,5 +1,10 @@
 pub const API_STATUS: &str = "/api/status";
 pub const API_IMAGE_PARSE: &str = "/api/ai/image-parse";
+pub const API_AI_JOBS: &str = "/api/ai/jobs";
+pub const API_AI_JOB: &str = "/api/ai/jobs/:id";
+pub const API_AI_JOB_RETRY: &str = "/api/ai/jobs/:id/retry";
+pub const API_AI_ASSET: &str = "/api/ai/assets/:id/content";
+pub const API_AI_ASSET_THUMBNAIL: &str = "/api/ai/assets/:id/thumbnail";
 pub const API_USER_REGISTER: &str = "/api/user/register";
 pub const API_USER_LOGIN: &str = "/api/user/login";
 pub const API_USER_INFO: &str = "/api/user/info";
