@@ -316,6 +316,35 @@ impl AiJobDao for Repository {
         Ok(result.rows_affected() == 1)
     }
 
+    async fn delete_job(&self, uid: i32, id: &str) -> Result<bool, String> {
+        let id = id.to_string();
+        self.conn
+            .transaction(|txn| {
+                let id = id.clone();
+                Box::pin(async move {
+                    let result = txn
+                        .execute(Statement::from_sql_and_values(
+                            DbBackend::Sqlite,
+                            "DELETE FROM ai_jobs WHERE uid = ? AND id = ? AND status IN ('queued', 'ready', 'failed')",
+                            vec![uid.into(), id.clone().into()],
+                        ))
+                        .await?;
+                    if result.rows_affected() == 0 {
+                        return Ok::<bool, sea_orm::DbErr>(false);
+                    }
+                    txn.execute(Statement::from_sql_and_values(
+                        DbBackend::Sqlite,
+                        "DELETE FROM ai_job_assets WHERE uid = ? AND job_id = ?",
+                        vec![uid.into(), id.into()],
+                    ))
+                    .await?;
+                    Ok::<bool, sea_orm::DbErr>(true)
+                })
+            })
+            .await
+            .map_err(|e| format!("删除AI任务失败: {e}"))
+    }
+
     async fn list_assets_for_cleanup(&self, limit: i32) -> Result<Vec<AiJobAsset>, String> {
         let sql = format!(
             "SELECT a.{columns} FROM ai_job_assets a JOIN ai_jobs j ON j.id = a.job_id WHERE j.status = 'submitted' AND a.deleted_at IS NULL ORDER BY j.submitted_at LIMIT ?",

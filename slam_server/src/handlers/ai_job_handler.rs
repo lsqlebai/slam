@@ -115,6 +115,27 @@ pub async fn get_ai_job_handler(
 }
 
 #[utoipa::path(
+    delete,
+    path = "/api/ai/jobs/{id}",
+    params(("id" = String, Path, description = "AI job id")),
+    responses(
+        (status = 200, description = "AI job deleted"),
+        (status = 404, description = "Not found"),
+        (status = 409, description = "Running or submitted job cannot be deleted")
+    )
+)]
+pub async fn delete_ai_job_handler(
+    State(app): State<Arc<AppState>>,
+    ctx: Context,
+    Path(id): Path<String>,
+) -> Response {
+    match app.ai_job_service.delete(ctx.uid, &id).await {
+        Ok(()) => Json(serde_json::json!({ "success": true })).into_response(),
+        Err(error) => error_response(error.code, error.message),
+    }
+}
+
+#[utoipa::path(
     post,
     path = "/api/ai/jobs/{id}/retry",
     params(("id" = String, Path, description = "AI job id")),

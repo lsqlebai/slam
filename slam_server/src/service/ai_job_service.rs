@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::dao::idl::AiJobDao;
 use crate::model::ai_job::{
-    AiJobAsset, AiJobRecord, AiJobView, JOB_FAILED, JOB_QUEUED, JOB_RUNNING,
+    AiJobAsset, AiJobRecord, AiJobView, JOB_FAILED, JOB_QUEUED, JOB_RUNNING, JOB_SUBMITTED,
 };
 use crate::model::sport::Sport;
 use crate::service::common::ServiceError;
@@ -130,6 +130,12 @@ impl AIJobService {
             let _ = fs::remove_dir_all(&final_dir);
             return Err(internal_error(error));
         }
+        tracing::info!(
+            job_id = %job_id,
+            uid,
+            image_count = assets.len(),
+            "AI job created"
+        );
         self.notify.notify_one();
         Ok(to_view(job, assets))
     }
@@ -218,7 +224,70 @@ impl AIJobService {
                 message: "AI任务状态已变化，请刷新后重试".to_string(),
             });
         }
+        tracing::info!(job_id = %id, uid, "AI job manually queued for retry");
         self.notify.notify_one();
+        Ok(())
+    }
+
+    pub async fn delete(&self, uid: i32, id: &str) -> Result<(), ServiceError> {
+        let job = self
+            .dao
+            .get_job(uid, id)
+            .await
+            .map_err(internal_error)?
+            .ok_or_else(|| ServiceError {
+                code: 404,
+                message: "AI任务不存在".to_string(),
+            })?;
+        if job.status == JOB_RUNNING {
+            return Err(ServiceError {
+                code: 409,
+                message: "识别中的AI任务暂时不能删除，请稍后重试".to_string(),
+            });
+        }
+        if job.status == JOB_SUBMITTED {
+            return Err(ServiceError {
+                code: 409,
+                message: "已提交的AI任务不能删除，请删除对应运动记录".to_string(),
+            });
+        }
+
+        let assets = self
+            .dao
+            .list_assets(uid, id)
+            .await
+            .map_err(internal_error)?;
+        if !self.dao.delete_job(uid, id).await.map_err(internal_error)? {
+            return Err(ServiceError {
+                code: 409,
+                message: "AI任务状态已变化，请刷新后重试".to_string(),
+            });
+        }
+
+        let asset_count = assets.len();
+        for asset in assets {
+            let original_deleted = remove_if_present(&asset.original_path);
+            let thumbnail_deleted = remove_if_present(&asset.thumbnail_path);
+            if !original_deleted || !thumbnail_deleted {
+                tracing::warn!(
+                    job_id = %id,
+                    asset_id = %asset.id,
+                    original_deleted,
+                    thumbnail_deleted,
+                    "AI job deleted but an asset file could not be removed"
+                );
+            }
+            if let Some(parent) = Path::new(&asset.original_path).parent() {
+                let _ = fs::remove_dir(parent);
+            }
+        }
+        tracing::info!(
+            job_id = %id,
+            uid,
+            status = %job.status,
+            asset_count,
+            "AI job deleted"
+        );
         Ok(())
     }
 

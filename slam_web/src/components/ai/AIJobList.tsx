@@ -1,15 +1,25 @@
 import { useNavigate } from '@modern-js/runtime/router';
 import {
   Box,
+  Button,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Stack,
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { TEXTS } from '../../i18n';
 import type { Lang } from '../../i18n';
-import { type AIJob, listAIJobs, retryAIJob } from '../../services/aiJob';
+import {
+  type AIJob,
+  deleteAIJob,
+  listAIJobs,
+  retryAIJob,
+} from '../../services/aiJob';
 import { useToast } from '../PageBase';
 import AIJobCard from './AIJobCard';
 
@@ -23,10 +33,12 @@ export default function AIJobList({
   onJobsChange?: (jobs: AIJob[]) => void;
 }) {
   const navigate = useNavigate();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const [jobs, setJobs] = useState<AIJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<AIJob | null>(null);
   const text = TEXTS[lang].aiJobs;
   const hasActiveJobs = jobs.some(
     job => job.status === 'queued' || job.status === 'running',
@@ -100,6 +112,7 @@ export default function AIJobList({
               job={job}
               lang={lang}
               retrying={retrying === job.id}
+              deleting={deleting === job.id}
               onOpen={() =>
                 navigate(
                   `/sport/detail?ai_job_id=${encodeURIComponent(job.id)}`,
@@ -118,10 +131,65 @@ export default function AIJobList({
                   setRetrying(null);
                 }
               }}
+              onDelete={() => setPendingDelete(job)}
             />
           ))}
         </Stack>
       )}
+      <Dialog
+        open={pendingDelete !== null}
+        onClose={() => deleting === null && setPendingDelete(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{text.deleteConfirmTitle}</DialogTitle>
+        <DialogContent>
+          <Typography>
+            {pendingDelete?.status === 'ready'
+              ? text.deleteDraftConfirm
+              : text.deleteJobConfirm}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            disabled={deleting !== null}
+            onClick={() => setPendingDelete(null)}
+          >
+            {TEXTS[lang].register.cancel}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={deleting !== null}
+            onClick={async () => {
+              if (!pendingDelete) return;
+              const job = pendingDelete;
+              setDeleting(job.id);
+              try {
+                await deleteAIJob(job.id);
+                await refresh(true);
+                setPendingDelete(null);
+                showSuccess(text.deleteSuccess);
+              } catch (error) {
+                showError(
+                  error instanceof Error ? error.message : text.deleteFailed,
+                );
+              } finally {
+                setDeleting(null);
+              }
+            }}
+          >
+            {deleting !== null ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : pendingDelete?.status === 'ready' ? (
+              text.deleteDraft
+            ) : (
+              text.deleteJob
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

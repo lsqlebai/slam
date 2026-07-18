@@ -144,6 +144,7 @@ slam/
   - 创建异步 AI 任务：`POST /api/ai/jobs`
   - 查询异步 AI 任务：`GET /api/ai/jobs?page=0&size=50`
   - AI 任务详情：`GET /api/ai/jobs/{id}`
+  - 删除排队中、待确认或失败的 AI 任务：`DELETE /api/ai/jobs/{id}`
   - 重试失败任务：`POST /api/ai/jobs/{id}/retry`
   - AI 任务图片：`GET /api/ai/assets/{id}/content` 或 `/thumbnail`
   - 用户注册：`POST /api/user/register`
@@ -160,7 +161,8 @@ slam/
 异步 AI 任务会在服务端持久化原始图片、缩略图和识别结果。只有 `ready` 任务可以提交；
 用户编辑后的运动数据仍通过现有运动新增接口提交，并在顶层附带可选的 `ai_job_id`。
 后端会在事务中插入运动、标记任务已提交，并安排删除关联图片。临时上游错误由后台自动
-重试，最终失败的任务可通过任务重试接口重新排队。
+重试，最终失败的任务可通过任务重试接口重新排队。排队中、待确认和失败任务可连同已保存
+图片一起删除；识别中和已提交任务不能通过任务接口删除。
 
 ### 示例：注册登录与新增运动
 

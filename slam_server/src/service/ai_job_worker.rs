@@ -1,6 +1,6 @@
 use std::fs;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::service::ai_job_service::AIJobService;
 use crate::service::ai_service::AIService;
@@ -15,18 +15,34 @@ pub fn start_workers(
     ai: Arc<AIService>,
     images: Arc<ImageService>,
 ) {
-    for _ in 0..count.max(1) {
+    let worker_count = count.max(1);
+    tracing::info!(
+        worker_count,
+        max_attempts = max_attempts.max(1),
+        retry_delays_seconds = ?retry_delays_seconds,
+        "starting AI job workers"
+    );
+    for worker_id in 0..worker_count {
         let jobs = jobs.clone();
         let ai = ai.clone();
         let images = images.clone();
         let retry_delays_seconds = retry_delays_seconds.clone();
         tokio::spawn(async move {
-            worker_loop(max_attempts.max(1), retry_delays_seconds, jobs, ai, images).await;
+            worker_loop(
+                worker_id,
+                max_attempts.max(1),
+                retry_delays_seconds,
+                jobs,
+                ai,
+                images,
+            )
+            .await;
         });
     }
 }
 
 async fn worker_loop(
+    worker_id: usize,
     max_attempts: i32,
     retry_delays_seconds: Vec<u64>,
     jobs: Arc<AIJobService>,
@@ -43,7 +59,15 @@ async fn worker_loop(
         }
         match jobs.claim(600).await {
             Ok(Some(job)) => {
+                tracing::info!(
+                    worker_id,
+                    job_id = %job.id,
+                    uid = job.uid,
+                    attempt = job.attempts,
+                    "AI job claimed"
+                );
                 process_job(
+                    worker_id,
                     max_attempts,
                     &retry_delays_seconds,
                     &jobs,
@@ -68,6 +92,7 @@ async fn worker_loop(
 }
 
 async fn process_job(
+    worker_id: usize,
     max_attempts: i32,
     retry_delays_seconds: &[u64],
     jobs: &AIJobService,
@@ -75,6 +100,7 @@ async fn process_job(
     images: &ImageService,
     job: crate::model::ai_job::AiJobRecord,
 ) {
+    let started = Instant::now();
     let result = async {
         let assets = jobs
             .get_assets_for_worker(&job)
@@ -106,7 +132,16 @@ async fn process_job(
     match result {
         Ok(sport) => {
             if let Err(error) = jobs.mark_ready(&job.id, &sport).await {
-                tracing::error!(job_id = %job.id, error = %error, "failed to mark AI job ready");
+                tracing::error!(worker_id, job_id = %job.id, error = %error, "failed to mark AI job ready");
+            } else {
+                tracing::info!(
+                    worker_id,
+                    job_id = %job.id,
+                    uid = job.uid,
+                    attempt = job.attempts,
+                    elapsed_ms = started.elapsed().as_millis(),
+                    "AI job completed"
+                );
             }
         }
         Err(error) => {
@@ -125,6 +160,17 @@ async fn process_job(
             } else {
                 None
             };
+            tracing::warn!(
+                worker_id,
+                job_id = %job.id,
+                uid = job.uid,
+                attempt = job.attempts,
+                error_code = error.code,
+                error_message = %log_error_message(&error.message),
+                retry_at,
+                elapsed_ms = started.elapsed().as_millis(),
+                "AI job processing failed"
+            );
             if let Err(mark_error) = jobs
                 .mark_error(&job.id, &error.code.to_string(), &error.message, retry_at)
                 .await
@@ -133,6 +179,14 @@ async fn process_job(
             }
         }
     }
+}
+
+fn log_error_message(message: &str) -> String {
+    message
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(500)
+        .collect()
 }
 
 fn now_timestamp() -> i64 {

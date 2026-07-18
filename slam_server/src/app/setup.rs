@@ -58,6 +58,7 @@ async fn create_app_inner(config: AppConfig, llm: Option<Arc<dyn LLM + Send + Sy
             crate::handlers::ai_job_handler::create_ai_job_handler,
             crate::handlers::ai_job_handler::list_ai_jobs_handler,
             crate::handlers::ai_job_handler::get_ai_job_handler,
+            crate::handlers::ai_job_handler::delete_ai_job_handler,
             crate::handlers::ai_job_handler::retry_ai_job_handler,
             crate::handlers::ai_job_handler::get_ai_asset_handler,
             crate::handlers::ai_job_handler::get_ai_asset_thumbnail_handler,
@@ -186,7 +187,8 @@ async fn create_production_router(
         )
         .route(
             routes::API_AI_JOB,
-            get(crate::handlers::ai_job_handler::get_ai_job_handler),
+            get(crate::handlers::ai_job_handler::get_ai_job_handler)
+                .delete(crate::handlers::ai_job_handler::delete_ai_job_handler),
         )
         .route(
             routes::API_AI_JOB_RETRY,

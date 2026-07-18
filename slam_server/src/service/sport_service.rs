@@ -70,7 +70,15 @@ impl SportService {
                     },
                     message: e,
                 })?;
+            let asset_count = submission.asset_paths.len() / 2;
             AIJobService::cleanup_paths(submission.asset_paths);
+            tracing::info!(
+                job_id = %job_id,
+                uid = ctx.uid,
+                sport_id = submission.sport_id,
+                asset_count,
+                "AI job submitted as sport"
+            );
             submission.sport_id
         } else {
             self.dao

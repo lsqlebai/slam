@@ -116,7 +116,14 @@ export const TEXTS = {
       attempts: '尝试次数',
       retry: '重试',
       retryFailed: '重试失败',
-      openReady: '查看并确认',
+      openReady: '查看',
+      deleteJob: '删除',
+      deleteDraft: '删除',
+      deleteConfirmTitle: '确认删除',
+      deleteJobConfirm: '任务及其图片将被永久删除，是否继续？',
+      deleteDraftConfirm: '草稿及其图片将被永久删除，是否继续？',
+      deleteSuccess: '删除成功',
+      deleteFailed: '删除失败',
       waitingRetry: '等待第 {attempt} 次重试',
       status: {
         queued: '排队中',
@@ -263,7 +270,16 @@ export const TEXTS = {
       attempts: 'Attempts',
       retry: 'Retry',
       retryFailed: 'Retry failed',
-      openReady: 'Review',
+      openReady: 'View',
+      deleteJob: 'Delete',
+      deleteDraft: 'Delete',
+      deleteConfirmTitle: 'Confirm deletion',
+      deleteJobConfirm:
+        'This job and its images will be permanently deleted. Continue?',
+      deleteDraftConfirm:
+        'This draft and its images will be permanently deleted. Continue?',
+      deleteSuccess: 'Deleted',
+      deleteFailed: 'Delete failed',
       waitingRetry: 'Waiting for attempt {attempt}',
       status: {
         queued: 'Queued',

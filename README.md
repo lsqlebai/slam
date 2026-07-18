@@ -136,6 +136,7 @@ slam/
   - Create async AI job: `POST /api/ai/jobs`
   - List async AI jobs: `GET /api/ai/jobs?page=0&size=50`
   - AI job detail: `GET /api/ai/jobs/{id}`
+  - Delete a queued, ready, or failed AI job: `DELETE /api/ai/jobs/{id}`
   - Retry a failed AI job: `POST /api/ai/jobs/{id}/retry`
   - AI job image: `GET /api/ai/assets/{id}/content` or `/thumbnail`
   - User register: `POST /api/user/register`
@@ -153,7 +154,9 @@ Async AI jobs persist their input images and recognition result in server-owned 
 `ready` jobs can be submitted. Submit the edited sport through the existing sport insert endpoint
 with an optional top-level `ai_job_id`; the server atomically inserts the sport, marks the job as
 submitted, and schedules its images for deletion. Temporary upstream failures are retried in the
-background, while failed jobs can be retried explicitly through the job API.
+background, while failed jobs can be retried explicitly through the job API. Queued, ready, and
+failed jobs can be deleted together with their stored images; running and submitted jobs cannot be
+deleted through the job API.
 
 ### Example: Register, Login, and Insert Sport
 

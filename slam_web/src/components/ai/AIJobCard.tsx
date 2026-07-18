@@ -1,4 +1,8 @@
-import { Refresh } from '@mui/icons-material';
+import {
+  DeleteOutline,
+  Refresh,
+  VisibilityOutlined,
+} from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -17,14 +21,18 @@ export default function AIJobCard({
   job,
   lang,
   retrying,
+  deleting,
   onOpen,
   onRetry,
+  onDelete,
 }: {
   job: AIJob;
   lang: Lang;
   retrying: boolean;
+  deleting: boolean;
   onOpen: () => void;
   onRetry: () => void;
+  onDelete: () => void;
 }) {
   const text = TEXTS[lang].aiJobs;
   const waitingRetry = job.status === 'queued' && Boolean(job.next_attempt_at);
@@ -32,8 +40,14 @@ export default function AIJobCard({
     ? text.waitingRetry.replace('{attempt}', String(job.attempts + 1))
     : text.status[job.status];
   const ready = job.status === 'ready';
+  const canDelete = job.status !== 'running' && job.status !== 'submitted';
   const showAttempts =
     job.status === 'failed' || waitingRetry || job.attempts > 1;
+  const actionButtonSx = {
+    width: 104,
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  };
 
   return (
     <Card
@@ -145,18 +159,21 @@ export default function AIJobCard({
           sx={{
             gridArea: 'action',
             display: 'flex',
+            gap: 1,
+            flexWrap: 'nowrap',
             alignItems: 'flex-end',
-            justifyContent: { xs: 'stretch', sm: 'flex-end' },
+            justifyContent: 'flex-end',
           }}
         >
           {job.status === 'failed' && (
             <Button
               variant="outlined"
+              size="small"
               startIcon={
                 retrying ? <CircularProgress size={16} /> : <Refresh />
               }
               disabled={retrying}
-              sx={{ width: { xs: '100%', sm: 176 } }}
+              sx={actionButtonSx}
               onClick={onRetry}
             >
               {text.retry}
@@ -165,10 +182,27 @@ export default function AIJobCard({
           {ready && (
             <Button
               variant="contained"
-              sx={{ width: { xs: '100%', sm: 176 } }}
+              size="small"
+              startIcon={<VisibilityOutlined />}
+              sx={actionButtonSx}
               onClick={onOpen}
             >
               {text.openReady}
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="outlined"
+              color="error"
+              size="small"
+              startIcon={
+                deleting ? <CircularProgress size={16} /> : <DeleteOutline />
+              }
+              disabled={deleting || retrying}
+              sx={actionButtonSx}
+              onClick={onDelete}
+            >
+              {text.deleteJob}
             </Button>
           )}
         </Box>

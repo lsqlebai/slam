@@ -57,6 +57,10 @@ export async function retryAIJob(id: string): Promise<void> {
   await http.post(`/ai/jobs/${encodeURIComponent(id)}/retry`);
 }
 
+export async function deleteAIJob(id: string): Promise<void> {
+  await http.delete(`/ai/jobs/${encodeURIComponent(id)}`);
+}
+
 export async function getAIAssetBlob(
   id: string,
   kind: 'thumbnail' | 'content',

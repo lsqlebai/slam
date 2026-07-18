@@ -189,6 +189,21 @@ async fn get_job(
     response_json(app.call(request).await.unwrap()).await
 }
 
+async fn delete_job(
+    app: &mut axum::Router,
+    cookie: Option<&str>,
+    id: &str,
+) -> (StatusCode, serde_json::Value) {
+    let mut builder = Request::builder()
+        .uri(routes::API_AI_JOB.replace(":id", id))
+        .method("DELETE");
+    if let Some(cookie) = cookie {
+        builder = builder.header("cookie", cookie);
+    }
+    let request = builder.body(Body::empty()).unwrap();
+    response_json(app.call(request).await.unwrap()).await
+}
+
 async fn wait_for_status(
     app: &mut axum::Router,
     cookie: &str,
@@ -564,6 +579,113 @@ async fn ai_job_detail_and_retry_enforce_authentication_ownership_and_existence(
             .unwrap()
             .status(),
         StatusCode::OK
+    );
+}
+
+#[tokio::test]
+async fn ai_job_delete_enforces_ownership_status_and_removes_draft_assets() {
+    let temp = TempDir::new().unwrap();
+    let config = isolated_config(&temp, 1);
+    let mock = Arc::new(MockLlm::new(vec![Ok(SAMPLE_XML_SWIMMING.to_string())]));
+    let mut app = app::create_app_with_llm(config.clone(), mock).await;
+    let owner_cookie = register(&mut app, "delete_owner").await;
+    let other_cookie = register(&mut app, "delete_other").await;
+    let repository = Repository::new(&config.db.path).await.unwrap();
+
+    let created = create_job(&mut app, &owner_cookie).await;
+    let draft_id = created["id"].as_str().unwrap();
+    wait_for_status(&mut app, &owner_cookie, draft_id, JOB_READY).await;
+    let asset_id = created["assets"][0]["id"].as_str().unwrap();
+    let asset = repository
+        .get_asset(1, asset_id)
+        .await
+        .unwrap()
+        .expect("draft asset should exist");
+    assert!(std::path::Path::new(&asset.original_path).exists());
+    assert!(std::path::Path::new(&asset.thumbnail_path).exists());
+
+    assert_eq!(
+        delete_job(&mut app, None, draft_id).await.0,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        delete_job(&mut app, Some(&other_cookie), draft_id).await.0,
+        StatusCode::NOT_FOUND
+    );
+
+    seed_job(&repository, 1, "running-delete", JOB_RUNNING, 100).await;
+    seed_job(&repository, 1, "submitted-delete", JOB_SUBMITTED, 101).await;
+    assert_eq!(
+        delete_job(&mut app, Some(&owner_cookie), "running-delete")
+            .await
+            .0,
+        StatusCode::CONFLICT
+    );
+    assert_eq!(
+        delete_job(&mut app, Some(&owner_cookie), "submitted-delete")
+            .await
+            .0,
+        StatusCode::CONFLICT
+    );
+
+    let (status, body) = delete_job(&mut app, Some(&owner_cookie), draft_id).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body, serde_json::json!({ "success": true }));
+    assert_eq!(
+        get_job(&mut app, &owner_cookie, draft_id).await.0,
+        StatusCode::NOT_FOUND
+    );
+    assert!(repository.get_asset(1, asset_id).await.unwrap().is_none());
+    assert!(!std::path::Path::new(&asset.original_path).exists());
+    assert!(!std::path::Path::new(&asset.thumbnail_path).exists());
+
+    let deleted_asset = Request::builder()
+        .uri(routes::API_AI_ASSET_THUMBNAIL.replace(":id", asset_id))
+        .method("GET")
+        .header("cookie", &owner_cookie)
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(
+        app.call(deleted_asset).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+
+    seed_job(&repository, 1, "failed-delete", JOB_FAILED, 102).await;
+    assert_eq!(
+        delete_job(&mut app, Some(&owner_cookie), "failed-delete")
+            .await
+            .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        delete_job(&mut app, Some(&owner_cookie), "failed-delete")
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[tokio::test]
+async fn queued_ai_job_can_be_deleted_before_a_worker_claims_it() {
+    let temp = TempDir::new().unwrap();
+    let config = isolated_config(&temp, 1);
+    let repository = Arc::new(Repository::new(&config.db.path).await.unwrap());
+    seed_job(&repository, 7, "queued-delete", JOB_QUEUED, 100).await;
+    let service = AIJobService::new(
+        repository.clone(),
+        Arc::new(ImageService::new()),
+        &config.ai.job_dir,
+        Arc::new(Notify::new()),
+    );
+
+    service.delete(7, "queued-delete").await.unwrap();
+
+    assert!(
+        repository
+            .get_job(7, "queued-delete")
+            .await
+            .unwrap()
+            .is_none()
     );
 }
 

@@ -50,6 +50,7 @@ pub trait AiJobDao {
         now: i64,
     ) -> Result<(), String>;
     async fn retry_job(&self, uid: i32, id: &str, now: i64) -> Result<bool, String>;
+    async fn delete_job(&self, uid: i32, id: &str) -> Result<bool, String>;
     async fn list_assets_for_cleanup(&self, limit: i32) -> Result<Vec<AiJobAsset>, String>;
     async fn mark_asset_deleted(&self, id: &str, now: i64) -> Result<(), String>;
 }
