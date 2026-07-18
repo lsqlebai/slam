@@ -103,13 +103,13 @@ slam/
   - Web：`http://localhost:8080`
   - 后端 API（经 Nginx 反代）：`http://localhost:8080/api/...`
   - Swagger UI：`http://localhost:8080/docs`
-- 数据持久化：卷 `./db -> /data`（`deploy/docker-compose.yml:31`）。容器内配置挂载至 `/app/config/app.yml`（`deploy/docker-compose.yml:12`）。
+- 数据持久化：卷 `./db -> /data`。容器内配置挂载至 `/app/config/app.yml`。
 
 ### 前端发布产物打包
 
 - 生成 tar 包供 Docker 拉取：
   ```bash
-  bash slam_web/scripts/compress_web_dist.sh
+  bash slam_web/scripts/release.sh
   ```
 - 输出路径示例：`slam_web/release/slam_web-v0.2.0.tar.gz`；`deploy/web/Dockerfile` 会从 GitHub Release 取对应资产。
 

@@ -2,6 +2,7 @@
 slam_server/sport.db
 slam_server/config/app.local.yml
 deploy/db/sport.db
+deploy/.env
 deploy/dockerhub/.env
 slam_web/pnpm-lock.yaml
 deploy.zip

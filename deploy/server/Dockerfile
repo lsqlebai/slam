@@ -3,8 +3,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends git build-essen
 ARG GIT_REPO_URL
 ARG GIT_REF=main
 RUN test -n "$GIT_REPO_URL"
-WORKDIR /src
-RUN git clone --depth 1 --branch "$GIT_REF" "$GIT_REPO_URL" /src
+WORKDIR /tmp
+RUN set -eux; \
+    for attempt in 1 2 3; do \
+      rm -rf /src; \
+      if git clone --depth 1 --branch "$GIT_REF" "$GIT_REPO_URL" /src; then \
+        exit 0; \
+      fi; \
+      if [ "$attempt" -eq 3 ]; then \
+        exit 1; \
+      fi; \
+      sleep $((attempt * 3)); \
+    done
 WORKDIR /src/slam_server
 RUN cargo build --release
 

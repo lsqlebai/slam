@@ -95,13 +95,13 @@ slam/
   - Web: `http://localhost:8080`
   - Backend API (via Nginx reverse proxy): `http://localhost:8080/api/...`
   - Swagger UI: `http://localhost:8080/docs`
-- Data persistence: volume `./db -> /data` (`deploy/docker-compose.yml:31`). In-container config mounted at `/app/config/app.yml` (`deploy/docker-compose.yml:12`).
+- Data persistence: volume `./db -> /data`. The in-container config is mounted at `/app/config/app.yml`.
 
 ### Build Frontend Release Artifact
 
 - Generate tarball for Docker to fetch:
   ```bash
-  bash slam_web/scripts/compress_web_dist.sh
+  bash slam_web/scripts/release.sh
   ```
 - Example output: `slam_web/release/slam_web-v0.2.0.tar.gz`; `deploy/web/Dockerfile` pulls the matching asset from GitHub Release.
 

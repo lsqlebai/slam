@@ -35,6 +35,16 @@ SLAM 是跨平台个人运动数据管理应用：
 
 `deploy/docker-compose.yml` 从指定 Git ref 构建后端，并从 GitHub Release 下载前端 tar 包。容器后端监听 `0.0.0.0:3000`、数据库为 `/data/sport.db`；Nginx 在 8080 提供 SPA，将 `/api/` 转发到后端。版本发布时核对 Cargo/package 版本、Compose 的 `GIT_REF`/`WEB_VERSION` 和 Release 资产名。
 
+当用户要求创建并推送新的发布 Tag 时，必须在同一次发布流程中完成 GitHub Release，不能只推送 Tag：
+
+1. 同步后端、前端和 Compose 版本，完成与发布风险相称的测试和构建。
+2. 执行 `bash slam_web/scripts/release.sh`，生成 `slam_web/release/slam_web-v<version>.tar.gz`。
+3. 提交代码并创建、推送 `v<version>` Tag。
+4. 使用已登录的 GitHub CLI 为该 Tag 创建非 Draft、非 Prerelease 的 Release，并上传同版本 tar 包；默认沿用 `gh release create <tag> <asset> --title <tag> --generate-notes --verify-tag`。如果 Release 已存在，则用 `gh release upload <tag> <asset> --clobber` 补齐或替换资产。
+5. 用 `gh release view` 校验 Tag、Release 状态、资产名和 SHA-256 digest，确保 `deploy/web/Dockerfile` 能找到 `slam_web-<tag>.tar.gz`。
+
+GitHub CLI 未登录或缺少权限时必须明确报告，不能声称发布完成。Android APK/AAB 不属于上述自动上传范围；未签名 Android 产物禁止上传，只有用户明确要求且签名验证通过后才能作为 Release 资产上传。
+
 Compose 使用 bind-backed volume，首次启动前确保 `deploy/db/` 存在。示例 `security.key`/`salt` 仅用于开发，不能直接用于生产。
 
 ## 通用工作方式
