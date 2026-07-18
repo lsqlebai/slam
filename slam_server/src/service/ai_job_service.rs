@@ -191,6 +191,21 @@ impl AIJobService {
     }
 
     pub async fn retry(&self, uid: i32, id: &str) -> Result<(), ServiceError> {
+        let job = self
+            .dao
+            .get_job(uid, id)
+            .await
+            .map_err(internal_error)?
+            .ok_or_else(|| ServiceError {
+                code: 404,
+                message: "AI任务不存在".to_string(),
+            })?;
+        if job.status != JOB_FAILED {
+            return Err(ServiceError {
+                code: 409,
+                message: "只有失败的AI任务可以重试".to_string(),
+            });
+        }
         let now = now_timestamp();
         if !self
             .dao
@@ -200,7 +215,7 @@ impl AIJobService {
         {
             return Err(ServiceError {
                 code: 409,
-                message: "只有失败的AI任务可以重试".to_string(),
+                message: "AI任务状态已变化，请刷新后重试".to_string(),
             });
         }
         self.notify.notify_one();

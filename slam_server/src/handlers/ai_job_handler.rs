@@ -34,7 +34,18 @@ pub async fn create_ai_job_handler(
     mut multipart: Multipart,
 ) -> Response {
     let mut uploads = Vec::new();
-    while let Ok(Some(field)) = multipart.next_field().await {
+    loop {
+        let field = match multipart.next_field().await {
+            Ok(Some(field)) => field,
+            Ok(None) => break,
+            Err(error) => {
+                return (
+                    error.status(),
+                    Json(serde_json::json!({ "error": format!("multipart读取失败: {error}") })),
+                )
+                    .into_response();
+            }
+        };
         if field.name() != Some("image") {
             continue;
         }
@@ -49,7 +60,7 @@ pub async fn create_ai_job_handler(
             }),
             Err(error) => {
                 return (
-                    StatusCode::BAD_REQUEST,
+                    error.status(),
                     Json(serde_json::json!({ "error": format!("multipart读取失败: {error}") })),
                 )
                     .into_response();

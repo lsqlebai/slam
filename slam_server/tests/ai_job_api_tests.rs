@@ -4,13 +4,15 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode};
+use axum::http::{Request, StatusCode, header};
 use reqwest::multipart;
 use slam_server::app::{self, AppConfig, routes};
 use slam_server::dao::Repository;
 use slam_server::dao::idl::AiJobDao;
-use slam_server::model::ai_job::{AiJobRecord, JOB_QUEUED};
-use slam_server::model::sport::SAMPLE_XML_SWIMMING;
+use slam_server::model::ai_job::{
+    AiJobRecord, JOB_FAILED, JOB_QUEUED, JOB_READY, JOB_RUNNING, JOB_SUBMITTED,
+};
+use slam_server::model::sport::{SAMPLE_XML_SWIMMING, Sport};
 use slam_server::service::ai_job_service::AIJobService;
 use slam_server::service::image_service::ImageService;
 use slam_server::service::llm::{ChatCompletionRequest, LLM, LLMError};
@@ -96,14 +98,25 @@ async fn register(app: &mut axum::Router, name: &str) -> String {
 }
 
 async fn create_job(app: &mut axum::Router, cookie: &str) -> serde_json::Value {
+    create_job_with_image_count(app, cookie, 1).await
+}
+
+async fn create_job_with_image_count(
+    app: &mut axum::Router,
+    cookie: &str,
+    image_count: usize,
+) -> serde_json::Value {
     let image = std::fs::read("tests/test_img/test1.jpg").unwrap();
-    let form = multipart::Form::new().part(
-        "image",
-        multipart::Part::bytes(image)
-            .file_name("sport.jpg")
-            .mime_str("image/jpeg")
-            .unwrap(),
-    );
+    let mut form = multipart::Form::new();
+    for index in 0..image_count {
+        form = form.part(
+            "image",
+            multipart::Part::bytes(image.clone())
+                .file_name(format!("sport-{index}.jpg"))
+                .mime_str("image/jpeg")
+                .unwrap(),
+        );
+    }
     let boundary = form.boundary().to_string();
     let request = Request::builder()
         .uri(routes::API_AI_JOBS)
@@ -118,6 +131,48 @@ async fn create_job(app: &mut axum::Router, cookie: &str) -> serde_json::Value {
     let (status, body) = response_json(app.call(request).await.unwrap()).await;
     assert_eq!(status, StatusCode::ACCEPTED, "{body}");
     body
+}
+
+async fn list_jobs(
+    app: &mut axum::Router,
+    cookie: &str,
+    query: &str,
+) -> (StatusCode, serde_json::Value) {
+    let request = Request::builder()
+        .uri(format!("{}{query}", routes::API_AI_JOBS))
+        .method("GET")
+        .header("cookie", cookie)
+        .body(Body::empty())
+        .unwrap();
+    response_json(app.call(request).await.unwrap()).await
+}
+
+async fn seed_job(repository: &Repository, uid: i32, id: &str, status: &str, created_at: i64) {
+    repository
+        .create_job(
+            AiJobRecord {
+                id: id.to_string(),
+                uid,
+                status: status.to_string(),
+                result_json: (status == JOB_READY).then(|| {
+                    serde_json::to_string(&Sport::parse_from_xml(SAMPLE_XML_SWIMMING).unwrap())
+                        .unwrap()
+                }),
+                error_code: (status == JOB_FAILED).then(|| "mock_error".to_string()),
+                error_message: (status == JOB_FAILED).then(|| "mock failure".to_string()),
+                attempts: 0,
+                next_attempt_at: None,
+                lease_until: None,
+                submitted_sport_id: None,
+                created_at,
+                started_at: None,
+                finished_at: None,
+                submitted_at: None,
+            },
+            Vec::new(),
+        )
+        .await
+        .unwrap();
 }
 
 async fn get_job(
@@ -177,6 +232,76 @@ async fn ai_job_success_submit_is_idempotent_and_assets_are_private() {
         app.call(unauthorized_asset).await.unwrap().status(),
         StatusCode::NOT_FOUND
     );
+    let unauthenticated_asset = Request::builder()
+        .uri(routes::API_AI_ASSET.replace(":id", asset_id))
+        .method("GET")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(
+        app.call(unauthenticated_asset).await.unwrap().status(),
+        StatusCode::UNAUTHORIZED
+    );
+    let missing_asset = Request::builder()
+        .uri(routes::API_AI_ASSET.replace(":id", "missing-asset"))
+        .method("GET")
+        .header("cookie", &cookie)
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(
+        app.call(missing_asset).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+
+    let original_asset = Request::builder()
+        .uri(routes::API_AI_ASSET.replace(":id", asset_id))
+        .method("GET")
+        .header("cookie", &cookie)
+        .body(Body::empty())
+        .unwrap();
+    let original_response = app.call(original_asset).await.unwrap();
+    assert_eq!(original_response.status(), StatusCode::OK);
+    assert_eq!(
+        original_response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .unwrap(),
+        "image/jpeg"
+    );
+    assert_eq!(
+        original_response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .unwrap(),
+        "private, max-age=300"
+    );
+    let original_bytes = to_bytes(original_response.into_body(), 2 * 1024 * 1024)
+        .await
+        .unwrap();
+    assert_eq!(
+        original_bytes.as_ref(),
+        std::fs::read("tests/test_img/test1.jpg").unwrap()
+    );
+
+    let thumbnail_asset = Request::builder()
+        .uri(routes::API_AI_ASSET_THUMBNAIL.replace(":id", asset_id))
+        .method("GET")
+        .header("cookie", &cookie)
+        .body(Body::empty())
+        .unwrap();
+    let thumbnail_response = app.call(thumbnail_asset).await.unwrap();
+    assert_eq!(thumbnail_response.status(), StatusCode::OK);
+    assert_eq!(
+        thumbnail_response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .unwrap(),
+        "image/jpeg"
+    );
+    let thumbnail_bytes = to_bytes(thumbnail_response.into_body(), 2 * 1024 * 1024)
+        .await
+        .unwrap();
+    assert!(!thumbnail_bytes.is_empty());
+    assert_eq!(&thumbnail_bytes[..2], &[0xff, 0xd8]);
 
     let ready = wait_for_status(&mut app, &cookie, id, "ready").await;
     assert_eq!(ready["result"]["type"], "Swimming");
@@ -228,31 +353,10 @@ async fn ai_job_success_submit_is_idempotent_and_assets_are_private() {
 #[tokio::test]
 async fn expired_running_job_is_recovered_after_restart_scan() {
     let temp = TempDir::new().unwrap();
-    let db_path = temp.path().join("sport.db");
-    let repository = Repository::new(db_path.to_str().unwrap()).await.unwrap();
+    let config = isolated_config(&temp, 1);
+    let repository = Repository::new(&config.db.path).await.unwrap();
     let now = chrono::Utc::now().timestamp();
-    repository
-        .create_job(
-            AiJobRecord {
-                id: "recover-job".to_string(),
-                uid: 7,
-                status: JOB_QUEUED.to_string(),
-                result_json: None,
-                error_code: None,
-                error_message: None,
-                attempts: 0,
-                next_attempt_at: None,
-                lease_until: None,
-                submitted_sport_id: None,
-                created_at: now,
-                started_at: None,
-                finished_at: None,
-                submitted_at: None,
-            },
-            Vec::new(),
-        )
-        .await
-        .unwrap();
+    seed_job(&repository, 1, "recover-job", JOB_QUEUED, now).await;
     let claimed = repository
         .claim_next_job(now, now - 1)
         .await
@@ -260,9 +364,17 @@ async fn expired_running_job_is_recovered_after_restart_scan() {
         .unwrap();
     assert_eq!(claimed.status, "running");
 
-    repository.requeue_expired_jobs(now).await.unwrap();
-    let recovered = repository.get_job(7, "recover-job").await.unwrap().unwrap();
-    assert_eq!(recovered.status, "queued");
+    let mock = Arc::new(MockLlm::new(Vec::new()));
+    let mut app = app::create_app_with_llm(config, mock).await;
+    let cookie = register(&mut app, "restart_recovery_owner").await;
+    let recovered = wait_for_status(&mut app, &cookie, "recover-job", "failed").await;
+    assert_eq!(recovered["attempts"], 2);
+    assert!(
+        recovered["error_message"]
+            .as_str()
+            .unwrap()
+            .contains("没有可用图片")
+    );
 }
 
 #[tokio::test]
@@ -316,6 +428,143 @@ async fn active_job_list_poll_recovers_expired_job_and_wakes_worker() {
     tokio::time::timeout(Duration::from_millis(50), notify.notified())
         .await
         .expect("poll should wake the worker");
+}
+
+#[tokio::test]
+async fn ai_job_list_api_paginates_orders_and_isolates_users() {
+    let temp = TempDir::new().unwrap();
+    let config = isolated_config(&temp, 1);
+    let mock = Arc::new(MockLlm::new(Vec::new()));
+    let mut app = app::create_app_with_llm(config.clone(), mock).await;
+    let owner_cookie = register(&mut app, "list_owner").await;
+    let other_cookie = register(&mut app, "list_other").await;
+    let repository = Repository::new(&config.db.path).await.unwrap();
+
+    seed_job(&repository, 1, "owner-old", JOB_FAILED, 100).await;
+    seed_job(&repository, 1, "owner-middle", JOB_FAILED, 200).await;
+    seed_job(&repository, 1, "owner-new", JOB_FAILED, 300).await;
+    seed_job(&repository, 1, "owner-submitted", JOB_SUBMITTED, 400).await;
+    seed_job(&repository, 2, "other-newest", JOB_FAILED, 500).await;
+
+    let unauthenticated = Request::builder()
+        .uri(routes::API_AI_JOBS)
+        .method("GET")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(
+        app.call(unauthenticated).await.unwrap().status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    let (status, first_page) = list_jobs(&mut app, &owner_cookie, "?page=0&size=2").await;
+    assert_eq!(status, StatusCode::OK, "{first_page}");
+    assert_eq!(first_page.as_array().unwrap().len(), 2);
+    assert_eq!(first_page[0]["id"], "owner-new");
+    assert_eq!(first_page[1]["id"], "owner-middle");
+
+    let (status, second_page) = list_jobs(&mut app, &owner_cookie, "?page=1&size=2").await;
+    assert_eq!(status, StatusCode::OK, "{second_page}");
+    assert_eq!(second_page.as_array().unwrap().len(), 1);
+    assert_eq!(second_page[0]["id"], "owner-old");
+
+    let (status, other_jobs) = list_jobs(&mut app, &other_cookie, "?page=0&size=50").await;
+    assert_eq!(status, StatusCode::OK, "{other_jobs}");
+    assert_eq!(other_jobs.as_array().unwrap().len(), 1);
+    assert_eq!(other_jobs[0]["id"], "other-newest");
+}
+
+#[tokio::test]
+async fn active_job_list_api_recovers_expired_job_and_wakes_worker() {
+    let temp = TempDir::new().unwrap();
+    let config = isolated_config(&temp, 1);
+    let mock = Arc::new(MockLlm::new(Vec::new()));
+    let mut app = app::create_app_with_llm(config.clone(), mock).await;
+    let cookie = register(&mut app, "poll_api_owner").await;
+    let repository = Repository::new(&config.db.path).await.unwrap();
+    let now = chrono::Utc::now().timestamp();
+    seed_job(&repository, 1, "poll-api-job", JOB_QUEUED, now).await;
+    repository
+        .claim_next_job(now, now - 1)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let (status, jobs) = list_jobs(&mut app, &cookie, "?page=0&size=50").await;
+    assert_eq!(status, StatusCode::OK, "{jobs}");
+    assert_eq!(jobs.as_array().unwrap().len(), 1);
+    assert_eq!(jobs[0]["id"], "poll-api-job");
+    assert!(
+        jobs[0]["status"] != "running" || jobs[0]["attempts"] == 2,
+        "expired running lease was returned without recovery: {jobs}"
+    );
+
+    let failed = wait_for_status(&mut app, &cookie, "poll-api-job", "failed").await;
+    assert_eq!(failed["attempts"], 2);
+}
+
+#[tokio::test]
+async fn ai_job_detail_and_retry_enforce_authentication_ownership_and_existence() {
+    let temp = TempDir::new().unwrap();
+    let config = isolated_config(&temp, 1);
+    let mock = Arc::new(MockLlm::new(Vec::new()));
+    let mut app = app::create_app_with_llm(config.clone(), mock).await;
+    let owner_cookie = register(&mut app, "permission_owner").await;
+    let other_cookie = register(&mut app, "permission_other").await;
+    let repository = Repository::new(&config.db.path).await.unwrap();
+    seed_job(&repository, 1, "owner-failed", JOB_FAILED, 100).await;
+
+    let unauthenticated_detail = Request::builder()
+        .uri(routes::API_AI_JOB.replace(":id", "owner-failed"))
+        .method("GET")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(
+        app.call(unauthenticated_detail).await.unwrap().status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    let (status, _) = get_job(&mut app, &other_cookie, "owner-failed").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = get_job(&mut app, &owner_cookie, "missing-job").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let retry_request = |cookie: Option<&str>, id: &str| {
+        let mut builder = Request::builder()
+            .uri(routes::API_AI_JOB_RETRY.replace(":id", id))
+            .method("POST");
+        if let Some(cookie) = cookie {
+            builder = builder.header("cookie", cookie);
+        }
+        builder.body(Body::empty()).unwrap()
+    };
+    assert_eq!(
+        app.call(retry_request(None, "owner-failed"))
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        app.call(retry_request(Some(&other_cookie), "owner-failed"))
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        app.call(retry_request(Some(&owner_cookie), "missing-job"))
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        app.call(retry_request(Some(&owner_cookie), "owner-failed"))
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
 }
 
 #[tokio::test]
@@ -440,6 +689,154 @@ async fn ai_job_creation_requires_authentication_and_valid_image() {
     let (status, jobs) = response_json(app.call(list).await.unwrap()).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(jobs, serde_json::json!([]));
+}
+
+#[tokio::test]
+async fn ai_job_creation_accepts_multiple_images_and_rejects_empty_or_oversized_uploads() {
+    let temp = TempDir::new().unwrap();
+    let mock = Arc::new(MockLlm::new(vec![Ok(SAMPLE_XML_SWIMMING.to_string())]));
+    let mut app = app::create_app_with_llm(isolated_config(&temp, 1), mock).await;
+    let cookie = register(&mut app, "ai_job_upload_boundaries").await;
+
+    let created = create_job_with_image_count(&mut app, &cookie, 2).await;
+    assert_eq!(created["assets"].as_array().unwrap().len(), 2);
+    assert_eq!(created["assets"][0]["position"], 0);
+    assert_eq!(created["assets"][1]["position"], 1);
+    let id = created["id"].as_str().unwrap();
+    wait_for_status(&mut app, &cookie, id, "ready").await;
+
+    let empty_form = multipart::Form::new();
+    let boundary = empty_form.boundary().to_string();
+    let empty_upload = Request::builder()
+        .uri(routes::API_AI_JOBS)
+        .method("POST")
+        .header(
+            "content-type",
+            format!("multipart/form-data; boundary={boundary}"),
+        )
+        .header("cookie", &cookie)
+        .body(Body::from_stream(empty_form.into_stream()))
+        .unwrap();
+    assert_eq!(
+        app.call(empty_upload).await.unwrap().status(),
+        StatusCode::BAD_REQUEST
+    );
+
+    let oversized_form = multipart::Form::new().part(
+        "image",
+        multipart::Part::bytes(vec![0_u8; 50 * 1024 * 1024 + 1])
+            .file_name("oversized.jpg")
+            .mime_str("image/jpeg")
+            .unwrap(),
+    );
+    let boundary = oversized_form.boundary().to_string();
+    let oversized_upload = Request::builder()
+        .uri(routes::API_AI_JOBS)
+        .method("POST")
+        .header(
+            "content-type",
+            format!("multipart/form-data; boundary={boundary}"),
+        )
+        .header("cookie", &cookie)
+        .body(Body::from_stream(oversized_form.into_stream()))
+        .unwrap();
+    assert_eq!(
+        app.call(oversized_upload).await.unwrap().status(),
+        StatusCode::PAYLOAD_TOO_LARGE
+    );
+}
+
+#[tokio::test]
+async fn ai_job_creation_limits_each_user_to_three_active_jobs() {
+    let temp = TempDir::new().unwrap();
+    let config = isolated_config(&temp, 1);
+    let mock = Arc::new(MockLlm::new(Vec::new()));
+    let mut app = app::create_app_with_llm(config.clone(), mock).await;
+    let cookie = register(&mut app, "active_job_limit").await;
+    let repository = Repository::new(&config.db.path).await.unwrap();
+    for index in 0..3 {
+        seed_job(
+            &repository,
+            1,
+            &format!("active-{index}"),
+            JOB_RUNNING,
+            100 + index,
+        )
+        .await;
+    }
+
+    let image = std::fs::read("tests/test_img/test1.jpg").unwrap();
+    let form = multipart::Form::new().part(
+        "image",
+        multipart::Part::bytes(image)
+            .file_name("sport.jpg")
+            .mime_str("image/jpeg")
+            .unwrap(),
+    );
+    let boundary = form.boundary().to_string();
+    let request = Request::builder()
+        .uri(routes::API_AI_JOBS)
+        .method("POST")
+        .header(
+            "content-type",
+            format!("multipart/form-data; boundary={boundary}"),
+        )
+        .header("cookie", &cookie)
+        .body(Body::from_stream(form.into_stream()))
+        .unwrap();
+    assert_eq!(
+        app.call(request).await.unwrap().status(),
+        StatusCode::TOO_MANY_REQUESTS
+    );
+}
+
+#[tokio::test]
+async fn sport_submission_rejects_missing_foreign_and_non_ready_ai_jobs_atomically() {
+    let temp = TempDir::new().unwrap();
+    let config = isolated_config(&temp, 1);
+    let mock = Arc::new(MockLlm::new(Vec::new()));
+    let mut app = app::create_app_with_llm(config.clone(), mock).await;
+    let owner_cookie = register(&mut app, "submit_owner").await;
+    register(&mut app, "submit_other").await;
+    let repository = Repository::new(&config.db.path).await.unwrap();
+    seed_job(&repository, 1, "owner-failed", JOB_FAILED, 100).await;
+    seed_job(&repository, 2, "other-ready", JOB_READY, 200).await;
+
+    let sport = serde_json::to_value(Sport::parse_from_xml(SAMPLE_XML_SWIMMING).unwrap()).unwrap();
+    let submit = |job_id: &str| {
+        let mut body = sport.clone();
+        body["ai_job_id"] = serde_json::json!(job_id);
+        Request::builder()
+            .uri(routes::API_SPORT_INSERT)
+            .method("POST")
+            .header("content-type", "application/json")
+            .header("cookie", &owner_cookie)
+            .body(Body::from(body.to_string()))
+            .unwrap()
+    };
+
+    assert_eq!(
+        app.call(submit("missing-job")).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        app.call(submit("other-ready")).await.unwrap().status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        app.call(submit("owner-failed")).await.unwrap().status(),
+        StatusCode::CONFLICT
+    );
+
+    let sports = Request::builder()
+        .uri(format!("{}?page=0&size=20", routes::API_SPORT_LIST))
+        .method("GET")
+        .header("cookie", &owner_cookie)
+        .body(Body::empty())
+        .unwrap();
+    let (status, body) = response_json(app.call(sports).await.unwrap()).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body, serde_json::json!([]));
 }
 
 #[tokio::test]
