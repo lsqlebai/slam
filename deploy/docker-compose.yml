@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: ./server/Dockerfile
       args:
-        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        ALL_PROXY: ${BUILD_SOCKS5_PROXY:-}
         GIT_REF: v0.6.4
         GIT_REPO_URL: "https://github.com/lsqlebai/slam.git"
     container_name: slam_server
@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: ./web/Dockerfile
       args:
-        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        ALL_PROXY: ${BUILD_SOCKS5_PROXY:-}
         GITHUB_REPO: "lsqlebai/slam"
         WEB_VERSION: v0.6.4
     container_name: slam_web
