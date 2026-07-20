@@ -2,12 +2,14 @@ FROM rust:1.91-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends git build-essential pkg-config openssl libssl-dev ca-certificates curl unzip && rm -rf /var/lib/apt/lists/*
 ARG GIT_REPO_URL
 ARG GIT_REF=main
+ARG GITHUB_PROXY
 RUN test -n "$GIT_REPO_URL"
 WORKDIR /tmp
 RUN set -eux; \
+    github_clone() { if [ -n "$GITHUB_PROXY" ]; then git -c http.proxy="$GITHUB_PROXY" clone "$@"; else git clone "$@"; fi; }; \
     for attempt in 1 2 3; do \
       rm -rf /src; \
-      if git clone --depth 1 --branch "$GIT_REF" "$GIT_REPO_URL" /src; then \
+      if github_clone --depth 1 --branch "$GIT_REF" "$GIT_REPO_URL" /src; then \
         exit 0; \
       fi; \
       if [ "$attempt" -eq 3 ]; then \
