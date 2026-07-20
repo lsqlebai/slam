@@ -16,8 +16,10 @@ import {
   type FieldConfig,
   type LayoutConfig,
   getDefaultTrackExtraByType,
+  getExtraFieldValue,
   getTrackExtraConfigByType,
   groupByLayout,
+  setExtraFieldValue,
 } from './ExtraConfig';
 
 export default function TrackDialog({
@@ -92,10 +94,17 @@ export default function TrackDialog({
           />
           {rows.length > 0 ? (
             <Stack spacing={2}>
-              {rows.map((row, rIdx) => (
-                <Stack key={rIdx} direction="row" spacing={2}>
+              {rows.map(row => (
+                <Stack
+                  key={row.map(field => field.key).join('-')}
+                  direction="row"
+                  spacing={2}
+                >
                   {row.map(cfg => {
-                    const rawVal = (trackDraft.extra as any)?.[cfg.key];
+                    const rawVal = getExtraFieldValue(
+                      trackDraft.extra,
+                      cfg.key,
+                    );
                     const baseVal = rawVal ?? cfg.default;
                     const value =
                       cfg.kind === 'number'
@@ -112,11 +121,16 @@ export default function TrackDialog({
                           label={cfg.label}
                           value={value}
                           onChange={e => {
-                            const base = (trackDraft.extra ??
-                              getDefaultTrackExtraByType(sportType) ??
-                              {}) as any;
+                            const base =
+                              trackDraft.extra ??
+                              getDefaultTrackExtraByType(sportType);
+                            if (!base) return;
                             onChange({
-                              extra: { ...base, [cfg.key]: e.target.value },
+                              extra: setExtraFieldValue(
+                                base,
+                                cfg.key,
+                                e.target.value,
+                              ),
                             });
                           }}
                           fullWidth
@@ -144,10 +158,13 @@ export default function TrackDialog({
                                 ? cfg.parse(e.target.value)
                                 : Number.parseInt(e.target.value || '0')
                               : e.target.value;
-                          const base = (trackDraft.extra ??
-                            getDefaultTrackExtraByType(sportType) ??
-                            {}) as any;
-                          onChange({ extra: { ...base, [cfg.key]: parsed } });
+                          const base =
+                            trackDraft.extra ??
+                            getDefaultTrackExtraByType(sportType);
+                          if (!base) return;
+                          onChange({
+                            extra: setExtraFieldValue(base, cfg.key, parsed),
+                          });
                         }}
                         fullWidth
                       />

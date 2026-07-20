@@ -14,6 +14,7 @@ import type { Track as TrackType } from '../../services/sport';
 import { getSportType } from '../../services/sport';
 import {
   type FieldConfig,
+  getExtraFieldValue,
   getTrackExtraConfigByType,
   groupByLayout,
   makeUniformLayout,
@@ -119,7 +120,7 @@ export default function TrackItem({
           </Box>
           {rows.length > 0 && t.extra
             ? rows.flat().map(cfg => {
-                const raw = (t.extra as any)?.[cfg.key];
+                const raw = getExtraFieldValue(t.extra, cfg.key);
                 const value = raw ?? cfg.default;
                 const display =
                   cfg.kind === 'select' && cfg.options

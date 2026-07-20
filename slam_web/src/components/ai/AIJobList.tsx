@@ -1,4 +1,5 @@
 import { useNavigate } from '@modern-js/runtime/router';
+import { Add } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -96,6 +97,16 @@ export default function AIJobList({
         pb: embedded ? 2 : 'calc(env(safe-area-inset-bottom) + 48px)',
       }}
     >
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => navigate('/addsports')}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
+        >
+          {text.newTask}
+        </Button>
+      </Box>
       {loading ? (
         <Box sx={{ display: 'grid', placeItems: 'center', py: 8 }}>
           <CircularProgress />

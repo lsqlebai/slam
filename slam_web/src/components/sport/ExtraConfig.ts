@@ -1,17 +1,49 @@
 import { TEXTS } from '../../i18n';
 import { SportType } from '../../services/sport';
-import type { Running, Swimming, Track } from '../../services/sport';
+import type {
+  Running,
+  SportExtra,
+  Swimming,
+  Track,
+} from '../../services/sport';
 
 export type FieldKind = 'select' | 'number' | 'text';
+export type FieldValue = string | number;
 export type FieldOption = { value: string; label: string };
 export type FieldConfig = {
   key: string;
   label: string;
   kind: FieldKind;
   options?: FieldOption[];
-  parse?: (v: string) => any;
-  default: string | number;
+  parse?: (v: string) => FieldValue;
+  default: FieldValue;
 };
+
+export function getExtraFieldValue(
+  extra: SportExtra | undefined,
+  key: string,
+): FieldValue | undefined {
+  if (!extra) return undefined;
+  const value = Reflect.get(extra, key);
+  return typeof value === 'string' || typeof value === 'number'
+    ? value
+    : undefined;
+}
+
+export function makeExtraPatch(
+  key: string,
+  value: FieldValue,
+): Partial<SportExtra> {
+  return { [key]: value } as Partial<SportExtra>;
+}
+
+export function setExtraFieldValue(
+  extra: SportExtra,
+  key: string,
+  value: FieldValue,
+): SportExtra {
+  return Object.assign({}, extra, { [key]: value });
+}
 
 // 布局配置：定义每一行放多少个字段
 export type LayoutConfig = {

@@ -1,18 +1,15 @@
 import { DirectionsRun, HelpOutline, Pool } from '@mui/icons-material';
 import { MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { TEXTS } from '../../i18n';
-import type {
-  Running,
-  Sport,
-  SportExtra,
-  Swimming,
-} from '../../services/sport';
+import type { Sport, SportExtra } from '../../services/sport';
 import { SportType, getSportType } from '../../services/sport';
 import {
   type FieldConfig,
   type LayoutConfig,
   getExtraConfigByType,
+  getExtraFieldValue,
   groupByLayout,
+  makeExtraPatch,
 } from './ExtraConfig';
 
 export default function SportExtraInfo({
@@ -33,9 +30,6 @@ export default function SportExtraInfo({
     [SportType.Cycling]: <HelpOutline fontSize="small" />,
     [SportType.Unknown]: <HelpOutline fontSize="small" />,
   };
-
-  // 直接通过 FieldConfig 的默认值做字段级回退，无需整体 model
-  const extra = sport.extra as any;
 
   const fields: FieldConfig[] = getExtraConfigByType(lang, sportType);
   const EXTRA_LAYOUT_BY_TYPE: Record<SportType, number[]> = {
@@ -63,10 +57,14 @@ export default function SportExtraInfo({
           </Typography>
         ) : (
           <Stack spacing={2} sx={{ pb: 2 }}>
-            {rows.map((row, rIdx) => (
-              <Stack key={rIdx} direction="row" spacing={2}>
+            {rows.map(row => (
+              <Stack
+                key={row.map(field => field.key).join('-')}
+                direction="row"
+                spacing={2}
+              >
                 {row.map(cfg => {
-                  const rawVal = extra?.[cfg.key];
+                  const rawVal = getExtraFieldValue(sport.extra, cfg.key);
                   const baseVal = rawVal ?? cfg.default;
                   const value =
                     cfg.kind === 'number'
@@ -83,7 +81,7 @@ export default function SportExtraInfo({
                         label={cfg.label}
                         value={value}
                         onChange={e =>
-                          updateExtra({ [cfg.key]: e.target.value } as any)
+                          updateExtra(makeExtraPatch(cfg.key, e.target.value))
                         }
                         disabled={readonly}
                         sx={{
@@ -120,7 +118,7 @@ export default function SportExtraInfo({
                               ? cfg.parse(e.target.value)
                               : Number.parseInt(e.target.value || '0')
                             : e.target.value;
-                        updateExtra({ [cfg.key]: parsed } as any);
+                        updateExtra(makeExtraPatch(cfg.key, parsed));
                       }}
                       InputProps={{ readOnly: readonly }}
                       fullWidth
